@@ -79,7 +79,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="FastColoredTextBox">
-      <HintPath>..\..\..\Downloads\FastColoredTextBoxDemo\FastColoredTextBoxDemo\FastColoredTextBox.dll</HintPath>
+      <HintPath>..\FastColoredTextBox.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
