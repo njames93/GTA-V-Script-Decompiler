@@ -613,8 +613,9 @@ namespace Decompiler
             }
             if (usedefault)
             {
-                if (allreturns)
-                    usedefault = false;
+				//this seems to be causing some errors
+               // if (allreturns)
+                //    usedefault = false;
             }
 
             if (usedefault)

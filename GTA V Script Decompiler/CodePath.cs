@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 
 namespace Decompiler
 {
+	//Not a fan of this code, should really have been handled using a tree but too far into project to change this now
     internal class CodePath
     {
         public CodePath Parent;

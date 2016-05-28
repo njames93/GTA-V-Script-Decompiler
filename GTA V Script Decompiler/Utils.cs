@@ -14,7 +14,7 @@ namespace Decompiler
 			char[] key = str.ToLower().ToCharArray();
 			for (hash = i = 0; i < key.Length; i++)
 			{
-				hash += (uint)key[i];
+				hash += key[i];
 				hash += (hash << 10);
 				hash ^= (hash >> 6);
 			}
