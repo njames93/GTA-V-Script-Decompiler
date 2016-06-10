@@ -17,21 +17,22 @@ namespace Decompiler
         [STAThread]
         static void Main()
         {
-            Program.ThreadLock = new object();
-
+            ThreadLock = new object();
+			Config = new Ini.IniFile(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "config.ini"));
+			Find_Nat_Namespace();
 			//Build NativeFiles from Directory if file exists, if not use the files in the resources
 			string path = Path.Combine(Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location), "natives.dat");
 			if (File.Exists(path))
-				Program.nativefile = new NativeFile(File.OpenRead(path));
+				nativefile = new NativeFile(File.OpenRead(path));
 			else
-				Program.nativefile = new NativeFile(new MemoryStream(Properties.Resources.natives));
+				nativefile = new NativeFile(new MemoryStream(Properties.Resources.natives));
 
 
 			path = Path.Combine(Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location), "x64natives.dat");
 			if (File.Exists(path))
-				Program.x64nativefile = new x64NativeFile(File.OpenRead(path));
+				x64nativefile = new x64NativeFile(File.OpenRead(path));
 			else
-				Program.x64nativefile = new x64NativeFile(new MemoryStream(Properties.Resources.x64natives));
+				x64nativefile = new x64NativeFile(new MemoryStream(Properties.Resources.x64natives));
 
 			Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
@@ -98,6 +99,12 @@ namespace Decompiler
         }
         private static bool _Show_Func_Pointer = false;
         public static bool Show_Func_Pointer { get { return _Show_Func_Pointer; } }
-        
-    }
+		public static bool Find_Nat_Namespace()
+		{
+			return _Show_Nat_Namespace = Program.Config.IniReadBool("Base", "Show_Nat_Namespace", false);
+		}
+		private static bool _Show_Nat_Namespace = false;
+		public static bool Show_Nat_Namespace { get { return _Show_Nat_Namespace; } }
+
+	}
 }

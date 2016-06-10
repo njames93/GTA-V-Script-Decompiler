@@ -36,9 +36,10 @@ namespace Decompiler
         internal bool Decoded { get; private set; }
         internal bool DecodeStarted = false;
         internal bool predecoded = false;
+		internal bool predecodeStarted = false;
 
-        Vars_Info Vars;
-        Vars_Info Params;
+        public Vars_Info Vars { get; private set; }
+		public Vars_Info Params { get; private set; }
         public int LineCount = 0;
         public bool onlyboolret = true;
         private readonly bool _consoleVer;
@@ -192,14 +193,28 @@ namespace Decompiler
         /// </summary>
         /// <param name="offset">the offset that is being called</param>
         /// <returns>basic information about the function at that offset</returns>
-        public FunctionName GetFunctionFromOffset(int offset)
+        public FunctionName GetFunctionNameFromOffset(int offset)
         {
             if (Scriptfile.FunctionLoc.ContainsKey(offset))
                 return Scriptfile.FunctionLoc[offset];
             throw new Exception("Function Not Found");
         }
+		/// <summary>
+		/// Gets the function info given the offset where its called from
+		/// </summary>
+		/// <param name="offset">the offset that is being called</param>
+		/// <returns>basic information about the function at that offset</returns>
+		public Function GetFunctionFromOffset(int offset)
+		{
+			foreach (Function f in Scriptfile.Functions)
+			{
+				if (f.Location <= offset && offset <= f.MaxLocation)
+					return f;
+			}
+			throw new Exception("Function Not Found");
+		}
 
-        public void ScruffDissasemble()
+		public void ScruffDissasemble()
         {
             //getinstructions(false);
 
@@ -238,7 +253,8 @@ namespace Decompiler
         /// </summary>
         public void PreDecode()
         {
-            if (predecoded) return;
+            if (predecoded || predecodeStarted) return;
+			predecodeStarted = true;
             getinstructions();
             decodeinsructionsforvarinfo();
             predecoded = true;
@@ -1066,7 +1082,7 @@ namespace Decompiler
                 case Instruction.JumpLt: Stack.Op_CmpGE(); goto HandleJump;
                 case Instruction.JumpGe: Stack.Op_CmpLT(); goto HandleJump;
                 case Instruction.JumpGt: Stack.Op_CmpLE(); goto HandleJump;
-                case Instruction.Call: FunctionName tempf = GetFunctionFromOffset(Instructions[Offset].GetOperandsAsInt);
+                case Instruction.Call: FunctionName tempf = GetFunctionNameFromOffset(Instructions[Offset].GetOperandsAsInt);
                     tempstring = Stack.FunctionCall(tempf.Name, tempf.Pcount, tempf.Rcount);
                         if (tempstring != "")
                         {
@@ -1513,12 +1529,23 @@ namespace Decompiler
                     case Instruction.JumpGt: CheckInstruction(0, Stack.DataType.Int, 2); Stack.Drop(); Stack.Drop(); break;
 
 
-                    case Instruction.Call: FunctionName tempf = GetFunctionFromOffset(ins.GetOperandsAsInt);
-                        Stack.FunctionCall(tempf.Name, tempf.Pcount, tempf.Rcount);
+                    case Instruction.Call: FunctionName tempf = GetFunctionNameFromOffset(ins.GetOperandsAsInt);
+						//this seems to cause some kind of circular reference, though i have no idea why
+						/*Function func = GetFunctionFromOffset(ins.GetOperandsAsInt);
+						if (func.predecoded)
+						{
+							for (i = 0; i < tempf.Pcount; i++)
+							{
+								CheckInstruction(tempf.Pcount - i - 1, func.Params.GetTypeAtIndex((uint)i));
+							}				 
+						}*/
+						Stack.FunctionCall(tempf.Name, tempf.Pcount, tempf.Rcount);
                         break;
 
 
-                    case Instruction.Switch: break;
+                    case Instruction.Switch:
+		                CheckInstruction(0, Stack.DataType.Int);
+						break;
 
                     case Instruction.PushString:
                         tempstring = Stack.PopLit();

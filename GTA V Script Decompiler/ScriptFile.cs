@@ -87,7 +87,7 @@ namespace Decompiler
                     i++;
                     foreach (string s in Statics.GetDeclaration())
                     {
-                        savestream.WriteLine("\tstatic " + s);
+                        savestream.WriteLine("\t" + s);
                         i++;
                     }
                     savestream.WriteLine("#endregion");

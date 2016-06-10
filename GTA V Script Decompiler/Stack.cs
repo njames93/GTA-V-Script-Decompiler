@@ -854,11 +854,11 @@ namespace Decompiler
                     }
                 }
             }
-            Push(new StackValue(StackValue.Type.Literal, PopPointerRef() + ".item_" + immediate.ToString()));
+            Push(new StackValue(StackValue.Type.Literal, PopPointerRef() + ".f_" + immediate.ToString("X")));
         }
         public string Op_SetImm(uint immediate)
         {
-            string imm = ".item_" + immediate.ToString();
+            string imm = ".f_" + immediate.ToString("X");
             if (PeekVar(0) != null)
             {
                 if (PeekVar(0).Immediatesize == 3)
@@ -878,9 +878,9 @@ namespace Decompiler
         public void Op_GetImmP(uint immediate)
         {
             if (Peek().ItemType == StackValue.Type.Pointer)
-                Push(new StackValue(StackValue.Type.Pointer, PopPointerRef() + ".item_" + immediate.ToString()));
+                Push(new StackValue(StackValue.Type.Pointer, PopPointerRef() + ".f_" + immediate.ToString("X")));
             else if (Peek().ItemType == StackValue.Type.Literal)
-                Push(new StackValue(StackValue.Type.Literal, PopLit() + ".item_" + immediate.ToString()));
+                Push(new StackValue(StackValue.Type.Literal, PopLit() + ".f_" + immediate.ToString("X")));
             else throw new Exception("Unexpected Stack Value :" + Peek().ItemType.ToString());
         }
 
@@ -891,17 +891,17 @@ namespace Decompiler
             if (Utils.intparse(immediate, out temp))
             {
                 if (Peek().ItemType == StackValue.Type.Pointer)
-                    Push(new StackValue(StackValue.Type.Pointer, PopPointerRef() + ".item_" + temp.ToString()));
+                    Push(new StackValue(StackValue.Type.Pointer, PopPointerRef() + ".f_" + temp.ToString("X")));
                 else if (Peek().ItemType == StackValue.Type.Literal)
-                    Push(new StackValue(StackValue.Type.Literal, PopLit() + ".item_" + temp.ToString()));
+                    Push(new StackValue(StackValue.Type.Literal, PopLit() + ".f_" + temp.ToString("X")));
                 else throw new Exception("Unexpected Stack Value :" + Peek().ItemType.ToString());
             }
             else
             {
                 if (Peek().ItemType == StackValue.Type.Pointer)
-                    Push(new StackValue(StackValue.Type.Pointer, PopPointerRef() + ".item_[" + immediate + "]"));
+                    Push(new StackValue(StackValue.Type.Pointer, PopPointerRef() + ".f_[" + immediate + "]"));
                 else if (Peek().ItemType == StackValue.Type.Literal)
-                    Push(new StackValue(StackValue.Type.Literal, PopLit() + ".item_[" + immediate + "]"));
+                    Push(new StackValue(StackValue.Type.Literal, PopLit() + ".f_[" + immediate + "]"));
                 else throw new Exception("Unexpected Stack Value :" + Peek().ItemType.ToString());
             }
 

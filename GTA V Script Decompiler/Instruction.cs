@@ -281,15 +281,15 @@ namespace Decompiler
                     case Instruction.pGlobal2:
                     case Instruction.GlobalGet2:
                     case Instruction.GlobalSet2:
-                        return "Global_"+GetOperandsAsUInt.ToString();
+                        return "Global_"+GetOperandsAsUInt.ToString("X");
                     case Instruction.pGlobal3:
                     case Instruction.GlobalGet3:
                     case Instruction.GlobalSet3:
-                        int pagesize = 0x10000;
-                        int index1 = GetOperandsAsInt / pagesize;
+                       // int pagesize = 0x10000;
+                       // int index1 = GetOperandsAsInt / pagesize;
                         /*if (!ScriptFile.Test.Contains(index1))
                             ScriptFile.Test.Add(index1);*/
-                        return "Global_" + GetOperandsAsUInt.ToString();
+                        return "Global_" + GetOperandsAsUInt.ToString("X");
                             //"Global_" + (index1).ToString() + "_" + (GetOperandsAsUInt % pagesize).ToString();
                 }
                 throw new Exception("Not a global variable");

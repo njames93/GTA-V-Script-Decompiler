@@ -14,6 +14,7 @@ namespace Decompiler
         ListType Listtype;//static/function_var/parameter
         List<Var> Vars;
         Dictionary<int, int> VarRemapper; //not necessary, just shifts variables up if variables before are bigger than 1 DWORD
+		private int count;
         public Vars_Info(ListType type, int varcount)
         {
             Listtype = type;
@@ -22,6 +23,7 @@ namespace Decompiler
             {
                 Vars.Add(new Var(i));
             }
+			varcount = count;
         }
         public Vars_Info(ListType type)
         {
@@ -41,9 +43,22 @@ namespace Decompiler
         {
             unusedcheck();
         }
+		//This shouldnt be needed but in gamever 1.0.757.2
+		//It seems a few of the scripts are accessing items from the
+		//Stack frame that they havent reserver
+		void broken_check(uint index)
+		{
+			if (index >= Vars.Count)
+			{
+				for (int i = Vars.Count; i <= index; i++)
+				{
+					Vars.Add(new Var(i));
+				}
+			}
+		}
         public string GetVarName(uint index)
         {
-            string name = "";
+	        string name = "";
             Var var = Vars[(int)index];
             if (var.DataType == Stack.DataType.String)
             {
@@ -262,6 +277,7 @@ namespace Decompiler
                 {
                     for (int j = i + 1; j < i + Vars[i].Immediatesize; j++)
                     {
+	                    broken_check((uint)j);
                         Vars[j].dontuse();
                     }
                 }
@@ -279,6 +295,7 @@ namespace Decompiler
         }
         public Var GetVarAtIndex(uint index)
         {
+	        broken_check(index);
             return Vars[(int)index];
         }
 

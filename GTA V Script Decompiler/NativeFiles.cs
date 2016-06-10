@@ -34,8 +34,11 @@ namespace Decompiler
 				string line = sr.ReadLine();
 				if (line.Length > 1)
 				{
-					string val = line.Remove(line.IndexOfAny(new char[] { ':', '=' }));
-					string nat = line.Substring(val.Length + 1);
+					string[] data = line.Split(':');
+					if (data.Length != 3)
+						continue;
+					string val = data[0];
+					string nat = (Program.Show_Nat_Namespace ? (data[1] + "::") : "") + data[2];
 					uint value;
 					if (uint.TryParse(val, out value))
 					{
@@ -85,8 +88,11 @@ namespace Decompiler
 				string line = sr.ReadLine();
 				if (line.Length > 1)
 				{
-					string val = line.Remove(line.IndexOfAny(new char[] { ':', '=' }));
-					string nat = line.Substring(val.Length + 1);
+					string[] data = line.Split(':');
+					if (data.Length != 3)
+						continue;
+					string val = data[0];
+					string nat = (Program.Show_Nat_Namespace ? (data[1] + "::") : "") + data[2];
 					ulong value;
 					if (ulong.TryParse(val, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out value))
 					{

@@ -44,7 +44,6 @@ namespace Decompiler
 			//ScriptFile.hashbank = temp;
 			// ScriptFile.hashbank = new Hashes();
 			panel1.Size = new Size(0, panel1.Height);
-           Program.Config = new Ini.IniFile(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "config.ini"));
            if (!File.Exists(Program.Config.path))
            {
                Program.Config.IniWriteValue("Base", "IntStyle", "int");
@@ -52,7 +51,8 @@ namespace Decompiler
                Program.Config.IniWriteBool("Base", "Reverse_Hashes", true);
                Program.Config.IniWriteBool("Base", "Declare_Variables", true);  
                Program.Config.IniWriteBool("Base", "Shift_Variables", true);
-               Program.Config.IniWriteBool("Base", "Show_Func_Pointer", false);
+				Program.Config.IniWriteBool("View", "Show_Nat_Namespace", true);
+				Program.Config.IniWriteBool("Base", "Show_Func_Pointer", false);
                Program.Config.IniWriteBool("Base", "Use_MultiThreading", false);
                Program.Config.IniWriteBool("View", "Line_Numbers", true);
            }
@@ -62,6 +62,7 @@ namespace Decompiler
            shiftVariablesToolStripMenuItem.Checked = Program.Find_Shift_Variables();
            showFuncPointerToolStripMenuItem.Checked = Program.Find_Show_Func_Pointer();
            useMultiThreadingToolStripMenuItem.Checked = Program.Find_Use_MultiThreading();
+	        includeNativeNamespaceToolStripMenuItem.Checked = Program.Find_Nat_Namespace();
            showLineNumbersToolStripMenuItem.Checked = fctb1.ShowLineNumbers = Program.Config.IniReadBool("View", "Line_Numbers");
            ToolStripMenuItem t = null;
            switch (Program.Find_getINTType())
@@ -104,12 +105,26 @@ namespace Decompiler
 				{
 					ext = Path.GetExtension(Path.GetFileNameWithoutExtension(ofd.FileName));
 				}
-				fileopen = new ScriptFile(ofd.OpenFile(), ext != ".ysc");
-                updatestatus("Decompiled Script File, Time taken: " + (DateTime.Now - Start).ToString());
+#if !DEBUG
+				try
+				{
+#endif
+					fileopen = new ScriptFile(ofd.OpenFile(), ext != ".ysc");
+#if !DEBUG
+				}
+				catch (Exception ex)
+				{
+					updatestatus("Error decompiling script " + ex.Message);
+					return;
+				}
+#endif
+				updatestatus("Decompiled Script File, Time taken: " + (DateTime.Now - Start).ToString());
                 MemoryStream ms = new MemoryStream();
-                fileopen.Save(ms, false);
-                
-                foreach (KeyValuePair<string, int> locations in fileopen.Function_loc)
+
+	            fileopen.Save(ms, false);
+	          
+
+	            foreach (KeyValuePair<string, int> locations in fileopen.Function_loc)
                 {
                     listView1.Items.Add(new ListViewItem(new string[] { locations.Key, locations.Value.ToString() }));
                 }
@@ -202,10 +217,17 @@ namespace Decompiler
                 {
                    scriptToDecode = CompileList.Dequeue();
                 }
+				try
+				{ 
                 ScriptFile scriptFile = new ScriptFile((Stream)File.OpenRead(scriptToDecode.Item1), scriptToDecode.Item2);
                 scriptFile.Save(Path.Combine(SaveDirectory, Path.GetFileNameWithoutExtension(scriptToDecode.Item1) + ".c"));
                 scriptFile.Close();
-            }
+				}
+				catch (Exception ex)
+				{
+					MessageBox.Show("Error decompiling script " + Path.GetFileNameWithoutExtension(scriptToDecode.Item1) + " - " + ex.Message);
+				}
+			}
             Program.ThreadCount--;
         }
 
@@ -213,22 +235,34 @@ namespace Decompiler
         {
             OpenFileDialog ofd = new OpenFileDialog();
             ofd.Filter = "GTA V Script Files|*.xsc;*.csc;*.ysc";
-            
-            if (ofd.ShowDialog() == System.Windows.Forms.DialogResult.OK)
-            {
-                DateTime Start = DateTime.Now;
-                ScriptFile file = new ScriptFile(ofd.OpenFile(), (Path.GetExtension(ofd.FileName) != ".ysc"));
-                file.Save(Path.Combine(Path.GetDirectoryName(ofd.FileName), Path.GetFileNameWithoutExtension(ofd.FileName) + ".c"));
-                file.Close();
-                if ((Path.GetExtension(ofd.FileName) != ".ysc"))
-                    ScriptFile.npi.savefile();
-                else
-                    ScriptFile.X64npi.savefile();
-                updatestatus("File Saved, Time taken: " + (DateTime.Now - Start).ToString());
-            }
+#if !DEBUG
+			try
+	        {
+#endif
+	        if (ofd.ShowDialog() == System.Windows.Forms.DialogResult.OK)
+	        {
+
+		        DateTime Start = DateTime.Now;
+		        ScriptFile file = new ScriptFile(ofd.OpenFile(), (Path.GetExtension(ofd.FileName) != ".ysc"));
+		        file.Save(Path.Combine(Path.GetDirectoryName(ofd.FileName),
+			        Path.GetFileNameWithoutExtension(ofd.FileName) + ".c"));
+		        file.Close();
+		        if ((Path.GetExtension(ofd.FileName) != ".ysc"))
+			        ScriptFile.npi.savefile();
+		        else
+			        ScriptFile.X64npi.savefile();
+		        updatestatus("File Saved, Time taken: " + (DateTime.Now - Start).ToString());
+	        }
+#if !DEBUG	   
+	        }
+	        catch (Exception ex)
+	        {
+		        updatestatus("Error decompiling script " + ex.Message);
+	        }
+#endif
         }
 
-        #region Config Options
+#region Config Options
 
         private void intstylechanged(object sender, EventArgs e)
         {
@@ -286,7 +320,30 @@ namespace Decompiler
             Program.Find_Show_Func_Pointer();
         }
 
-        private void useMultiThreadingToolStripMenuItem_Click(object sender, EventArgs e)
+		private void includeNativeNamespaceToolStripMenuItem_Click(object sender, EventArgs e)
+		{
+			includeNativeNamespaceToolStripMenuItem.Checked = !includeNativeNamespaceToolStripMenuItem.Checked;
+			Program.Config.IniWriteBool("Base", "Show_Nat_Namespace", includeNativeNamespaceToolStripMenuItem.Checked);
+			Program.Find_Nat_Namespace();
+			if (Program.nativefile != null)
+			{
+				string path = Path.Combine(Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location), "natives.dat");
+				if (File.Exists(path))
+					Program.nativefile = new NativeFile(File.OpenRead(path));
+				else
+					Program.nativefile = new NativeFile(new MemoryStream(Properties.Resources.natives));
+			}
+			if (Program.x64nativefile != null)
+			{
+				string path = Path.Combine(Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location), "x64natives.dat");
+				if (File.Exists(path))
+					Program.x64nativefile = new x64NativeFile(File.OpenRead(path));
+				else
+					Program.x64nativefile = new x64NativeFile(new MemoryStream(Properties.Resources.x64natives));
+			}
+		}
+
+		private void useMultiThreadingToolStripMenuItem_Click(object sender, EventArgs e)
         {
             /*if (!useMultiThreadingToolStripMenuItem.Checked)
             {
@@ -298,9 +355,9 @@ namespace Decompiler
             Program.Find_Use_MultiThreading();
         }
 
-        #endregion
+#endregion
 
-        #region Function Location
+#region Function Location
         bool opening = false;
         bool forceclose = false;
         private void listView1_MouseDoubleClick(object sender, MouseEventArgs e)
@@ -374,7 +431,7 @@ namespace Decompiler
             columnHeader1.Width = 80;
             columnHeader2.Width = 76;
         }
-        #endregion
+#endregion
 
         private void entitiesToolStripMenuItem_Click(object sender, EventArgs e)
         {

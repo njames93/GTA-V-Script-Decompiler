@@ -65,6 +65,7 @@
 			this.consoleToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
 			this.pCToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
 			this.findHashFromStringsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+			this.includeNativeNamespaceToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
 			this.viewToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
 			this.expandAllBlocksToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
 			this.collaspeAllBlocksToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
@@ -240,6 +241,7 @@
             this.intStyleToolStripMenuItem,
             this.showArraySizeToolStripMenuItem,
             this.reverseHashesToolStripMenuItem,
+            this.includeNativeNamespaceToolStripMenuItem,
             this.declareVariablesToolStripMenuItem,
             this.shiftVariablesToolStripMenuItem,
             this.showFuncPointerToolStripMenuItem,
@@ -391,6 +393,13 @@
 			this.findHashFromStringsToolStripMenuItem.Size = new System.Drawing.Size(225, 22);
 			this.findHashFromStringsToolStripMenuItem.Text = "Reverse Hashes From Strings";
 			this.findHashFromStringsToolStripMenuItem.Click += new System.EventHandler(this.findHashFromStringsToolStripMenuItem_Click);
+			// 
+			// includeNativeNamespaceToolStripMenuItem
+			// 
+			this.includeNativeNamespaceToolStripMenuItem.Name = "includeNativeNamespaceToolStripMenuItem";
+			this.includeNativeNamespaceToolStripMenuItem.Size = new System.Drawing.Size(225, 22);
+			this.includeNativeNamespaceToolStripMenuItem.Text = "Include Native Namespace";
+			this.includeNativeNamespaceToolStripMenuItem.Click += new System.EventHandler(this.includeNativeNamespaceToolStripMenuItem_Click);
 			// 
 			// viewToolStripMenuItem
 			// 
@@ -679,6 +688,7 @@
 		private System.Windows.Forms.ToolStripMenuItem consoleToolStripMenuItem;
 		private System.Windows.Forms.ToolStripMenuItem pCToolStripMenuItem;
 		private System.Windows.Forms.ToolStripMenuItem findHashFromStringsToolStripMenuItem;
+		private System.Windows.Forms.ToolStripMenuItem includeNativeNamespaceToolStripMenuItem;
 	}
 }
 
