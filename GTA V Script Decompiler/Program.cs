@@ -105,6 +105,12 @@ namespace Decompiler
 		}
 		private static bool _Show_Nat_Namespace = false;
 		public static bool Show_Nat_Namespace { get { return _Show_Nat_Namespace; } }
+		public static bool Find_Hex_Index()
+		{
+			return _Hex_Index = Program.Config.IniReadBool("Base", "Hex_Index", false);
+		}
+		private static bool _Hex_Index = false;
+		public static bool Hex_Index { get { return _Hex_Index; } }
 
 	}
 }

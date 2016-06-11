@@ -54,6 +54,7 @@
 			this.hexToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
 			this.showArraySizeToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
 			this.reverseHashesToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+			this.includeNativeNamespaceToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
 			this.declareVariablesToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
 			this.shiftVariablesToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
 			this.showFuncPointerToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
@@ -65,7 +66,7 @@
 			this.consoleToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
 			this.pCToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
 			this.findHashFromStringsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-			this.includeNativeNamespaceToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+			this.globalAndStructHexIndexingToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
 			this.viewToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
 			this.expandAllBlocksToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
 			this.collaspeAllBlocksToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
@@ -91,6 +92,8 @@
 			this.toolStripStatusLabel3 = new System.Windows.Forms.ToolStripStatusLabel();
 			this.toolStripStatusLabel2 = new System.Windows.Forms.ToolStripStatusLabel();
 			this.timer3 = new System.Windows.Forms.Timer(this.components);
+			this.toolStripSeparator4 = new System.Windows.Forms.ToolStripSeparator();
+			this.toolStripSeparator5 = new System.Windows.Forms.ToolStripSeparator();
 			((System.ComponentModel.ISupportInitialize)(this.fctb1)).BeginInit();
 			this.menuStrip1.SuspendLayout();
 			this.panel1.SuspendLayout();
@@ -239,13 +242,16 @@
 			// 
 			this.optionsToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.intStyleToolStripMenuItem,
+            this.toolStripSeparator5,
             this.showArraySizeToolStripMenuItem,
             this.reverseHashesToolStripMenuItem,
             this.includeNativeNamespaceToolStripMenuItem,
             this.declareVariablesToolStripMenuItem,
             this.shiftVariablesToolStripMenuItem,
+            this.globalAndStructHexIndexingToolStripMenuItem,
             this.showFuncPointerToolStripMenuItem,
             this.useMultiThreadingToolStripMenuItem,
+            this.toolStripSeparator4,
             this.exportTablesToolStripMenuItem,
             this.findHashFromStringsToolStripMenuItem});
 			this.optionsToolStripMenuItem.Name = "optionsToolStripMenuItem";
@@ -259,7 +265,7 @@
             this.uintToolStripMenuItem,
             this.hexToolStripMenuItem});
 			this.intStyleToolStripMenuItem.Name = "intStyleToolStripMenuItem";
-			this.intStyleToolStripMenuItem.Size = new System.Drawing.Size(225, 22);
+			this.intStyleToolStripMenuItem.Size = new System.Drawing.Size(236, 22);
 			this.intStyleToolStripMenuItem.Text = "IntStyle";
 			this.intStyleToolStripMenuItem.ToolTipText = "Choose how to display int32 data types";
 			// 
@@ -287,7 +293,7 @@
 			// showArraySizeToolStripMenuItem
 			// 
 			this.showArraySizeToolStripMenuItem.Name = "showArraySizeToolStripMenuItem";
-			this.showArraySizeToolStripMenuItem.Size = new System.Drawing.Size(225, 22);
+			this.showArraySizeToolStripMenuItem.Size = new System.Drawing.Size(236, 22);
 			this.showArraySizeToolStripMenuItem.Text = "Show Array Size";
 			this.showArraySizeToolStripMenuItem.ToolTipText = "Shows the size of the items in an array \r\nuLocal_5[index <item_size>]\r\nan array o" +
     "f vector3s would look like this\r\nvStatic_1[0 <3>];";
@@ -296,16 +302,23 @@
 			// reverseHashesToolStripMenuItem
 			// 
 			this.reverseHashesToolStripMenuItem.Name = "reverseHashesToolStripMenuItem";
-			this.reverseHashesToolStripMenuItem.Size = new System.Drawing.Size(225, 22);
+			this.reverseHashesToolStripMenuItem.Size = new System.Drawing.Size(236, 22);
 			this.reverseHashesToolStripMenuItem.Text = "Reverse Hashes";
 			this.reverseHashesToolStripMenuItem.ToolTipText = "Reverse known hashes into their text equivalent\r\ne.g 0xB779A091 -> joaat(\"adder\")" +
     "";
 			this.reverseHashesToolStripMenuItem.Click += new System.EventHandler(this.reverseHashesToolStripMenuItem_Click);
 			// 
+			// includeNativeNamespaceToolStripMenuItem
+			// 
+			this.includeNativeNamespaceToolStripMenuItem.Name = "includeNativeNamespaceToolStripMenuItem";
+			this.includeNativeNamespaceToolStripMenuItem.Size = new System.Drawing.Size(236, 22);
+			this.includeNativeNamespaceToolStripMenuItem.Text = "Include Native Namespace";
+			this.includeNativeNamespaceToolStripMenuItem.Click += new System.EventHandler(this.includeNativeNamespaceToolStripMenuItem_Click);
+			// 
 			// declareVariablesToolStripMenuItem
 			// 
 			this.declareVariablesToolStripMenuItem.Name = "declareVariablesToolStripMenuItem";
-			this.declareVariablesToolStripMenuItem.Size = new System.Drawing.Size(225, 22);
+			this.declareVariablesToolStripMenuItem.Size = new System.Drawing.Size(236, 22);
 			this.declareVariablesToolStripMenuItem.Text = "Declare Variables";
 			this.declareVariablesToolStripMenuItem.ToolTipText = "Include Variable declarations at the start of file and functions";
 			this.declareVariablesToolStripMenuItem.Click += new System.EventHandler(this.declareVariablesToolStripMenuItem_Click);
@@ -313,7 +326,7 @@
 			// shiftVariablesToolStripMenuItem
 			// 
 			this.shiftVariablesToolStripMenuItem.Name = "shiftVariablesToolStripMenuItem";
-			this.shiftVariablesToolStripMenuItem.Size = new System.Drawing.Size(225, 22);
+			this.shiftVariablesToolStripMenuItem.Size = new System.Drawing.Size(236, 22);
 			this.shiftVariablesToolStripMenuItem.Text = "Shift Variables";
 			this.shiftVariablesToolStripMenuItem.ToolTipText = resources.GetString("shiftVariablesToolStripMenuItem.ToolTipText");
 			this.shiftVariablesToolStripMenuItem.Click += new System.EventHandler(this.shiftVariablesToolStripMenuItem_Click);
@@ -321,14 +334,14 @@
 			// showFuncPointerToolStripMenuItem
 			// 
 			this.showFuncPointerToolStripMenuItem.Name = "showFuncPointerToolStripMenuItem";
-			this.showFuncPointerToolStripMenuItem.Size = new System.Drawing.Size(225, 22);
+			this.showFuncPointerToolStripMenuItem.Size = new System.Drawing.Size(236, 22);
 			this.showFuncPointerToolStripMenuItem.Text = "Show Func Pointer";
 			this.showFuncPointerToolStripMenuItem.Click += new System.EventHandler(this.showFuncPointerToolStripMenuItem_Click);
 			// 
 			// useMultiThreadingToolStripMenuItem
 			// 
 			this.useMultiThreadingToolStripMenuItem.Name = "useMultiThreadingToolStripMenuItem";
-			this.useMultiThreadingToolStripMenuItem.Size = new System.Drawing.Size(225, 22);
+			this.useMultiThreadingToolStripMenuItem.Size = new System.Drawing.Size(236, 22);
 			this.useMultiThreadingToolStripMenuItem.Text = "Use MultiThreading";
 			this.useMultiThreadingToolStripMenuItem.Click += new System.EventHandler(this.useMultiThreadingToolStripMenuItem_Click);
 			// 
@@ -339,7 +352,7 @@
             this.nativesToolStripMenuItem,
             this.fullNativeInfoToolStripMenuItem});
 			this.exportTablesToolStripMenuItem.Name = "exportTablesToolStripMenuItem";
-			this.exportTablesToolStripMenuItem.Size = new System.Drawing.Size(225, 22);
+			this.exportTablesToolStripMenuItem.Size = new System.Drawing.Size(236, 22);
 			this.exportTablesToolStripMenuItem.Text = "Export Tables";
 			// 
 			// entitiesToolStripMenuItem
@@ -390,16 +403,16 @@
 			// findHashFromStringsToolStripMenuItem
 			// 
 			this.findHashFromStringsToolStripMenuItem.Name = "findHashFromStringsToolStripMenuItem";
-			this.findHashFromStringsToolStripMenuItem.Size = new System.Drawing.Size(225, 22);
+			this.findHashFromStringsToolStripMenuItem.Size = new System.Drawing.Size(236, 22);
 			this.findHashFromStringsToolStripMenuItem.Text = "Reverse Hashes From Strings";
 			this.findHashFromStringsToolStripMenuItem.Click += new System.EventHandler(this.findHashFromStringsToolStripMenuItem_Click);
 			// 
-			// includeNativeNamespaceToolStripMenuItem
+			// globalAndStructHexIndexingToolStripMenuItem
 			// 
-			this.includeNativeNamespaceToolStripMenuItem.Name = "includeNativeNamespaceToolStripMenuItem";
-			this.includeNativeNamespaceToolStripMenuItem.Size = new System.Drawing.Size(225, 22);
-			this.includeNativeNamespaceToolStripMenuItem.Text = "Include Native Namespace";
-			this.includeNativeNamespaceToolStripMenuItem.Click += new System.EventHandler(this.includeNativeNamespaceToolStripMenuItem_Click);
+			this.globalAndStructHexIndexingToolStripMenuItem.Name = "globalAndStructHexIndexingToolStripMenuItem";
+			this.globalAndStructHexIndexingToolStripMenuItem.Size = new System.Drawing.Size(236, 22);
+			this.globalAndStructHexIndexingToolStripMenuItem.Text = "Global and Struct Hex Indexing";
+			this.globalAndStructHexIndexingToolStripMenuItem.Click += new System.EventHandler(this.globalAndStructHexIndexingToolStripMenuItem_Click);
 			// 
 			// viewToolStripMenuItem
 			// 
@@ -603,6 +616,16 @@
 			this.timer3.Interval = 5000;
 			this.timer3.Tick += new System.EventHandler(this.timer3_Tick);
 			// 
+			// toolStripSeparator4
+			// 
+			this.toolStripSeparator4.Name = "toolStripSeparator4";
+			this.toolStripSeparator4.Size = new System.Drawing.Size(233, 6);
+			// 
+			// toolStripSeparator5
+			// 
+			this.toolStripSeparator5.Name = "toolStripSeparator5";
+			this.toolStripSeparator5.Size = new System.Drawing.Size(233, 6);
+			// 
 			// MainForm
 			// 
 			this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
@@ -689,6 +712,9 @@
 		private System.Windows.Forms.ToolStripMenuItem pCToolStripMenuItem;
 		private System.Windows.Forms.ToolStripMenuItem findHashFromStringsToolStripMenuItem;
 		private System.Windows.Forms.ToolStripMenuItem includeNativeNamespaceToolStripMenuItem;
+		private System.Windows.Forms.ToolStripMenuItem globalAndStructHexIndexingToolStripMenuItem;
+		private System.Windows.Forms.ToolStripSeparator toolStripSeparator5;
+		private System.Windows.Forms.ToolStripSeparator toolStripSeparator4;
 	}
 }
 

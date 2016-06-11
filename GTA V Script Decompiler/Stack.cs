@@ -854,11 +854,11 @@ namespace Decompiler
                     }
                 }
             }
-            Push(new StackValue(StackValue.Type.Literal, PopPointerRef() + ".f_" + immediate.ToString("X")));
+            Push(new StackValue(StackValue.Type.Literal, PopPointerRef() + ".f_" + (Program.Hex_Index ? immediate.ToString("X") : immediate.ToString())));
         }
         public string Op_SetImm(uint immediate)
         {
-            string imm = ".f_" + immediate.ToString("X");
+            string imm = ".f_" + (Program.Hex_Index ? immediate.ToString("X") : immediate.ToString());
             if (PeekVar(0) != null)
             {
                 if (PeekVar(0).Immediatesize == 3)
@@ -878,9 +878,9 @@ namespace Decompiler
         public void Op_GetImmP(uint immediate)
         {
             if (Peek().ItemType == StackValue.Type.Pointer)
-                Push(new StackValue(StackValue.Type.Pointer, PopPointerRef() + ".f_" + immediate.ToString("X")));
+                Push(new StackValue(StackValue.Type.Pointer, PopPointerRef() + ".f_" + (Program.Hex_Index ? immediate.ToString("X") : immediate.ToString())));
             else if (Peek().ItemType == StackValue.Type.Literal)
-                Push(new StackValue(StackValue.Type.Literal, PopLit() + ".f_" + immediate.ToString("X")));
+                Push(new StackValue(StackValue.Type.Literal, PopLit() + ".f_" + (Program.Hex_Index ? immediate.ToString("X") : immediate.ToString())));
             else throw new Exception("Unexpected Stack Value :" + Peek().ItemType.ToString());
         }
 
@@ -891,9 +891,9 @@ namespace Decompiler
             if (Utils.intparse(immediate, out temp))
             {
                 if (Peek().ItemType == StackValue.Type.Pointer)
-                    Push(new StackValue(StackValue.Type.Pointer, PopPointerRef() + ".f_" + temp.ToString("X")));
+                    Push(new StackValue(StackValue.Type.Pointer, PopPointerRef() + ".f_" + (Program.Hex_Index ? temp.ToString("X") : temp.ToString())));
                 else if (Peek().ItemType == StackValue.Type.Literal)
-                    Push(new StackValue(StackValue.Type.Literal, PopLit() + ".f_" + temp.ToString("X")));
+                    Push(new StackValue(StackValue.Type.Literal, PopLit() + ".f_" + (Program.Hex_Index ? temp.ToString("X") : temp.ToString())));
                 else throw new Exception("Unexpected Stack Value :" + Peek().ItemType.ToString());
             }
             else
@@ -979,48 +979,93 @@ namespace Decompiler
                 PushStruct(pointer, amount);
             }
         }
+
+		int GetIndex(int index)
+		{
+			int actindex = 0;
+			if (_stack.Count == 0)
+			{
+				return -1;
+			}
+			for (int i = 0; i < index; i++)
+			{
+				int stackIndex = _stack.Count - i - 1;
+				if (stackIndex < 0)
+					return -1;
+				if (_stack[stackIndex].ItemType == StackValue.Type.Struct)
+				{
+					index -= _stack[stackIndex].StructSize - 1;
+				}
+				if (i < index)
+					actindex++;
+			}
+			return actindex < _stack.Count ? actindex : -1;
+		}
         public string PeekItem(int index)
         {
-            StackValue val = _stack[_stack.Count - index - 1];
+			int newIndex = GetIndex(index);
+			if (newIndex == -1)
+			{
+				return "";
+			}
+			StackValue val = _stack[_stack.Count - newIndex - 1];
             if (val.ItemType != StackValue.Type.Literal)
                 throw new Exception("Not a literal item recieved");
             return val.Value;
         }
         public Vars_Info.Var PeekVar(int index)
         {
-            if (_stack.Count == 0)
-                return null;
-            return _stack[_stack.Count - index - 1].Variable;
+			int newIndex = GetIndex(index);
+			if (newIndex == -1)
+			{
+				return null;
+			}
+			return _stack[_stack.Count - newIndex - 1].Variable;
         }
         public uint PeekNat(int index)
         {
-            if (_stack.Count == 0)
-                return 0;
-            return _stack[_stack.Count - index - 1].NatHash;
+			int newIndex = GetIndex(index);
+			if (newIndex == -1)
+			{
+				return 0;
+			}
+			return _stack[_stack.Count - newIndex - 1].NatHash;
         }
         public ulong PeekNat64(int index)
         {
-            if (_stack.Count == 0)
-                return 0;
-            return _stack[_stack.Count - index - 1].X64NatHash;
+			int newIndex = GetIndex(index);
+			if (newIndex == -1)
+			{
+				return 0;
+			}
+			return _stack[_stack.Count - newIndex - 1].X64NatHash;
         }
         public bool isnat(int index)
         {
-            if (_stack.Count == 0)
-                return false;
-            return _stack[_stack.Count - index - 1].isNative;
+			int newIndex = GetIndex(index);
+			if (newIndex == -1)
+			{
+				return false;
+			}
+			return _stack[_stack.Count - newIndex - 1].isNative;
         }
         public bool isPointer(int index)
         {
-            if (_stack.Count == 0)
-                return false;
-            return _stack[_stack.Count - index - 1].ItemType == StackValue.Type.Pointer;
+			int newIndex = GetIndex(index);
+			if (newIndex == -1)
+			{
+				return false;
+			}
+			return _stack[_stack.Count - newIndex - 1].ItemType == StackValue.Type.Pointer;
         }
         public bool isLiteral(int index)
         {
-            if (_stack.Count == 0)
-                return false;
-            return _stack[_stack.Count - index - 1].ItemType == StackValue.Type.Literal;
+			int newIndex = GetIndex(index);
+			if (newIndex == -1)
+			{
+				return false;
+			}
+			return _stack[_stack.Count - newIndex - 1].ItemType == StackValue.Type.Literal;
         }
         public void PushNative(string value, uint hash, DataType type)
         {
@@ -1040,7 +1085,12 @@ namespace Decompiler
         }
         public DataType ItemType(int index)
         {
-            return _stack[_stack.Count - index - 1].Datatype;
+	        int newIndex = GetIndex(index);
+	        if (newIndex == -1)
+	        {
+				return DataType.Unk;
+	        }
+			return _stack[_stack.Count - newIndex - 1].Datatype;
         }
         public string Op_FromStack()
         {
@@ -1334,7 +1384,7 @@ namespace Decompiler
     {
         public static DataTypes[] _types = new DataTypes[]{ 
             new DataTypes(Stack.DataType.Bool, 4, "int", "i"), //needs fixing up a bit
-            new DataTypes(Stack.DataType.Float, 4, "float", "f"),
+            new DataTypes(Stack.DataType.Float, 3, "float", "f"),
             new DataTypes(Stack.DataType.Int, 3, "int", "i"),
             new DataTypes(Stack.DataType.String, 1, "char[]", "c"),
             new DataTypes(Stack.DataType.StringPtr, 4, "char*", "s"),
@@ -1343,7 +1393,7 @@ namespace Decompiler
             new DataTypes(Stack.DataType.Unsure, 1, "var", "u"),
             new DataTypes(Stack.DataType.IntPtr, 3, "int*", "i"),
             new DataTypes(Stack.DataType.UnkPtr, 1, "var*", "u"),		
-            new DataTypes(Stack.DataType.FloatPtr, 4, "float*", "f"),
+            new DataTypes(Stack.DataType.FloatPtr, 3, "float*", "f"),
 			 new DataTypes(Stack.DataType.Vector3, 4, "Vector3", "f"),
 			  new DataTypes(Stack.DataType.None, 4, "void", "f"),
 

@@ -281,16 +281,13 @@ namespace Decompiler
                     case Instruction.pGlobal2:
                     case Instruction.GlobalGet2:
                     case Instruction.GlobalSet2:
-                        return "Global_"+GetOperandsAsUInt.ToString("X");
+		                return "Global_" +
+		                       (Program.Hex_Index ? GetOperandsAsUInt.ToString("X") : GetOperandsAsUInt.ToString());
                     case Instruction.pGlobal3:
                     case Instruction.GlobalGet3:
-                    case Instruction.GlobalSet3:
-                       // int pagesize = 0x10000;
-                       // int index1 = GetOperandsAsInt / pagesize;
-                        /*if (!ScriptFile.Test.Contains(index1))
-                            ScriptFile.Test.Add(index1);*/
-                        return "Global_" + GetOperandsAsUInt.ToString("X");
-                            //"Global_" + (index1).ToString() + "_" + (GetOperandsAsUInt % pagesize).ToString();
+                    case Instruction.GlobalSet3:	   
+		                return "Global_" +
+		                       (Program.Hex_Index ? GetOperandsAsUInt.ToString("X") : GetOperandsAsUInt.ToString());  
                 }
                 throw new Exception("Not a global variable");
             }
@@ -299,19 +296,19 @@ namespace Decompiler
     internal enum Instruction			//opcodes reversed from gta v default.xex
     {
         Nop = 0,
-        Add,//1
-        Sub,//2
-        Mult,//3
-        Div,//4
-        Mod,//5
-        Not,//6
-        Neg,//7
-        CmpEq,//8
-        CmpNe,//9
-        CmpGt,//10
-        CmpGe,//11
-        CmpLt,//12
-        CmpLe,//13
+        iAdd,//1
+        iSub,//2
+        iMult,//3
+        iDiv,//4
+        iMod,//5
+        iNot,//6
+        iNeg,//7
+        iCmpEq,//8
+        iCmpNe,//9
+        iCmpGt,//10
+        iCmpGe,//11
+        iCmpLt,//12
+        iCmpLe,//13
         fAdd,//14
         fSub,//15
         fMult,//16
@@ -335,10 +332,10 @@ namespace Decompiler
         ItoF,//34
         FtoI,//35
         FtoV,//36
-        Push1,//37
-        Push2,//38
-        Push3,//39
-        Push,//40
+        iPushByte1,//37
+        iPushByte2,//38
+        iPushByte3,//39
+        iPushInt,//40
         fPush,//41
         dup,//42
         pop,//43
@@ -350,28 +347,28 @@ namespace Decompiler
         pPeekSet,//49
         ToStack,//50
         FromStack,//51
-        ArrayGetP1,//52
+        pArray1,//52
         ArrayGet1,//53
         ArraySet1,//54
         pFrame1,//55
-        GetF,//56
-        SetF,//57
+        GetFrame1,//56
+        SetFrame1,//57
         pStatic1,//58
         StaticGet1,//59
         StaticSet1,//60
         Add1,//61
         Mult1,//62
-        GetStructP,//63
-        GetStructPImm1,//64
-        GetStructImm1,//65
-        SetStructImm1,//66
-        PushS,//67
+        pStructStack,//63
+        pStruct1,//64
+        GetStruct1,//65
+        SetStruct1,//66
+        iPushShort,//67
         Add2,//68
         Mult2,//69
-        GetStructPImm2,//70
-        GetStructImm2,//71
-        SetStructImm2,//72
-        ArrayGetP2,//73
+        pStruct2,//70
+        GetStruct2,//71
+        SetStruct2,//72
+        pArray2,//73
         ArrayGet2,//74
         ArraySet2,//75
         pFrame2,//76
@@ -395,27 +392,27 @@ namespace Decompiler
         pGlobal3,//94
         GlobalGet3,//95
         GlobalSet3,//96
-        PushI24,//97
+        iPushI24,//97
         Switch,//98
         PushString,//99
         GetHash,//100
         StrCopy,//101
         ItoS,//102
-        StrCat,//103
-        StrCatI,//104
+        StrConCat,//103
+        StrConCatInt,//104
         MemCopy,//105
         Catch,//106	 //No handling of these as Im unsure exactly how they work
         Throw,//107 //No script files in the game use these opcodes
         pCall,//108
-        Push_n1,//109
-        Push_0,//110
-        Push_1,//111
-        Push_2,//112
-        Push_3,//113
-        Push_4,//114
-        Push_5,//115
-        Push_6,//116
-        Push_7,//117
+        iPush_n1,//109
+        iPush_0,//110
+        iPush_1,//111
+        iPush_2,//112
+        iPush_3,//113
+        iPush_4,//114
+        iPush_5,//115
+        iPush_6,//116
+        iPush_7,//117
         fPush_n1,//118
         fPush_0,//119
         fPush_1,//120

@@ -37,8 +37,7 @@ namespace Decompiler
         internal bool DecodeStarted = false;
         internal bool predecoded = false;
 		internal bool predecodeStarted = false;
-
-        public Vars_Info Vars { get; private set; }
+		public Vars_Info Vars { get; private set; }
 		public Vars_Info Params { get; private set; }
         public int LineCount = 0;
         public bool onlyboolret = true;
@@ -859,30 +858,30 @@ namespace Decompiler
             switch (Instructions[Offset].Instruction)
             {
                 case Instruction.Nop: break;
-                case Instruction.Add: Stack.Op_Add(); break;
+                case Instruction.iAdd: Stack.Op_Add(); break;
                 case Instruction.fAdd: Stack.Op_Addf(); break;
-                case Instruction.Sub: Stack.Op_Sub(); break;
+                case Instruction.iSub: Stack.Op_Sub(); break;
                 case Instruction.fSub: Stack.Op_Subf(); break;
-                case Instruction.Mult: Stack.Op_Mult(); break;
+                case Instruction.iMult: Stack.Op_Mult(); break;
                 case Instruction.fMult: Stack.Op_Multf(); break;
-                case Instruction.Div: Stack.Op_Div(); break;
+                case Instruction.iDiv: Stack.Op_Div(); break;
                 case Instruction.fDiv: Stack.Op_Divf(); break;
-                case Instruction.Mod: Stack.Op_Mod(); break;
+                case Instruction.iMod: Stack.Op_Mod(); break;
                 case Instruction.fMod: Stack.Op_Modf(); break;
-                case Instruction.Not: Stack.Op_Not(); break;
-                case Instruction.Neg: Stack.Op_Neg(); break;
+                case Instruction.iNot: Stack.Op_Not(); break;
+                case Instruction.iNeg: Stack.Op_Neg(); break;
                 case Instruction.fNeg: Stack.Op_Negf(); break;
-                case Instruction.CmpEq:
+                case Instruction.iCmpEq:
                 case Instruction.fCmpEq: Stack.Op_CmpEQ(); break;
-                case Instruction.CmpNe:
+                case Instruction.iCmpNe:
                 case Instruction.fCmpNe: Stack.Op_CmpNE(); break;
-                case Instruction.CmpGt:
+                case Instruction.iCmpGt:
                 case Instruction.fCmpGt: Stack.Op_CmpGT(); break;
-                case Instruction.CmpGe:
+                case Instruction.iCmpGe:
                 case Instruction.fCmpGe: Stack.Op_CmpGE(); break;
-                case Instruction.CmpLt:
+                case Instruction.iCmpLt:
                 case Instruction.fCmpLt: Stack.Op_CmpLT(); break;
-                case Instruction.CmpLe:
+                case Instruction.iCmpLe:
                 case Instruction.fCmpLe: Stack.Op_CmpLE(); break;
                 case Instruction.vAdd: Stack.Op_Vadd(); break;
                 case Instruction.vSub: Stack.Op_VSub(); break;
@@ -895,11 +894,11 @@ namespace Decompiler
                 case Instruction.ItoF: Stack.Op_Itof(); break;
                 case Instruction.FtoI: Stack.Op_FtoI(); break;
                 case Instruction.FtoV: Stack.Op_FtoV(); break;
-                case Instruction.Push1: Stack.Push(Instructions[Offset].GetOperand(0)); break;
-                case Instruction.Push2: Stack.Push(Instructions[Offset].GetOperand(0), Instructions[Offset].GetOperand(1)); break;
-                case Instruction.Push3: Stack.Push(Instructions[Offset].GetOperand(0), Instructions[Offset].GetOperand(1), Instructions[Offset].GetOperand(2)); break;
-                case Instruction.Push:
-                case Instruction.PushI24:
+                case Instruction.iPushByte1: Stack.Push(Instructions[Offset].GetOperand(0)); break;
+                case Instruction.iPushByte2: Stack.Push(Instructions[Offset].GetOperand(0), Instructions[Offset].GetOperand(1)); break;
+                case Instruction.iPushByte3: Stack.Push(Instructions[Offset].GetOperand(0), Instructions[Offset].GetOperand(1), Instructions[Offset].GetOperand(2)); break;
+                case Instruction.iPushInt:
+                case Instruction.iPushI24:
                     tempstring = "";
                     if (Program.Show_Func_Pointer)
                     {
@@ -918,7 +917,7 @@ namespace Decompiler
                     else
                         Stack.Push(ScriptFile.hashbank.GetHash(Instructions[Offset].GetOperandsAsInt, tempstring), type);
                     break;
-                case Instruction.PushS:
+                case Instruction.iPushShort:
                     Stack.Push(Instructions[Offset].GetOperandsAsInt); break;
                 case Instruction.fPush: Stack.Push(Instructions[Offset].GetFloat); break;
                 case Instruction.dup: Stack.Dup(); break;
@@ -1023,17 +1022,17 @@ namespace Decompiler
                     break;
                 case Instruction.ToStack: Stack.Op_ToStack(); break;
                 case Instruction.FromStack: writeline(Stack.Op_FromStack()); break;
-                case Instruction.ArrayGetP1:
-                case Instruction.ArrayGetP2: Stack.Op_ArrayGetP(Instructions[Offset].GetOperandsAsUInt); break;
+                case Instruction.pArray1:
+                case Instruction.pArray2: Stack.Op_ArrayGetP(Instructions[Offset].GetOperandsAsUInt); break;
                 case Instruction.ArrayGet1:
                 case Instruction.ArrayGet2: Stack.Op_ArrayGet(Instructions[Offset].GetOperandsAsUInt); break;
                 case Instruction.ArraySet1:
                 case Instruction.ArraySet2: writeline(Stack.Op_ArraySet(Instructions[Offset].GetOperandsAsUInt)); break;
                 case Instruction.pFrame1:
                 case Instruction.pFrame2: Stack.PushPVar(GetFrameVarName(Instructions[Offset].GetOperandsAsUInt), GetFrameVar(Instructions[Offset].GetOperandsAsUInt)); break;
-                case Instruction.GetF:
+                case Instruction.GetFrame1:
                 case Instruction.GetFrame2: Stack.PushVar(GetFrameVarName(Instructions[Offset].GetOperandsAsUInt), GetFrameVar(Instructions[Offset].GetOperandsAsUInt)); break;
-                case Instruction.SetF:
+                case Instruction.SetFrame1:
                 case Instruction.SetFrame2: tempstring = Stack.Op_Set(GetFrameVarName(Instructions[Offset].GetOperandsAsUInt), GetFrameVar(Instructions[Offset].GetOperandsAsUInt));
                     if (GetFrameVar(Instructions[Offset].GetOperandsAsUInt).DataType == Stack.DataType.Bool)
                         tempstring = tempstring.Replace("= 0;", "= false;").Replace("= 1;", "= true;");
@@ -1061,13 +1060,13 @@ namespace Decompiler
                 case Instruction.Mult1:
                 case Instruction.Mult2:
                     Stack.Op_MultImm(Instructions[Offset].GetOperandsAsInt); break;
-                case Instruction.GetStructP: Stack.Op_GetImmP(); break;
-                case Instruction.GetStructPImm1:
-                case Instruction.GetStructPImm2: Stack.Op_GetImmP(Instructions[Offset].GetOperandsAsUInt); break;
-                case Instruction.GetStructImm1:
-                case Instruction.GetStructImm2: Stack.Op_GetImm(Instructions[Offset].GetOperandsAsUInt); break;
-                case Instruction.SetStructImm1:
-                case Instruction.SetStructImm2:writeline(Stack.Op_SetImm(Instructions[Offset].GetOperandsAsUInt)); break;
+                case Instruction.pStructStack: Stack.Op_GetImmP(); break;
+                case Instruction.pStruct1:
+                case Instruction.pStruct2: Stack.Op_GetImmP(Instructions[Offset].GetOperandsAsUInt); break;
+                case Instruction.GetStruct1:
+                case Instruction.GetStruct2: Stack.Op_GetImm(Instructions[Offset].GetOperandsAsUInt); break;
+                case Instruction.SetStruct1:
+                case Instruction.SetStruct2:writeline(Stack.Op_SetImm(Instructions[Offset].GetOperandsAsUInt)); break;
                 case Instruction.pGlobal2: 
                 case Instruction.pGlobal3: Stack.PushPGlobal(Instructions[Offset].GetGlobalString); break;
                 case Instruction.GlobalGet2:
@@ -1104,8 +1103,8 @@ namespace Decompiler
                 case Instruction.GetHash: Stack.Op_Hash(); break;
                 case Instruction.StrCopy: writeline(Stack.op_strcopy(Instructions[Offset].GetOperandsAsInt)); break;
                 case Instruction.ItoS: writeline(Stack.op_itos(Instructions[Offset].GetOperandsAsInt)); break;
-                case Instruction.StrCat: writeline(Stack.op_stradd(Instructions[Offset].GetOperandsAsInt)); break;
-                case Instruction.StrCatI: writeline(Stack.op_straddi(Instructions[Offset].GetOperandsAsInt)); break;
+                case Instruction.StrConCat: writeline(Stack.op_stradd(Instructions[Offset].GetOperandsAsInt)); break;
+                case Instruction.StrConCatInt: writeline(Stack.op_straddi(Instructions[Offset].GetOperandsAsInt)); break;
                 case Instruction.MemCopy: writeline(Stack.op_sncopy()); break;
                 case Instruction.Catch: throw new Exception();// writeline("catch;"); break;
                 case Instruction.Throw: throw new Exception();// writeline("throw;"); break;
@@ -1114,15 +1113,15 @@ namespace Decompiler
                         writeline(s);
                     } 
                     break;
-                case Instruction.Push_n1:
-                case Instruction.Push_0:
-                case Instruction.Push_1:
-                case Instruction.Push_2:
-                case Instruction.Push_3:
-                case Instruction.Push_4:
-                case Instruction.Push_5:
-                case Instruction.Push_6:
-                case Instruction.Push_7: Stack.Push(Instructions[Offset].GetImmBytePush); break;
+                case Instruction.iPush_n1:
+                case Instruction.iPush_0:
+                case Instruction.iPush_1:
+                case Instruction.iPush_2:
+                case Instruction.iPush_3:
+                case Instruction.iPush_4:
+                case Instruction.iPush_5:
+                case Instruction.iPush_6:
+                case Instruction.iPush_7: Stack.Push(Instructions[Offset].GetImmBytePush); break;
                 case Instruction.fPush_n1:
                 case Instruction.fPush_0:
                 case Instruction.fPush_1:
@@ -1317,30 +1316,30 @@ namespace Decompiler
                 switch (ins.Instruction)
                 {
                     case Instruction.Nop: break;
-                    case Instruction.Add: CheckInstruction(0, Stack.DataType.Int, 2); Stack.Op_Add(); break;
+                    case Instruction.iAdd: CheckInstruction(0, Stack.DataType.Int, 2); Stack.Op_Add(); break;
                     case Instruction.fAdd: CheckInstruction(0, Stack.DataType.Float, 2); Stack.Op_Addf(); break;
-                    case Instruction.Sub: CheckInstruction(0, Stack.DataType.Int, 2); Stack.Op_Sub(); break;
+                    case Instruction.iSub: CheckInstruction(0, Stack.DataType.Int, 2); Stack.Op_Sub(); break;
                     case Instruction.fSub: CheckInstruction(0, Stack.DataType.Float, 2); Stack.Op_Subf(); break;
-                    case Instruction.Mult: CheckInstruction(0, Stack.DataType.Int, 2); Stack.Op_Mult(); break;
+                    case Instruction.iMult: CheckInstruction(0, Stack.DataType.Int, 2); Stack.Op_Mult(); break;
                     case Instruction.fMult: CheckInstruction(0, Stack.DataType.Float, 2); Stack.Op_Multf(); break;
-                    case Instruction.Div: CheckInstruction(0, Stack.DataType.Int, 2); Stack.Op_Div(); break;
+                    case Instruction.iDiv: CheckInstruction(0, Stack.DataType.Int, 2); Stack.Op_Div(); break;
                     case Instruction.fDiv: CheckInstruction(0, Stack.DataType.Float, 2); Stack.Op_Divf(); break;
-                    case Instruction.Mod: CheckInstruction(0, Stack.DataType.Int, 2); Stack.Op_Mod(); break;
+                    case Instruction.iMod: CheckInstruction(0, Stack.DataType.Int, 2); Stack.Op_Mod(); break;
                     case Instruction.fMod: CheckInstruction(0, Stack.DataType.Float, 2); Stack.Op_Modf(); break;
-                    case Instruction.Not: CheckInstruction(0, Stack.DataType.Bool); Stack.Op_Not(); break;
-                    case Instruction.Neg: CheckInstruction(0, Stack.DataType.Int); Stack.Op_Neg(); break;
+                    case Instruction.iNot: CheckInstruction(0, Stack.DataType.Bool); Stack.Op_Not(); break;
+                    case Instruction.iNeg: CheckInstruction(0, Stack.DataType.Int); Stack.Op_Neg(); break;
                     case Instruction.fNeg: CheckInstruction(0, Stack.DataType.Float); Stack.Op_Negf(); break;
-                    case Instruction.CmpEq: CheckInstruction(0, Stack.DataType.Int, 2); Stack.Op_CmpEQ(); break;
+                    case Instruction.iCmpEq: CheckInstruction(0, Stack.DataType.Int, 2); Stack.Op_CmpEQ(); break;
                     case Instruction.fCmpEq: CheckInstruction(0, Stack.DataType.Float, 2); Stack.Op_CmpEQ(); break;
-                    case Instruction.CmpNe: CheckInstruction(0, Stack.DataType.Int, 2); Stack.Op_CmpEQ(); break;
+                    case Instruction.iCmpNe: CheckInstruction(0, Stack.DataType.Int, 2); Stack.Op_CmpEQ(); break;
                     case Instruction.fCmpNe: CheckInstruction(0, Stack.DataType.Float, 2); Stack.Op_CmpEQ(); break;
-                    case Instruction.CmpGt: CheckInstruction(0, Stack.DataType.Int, 2); Stack.Op_CmpEQ(); break;
+                    case Instruction.iCmpGt: CheckInstruction(0, Stack.DataType.Int, 2); Stack.Op_CmpEQ(); break;
                     case Instruction.fCmpGt: CheckInstruction(0, Stack.DataType.Float, 2); Stack.Op_CmpEQ(); break;
-                    case Instruction.CmpGe: CheckInstruction(0, Stack.DataType.Int, 2); Stack.Op_CmpEQ(); break;
+                    case Instruction.iCmpGe: CheckInstruction(0, Stack.DataType.Int, 2); Stack.Op_CmpEQ(); break;
                     case Instruction.fCmpGe: CheckInstruction(0, Stack.DataType.Float, 2); Stack.Op_CmpEQ(); break;
-                    case Instruction.CmpLt: CheckInstruction(0, Stack.DataType.Int, 2); Stack.Op_CmpEQ(); break;
+                    case Instruction.iCmpLt: CheckInstruction(0, Stack.DataType.Int, 2); Stack.Op_CmpEQ(); break;
                     case Instruction.fCmpLt: CheckInstruction(0, Stack.DataType.Float, 2); Stack.Op_CmpEQ(); break;
-                    case Instruction.CmpLe: CheckInstruction(0, Stack.DataType.Int, 2); Stack.Op_CmpEQ(); break;
+                    case Instruction.iCmpLe: CheckInstruction(0, Stack.DataType.Int, 2); Stack.Op_CmpEQ(); break;
                     case Instruction.fCmpLe: CheckInstruction(0, Stack.DataType.Float, 2); Stack.Op_CmpEQ(); break;
                     case Instruction.vAdd: Stack.Op_Vadd(); break;
                     case Instruction.vSub: Stack.Op_VSub(); break;
@@ -1353,13 +1352,13 @@ namespace Decompiler
                     case Instruction.ItoF: CheckInstruction(0, Stack.DataType.Int); Stack.Op_Itof(); break;
                     case Instruction.FtoI: CheckInstruction(0, Stack.DataType.Float); Stack.Op_FtoI(); break;
                     case Instruction.FtoV: CheckInstruction(0, Stack.DataType.Float); Stack.Op_FtoV(); break;
-                    case Instruction.Push1: Stack.Push(ins.GetOperand(0)); break;
-                    case Instruction.Push2: Stack.Push(ins.GetOperand(0), ins.GetOperand(1)); break;
-                    case Instruction.Push3: Stack.Push(ins.GetOperand(0), ins.GetOperand(1), ins.GetOperand(2)); break;
-                    case Instruction.Push:
+                    case Instruction.iPushByte1: Stack.Push(ins.GetOperand(0)); break;
+                    case Instruction.iPushByte2: Stack.Push(ins.GetOperand(0), ins.GetOperand(1)); break;
+                    case Instruction.iPushByte3: Stack.Push(ins.GetOperand(0), ins.GetOperand(1), ins.GetOperand(2)); break;
+                    case Instruction.iPushInt:
                         Stack.Push(ins.GetOperandsAsInt.ToString(), Stack.DataType.Int); break;
-                    case Instruction.PushI24:
-                    case Instruction.PushS: Stack.Push(ins.GetOperandsAsInt.ToString(), Stack.DataType.Int); break;
+                    case Instruction.iPushI24:
+                    case Instruction.iPushShort: Stack.Push(ins.GetOperandsAsInt.ToString(), Stack.DataType.Int); break;
                     case Instruction.fPush: Stack.Push(ins.GetFloat); break;
                     case Instruction.dup: Stack.Dup(); break;
                     case Instruction.pop: Stack.Drop(); break;
@@ -1425,8 +1424,8 @@ namespace Decompiler
 
 
 
-                    case Instruction.ArrayGetP1:
-                    case Instruction.ArrayGetP2:
+                    case Instruction.pArray1:
+                    case Instruction.pArray2:
 
                         if (!Utils.intparse(Stack.PeekItem(1), out tempint))
                             {
@@ -1450,22 +1449,34 @@ namespace Decompiler
                             }
                         CheckArray(ins.GetOperandsAsUInt, tempint);
                         SetArray(Stack.ItemType(2));
+						Vars_Info.Var Var = Stack.PeekVar(0);
+		                if (Var != null && Stack.isPointer(0))
+		                {
+			                CheckInstruction(2, Var.DataType);
+
+		                }
                         Stack.Op_ArraySet(ins.GetOperandsAsUInt); break;
 
 
 
                     case Instruction.pFrame1:
                     case Instruction.pFrame2: Stack.PushPVar("FrameVar", GetFrameVar(ins.GetOperandsAsUInt));GetFrameVar(ins.GetOperandsAsUInt).call(); break;
-                    case Instruction.GetF:
+                    case Instruction.GetFrame1:
                     case Instruction.GetFrame2: Stack.PushVar("FrameVar", GetFrameVar(ins.GetOperandsAsUInt)); GetFrameVar(ins.GetOperandsAsUInt).call(); break;
-                    case Instruction.SetF:
-                    case Instruction.SetFrame2: if (Stack.TopType != Stack.DataType.Unk)
-                        {
-                            if (Types.gettype(Stack.TopType).precedence > Types.gettype(GetFrameVar(ins.GetOperandsAsUInt).DataType).precedence)
-                            {
-                                GetFrameVar(ins.GetOperandsAsUInt).DataType = Stack.TopType;
-                            }
-                        }
+                    case Instruction.SetFrame1:
+                    case Instruction.SetFrame2:
+		                if (Stack.TopType != Stack.DataType.Unk)
+		                {
+			                if (Types.gettype(Stack.TopType).precedence >
+			                    Types.gettype(GetFrameVar(ins.GetOperandsAsUInt).DataType).precedence)
+			                {
+				                GetFrameVar(ins.GetOperandsAsUInt).DataType = Stack.TopType;
+			                }
+		                }
+		                else
+		                {
+							CheckInstruction(0, GetFrameVar(ins.GetOperandsAsUInt).DataType);
+						}
                         tempstring = Stack.PopLit();
                         if (Stack.TopType == Stack.DataType.Int)
                         {
@@ -1488,10 +1499,14 @@ namespace Decompiler
                     case Instruction.StaticGet2: Stack.PushVar("Static", Scriptfile.Statics.GetVarAtIndex(ins.GetOperandsAsUInt)); break;
                     case Instruction.StaticSet1:
                     case Instruction.StaticSet2:
-                        if (Stack.TopType != Stack.DataType.Unk)
-                        {
-                            Scriptfile.Statics.SetTypeAtIndex(ins.GetOperandsAsUInt, Stack.TopType);
-                        }
+		                if (Stack.TopType != Stack.DataType.Unk)
+		                {
+			                Scriptfile.Statics.SetTypeAtIndex(ins.GetOperandsAsUInt, Stack.TopType);
+		                }
+		                else
+		                {
+			                CheckInstruction(0, Scriptfile.Statics.GetTypeAtIndex(ins.GetOperandsAsUInt));
+		                }
                     Stack.Drop(); break;
 
 
@@ -1502,13 +1517,13 @@ namespace Decompiler
                     case Instruction.Mult2: CheckInstruction(0, Stack.DataType.Int); Stack.Op_AmmImm(ins.GetOperandsAsInt); break;
 
 
-                    case Instruction.GetStructP: Stack.Op_GetImmP(); break;
-                    case Instruction.GetStructPImm1:
-                    case Instruction.GetStructPImm2: CheckImmediate((int)ins.GetOperandsAsUInt + 1); Stack.Op_GetImmP(ins.GetOperandsAsUInt); break;
-                    case Instruction.GetStructImm1:
-                    case Instruction.GetStructImm2: CheckImmediate((int)ins.GetOperandsAsUInt + 1); Stack.Op_GetImm(ins.GetOperandsAsUInt); break;
-                    case Instruction.SetStructImm1:
-                    case Instruction.SetStructImm2: CheckImmediate((int)ins.GetOperandsAsUInt + 1); Stack.Op_SetImm(ins.GetOperandsAsUInt); break;
+                    case Instruction.pStructStack: Stack.Op_GetImmP(); break;
+                    case Instruction.pStruct1:
+                    case Instruction.pStruct2: CheckImmediate((int)ins.GetOperandsAsUInt + 1); Stack.Op_GetImmP(ins.GetOperandsAsUInt); break;
+                    case Instruction.GetStruct1:
+                    case Instruction.GetStruct2: CheckImmediate((int)ins.GetOperandsAsUInt + 1); Stack.Op_GetImm(ins.GetOperandsAsUInt); break;
+                    case Instruction.SetStruct1:
+                    case Instruction.SetStruct2: CheckImmediate((int)ins.GetOperandsAsUInt + 1); Stack.Op_SetImm(ins.GetOperandsAsUInt); break;
 
 
                     case Instruction.pGlobal2:
@@ -1531,14 +1546,27 @@ namespace Decompiler
 
                     case Instruction.Call: FunctionName tempf = GetFunctionNameFromOffset(ins.GetOperandsAsInt);
 						//this seems to cause some kind of circular reference, though i have no idea why
-						/*Function func = GetFunctionFromOffset(ins.GetOperandsAsInt);
+						Function func = GetFunctionFromOffset(ins.GetOperandsAsInt);
+		                if (!func.predecodeStarted)
+		                {
+			                func.PreDecode();
+		                }
 						if (func.predecoded)
 						{
-							for (i = 0; i < tempf.Pcount; i++)
+							for (int j = 0; j < func.Pcount; j++)
 							{
-								CheckInstruction(tempf.Pcount - i - 1, func.Params.GetTypeAtIndex((uint)i));
+								//CheckInstruction(func.Pcount - j - 1, func.Params.GetTypeAtIndex((uint)j));
+								if (Stack.ItemType(func.Pcount - j - 1) != Stack.DataType.Unk)
+								{
+									if (Types.gettype(Stack.ItemType(func.Pcount - j - 1)).precedence >
+										Types.gettype(func.Params.GetTypeAtIndex((uint)j)).precedence)
+									{
+										func.Params.SetTypeAtIndex((uint)j, Stack.ItemType(func.Pcount - j - 1));
+									}
+								}
+								CheckInstruction(func.Pcount - j - 1, func.Params.GetTypeAtIndex((uint) j));
 							}				 
-						}*/
+						}
 						Stack.FunctionCall(tempf.Name, tempf.Pcount, tempf.Rcount);
                         break;
 
@@ -1555,23 +1583,23 @@ namespace Decompiler
 
                     case Instruction.StrCopy: CheckInstruction(0, Stack.DataType.StringPtr, 2); CheckInstructionString(ins.GetOperandsAsInt); Stack.op_strcopy(ins.GetOperandsAsInt); break;
                     case Instruction.ItoS: CheckInstruction(0, Stack.DataType.StringPtr); CheckInstructionString(ins.GetOperandsAsInt); Stack.op_itos(ins.GetOperandsAsInt); break;
-                    case Instruction.StrCat: CheckInstruction(0, Stack.DataType.StringPtr, 2); CheckInstructionString(ins.GetOperandsAsInt); Stack.op_stradd(ins.GetOperandsAsInt); break;
-                    case Instruction.StrCatI: CheckInstruction(0, Stack.DataType.StringPtr); CheckInstructionString(ins.GetOperandsAsInt); Stack.op_straddi(ins.GetOperandsAsInt); break;
+                    case Instruction.StrConCat: CheckInstruction(0, Stack.DataType.StringPtr, 2); CheckInstructionString(ins.GetOperandsAsInt); Stack.op_stradd(ins.GetOperandsAsInt); break;
+                    case Instruction.StrConCatInt: CheckInstruction(0, Stack.DataType.StringPtr); CheckInstructionString(ins.GetOperandsAsInt); Stack.op_straddi(ins.GetOperandsAsInt); break;
 
 
                     case Instruction.MemCopy: Stack.op_sncopy(); break;
                     case Instruction.Catch: break;
                     case Instruction.Throw: break;
                     case Instruction.pCall: Stack.pcall(); break;
-                    case Instruction.Push_n1:
-                    case Instruction.Push_0:
-                    case Instruction.Push_1:
-                    case Instruction.Push_2:
-                    case Instruction.Push_3:
-                    case Instruction.Push_4:
-                    case Instruction.Push_5:
-                    case Instruction.Push_6:
-                    case Instruction.Push_7: Stack.Push(ins.GetImmBytePush); break;
+                    case Instruction.iPush_n1:
+                    case Instruction.iPush_0:
+                    case Instruction.iPush_1:
+                    case Instruction.iPush_2:
+                    case Instruction.iPush_3:
+                    case Instruction.iPush_4:
+                    case Instruction.iPush_5:
+                    case Instruction.iPush_6:
+                    case Instruction.iPush_7: Stack.Push(ins.GetImmBytePush); break;
                     case Instruction.fPush_n1:
                     case Instruction.fPush_0:
                     case Instruction.fPush_1:

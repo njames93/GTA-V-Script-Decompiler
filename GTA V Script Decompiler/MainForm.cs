@@ -54,7 +54,8 @@ namespace Decompiler
 				Program.Config.IniWriteBool("View", "Show_Nat_Namespace", true);
 				Program.Config.IniWriteBool("Base", "Show_Func_Pointer", false);
                Program.Config.IniWriteBool("Base", "Use_MultiThreading", false);
-               Program.Config.IniWriteBool("View", "Line_Numbers", true);
+				Program.Config.IniWriteBool("Base", "Hex_Index", false);
+				Program.Config.IniWriteBool("View", "Line_Numbers", true);
            }
            showArraySizeToolStripMenuItem.Checked = Program.Find_Show_Array_Size();
            reverseHashesToolStripMenuItem.Checked = Program.Find_Reverse_Hashes();
@@ -63,7 +64,9 @@ namespace Decompiler
            showFuncPointerToolStripMenuItem.Checked = Program.Find_Show_Func_Pointer();
            useMultiThreadingToolStripMenuItem.Checked = Program.Find_Use_MultiThreading();
 	        includeNativeNamespaceToolStripMenuItem.Checked = Program.Find_Nat_Namespace();
-           showLineNumbersToolStripMenuItem.Checked = fctb1.ShowLineNumbers = Program.Config.IniReadBool("View", "Line_Numbers");
+	        globalAndStructHexIndexingToolStripMenuItem.Checked = Program.Find_Hex_Index();
+
+		   showLineNumbersToolStripMenuItem.Checked = fctb1.ShowLineNumbers = Program.Config.IniReadBool("View", "Line_Numbers");
            ToolStripMenuItem t = null;
            switch (Program.Find_getINTType())
            {
@@ -341,6 +344,12 @@ namespace Decompiler
 				else
 					Program.x64nativefile = new x64NativeFile(new MemoryStream(Properties.Resources.x64natives));
 			}
+		}
+		private void globalAndStructHexIndexingToolStripMenuItem_Click(object sender, EventArgs e)
+		{
+			globalAndStructHexIndexingToolStripMenuItem.Checked = !globalAndStructHexIndexingToolStripMenuItem.Checked;
+			Program.Config.IniWriteBool("Base", "Hex_Index", globalAndStructHexIndexingToolStripMenuItem.Checked);
+			Program.Find_Hex_Index();
 		}
 
 		private void useMultiThreadingToolStripMenuItem_Click(object sender, EventArgs e)
@@ -969,5 +978,7 @@ namespace Decompiler
 				}
 			return false;
 		}
+
+
 	}
 }
