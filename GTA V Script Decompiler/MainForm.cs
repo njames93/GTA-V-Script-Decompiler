@@ -921,13 +921,13 @@ namespace Decompiler
 					updatestatus($"No Strings Found, Time taken: {DateTime.Now - Start}");
 				else
 				{
-					updatestatus($"Founs {FoundStrings.Count} strings, Time taken: {DateTime.Now - Start}");
+					updatestatus($"Found {FoundStrings.Count} strings, Time taken: {DateTime.Now - Start}");
 					FoundStrings.Sort((x, y) => x.Item1.CompareTo(y.Item1));
 					using (StreamWriter oFile = File.CreateText(Path.Combine(fsd.SelectedPath, "STRINGS.txt")))
 					{
 						foreach (Tuple<uint, string> Item in FoundStrings)
 						{
-							oFile.WriteLine($"0x{Utils.formathexhash(Item.Item1)} : \"{Item.Item2}\"");
+							oFile.WriteLine($"{Utils.FormatHexHash(Item.Item1)} : \"{Item.Item2}\"");
 						}
 					}
 				}

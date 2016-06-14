@@ -63,7 +63,7 @@ namespace Decompiler
         }
         public void PushHexInt(uint value)
         {
-            _stack.Add(new StackValue(StackValue.Type.Literal, Utils.formathexhash(value), DataType.Int));
+            _stack.Add(new StackValue(StackValue.Type.Literal, Utils.FormatHexHash(value), DataType.Int));
         }
         public void PushVar(string value, Vars_Info.Var Variable)
         {
@@ -203,6 +203,13 @@ namespace Decompiler
                 Push("Stack.Peek()");
             else
                 Push(top);
+        }
+        public string PopString()
+        {
+            StackValue val = Pop();
+            if ((val.ItemType == StackValue.Type.Literal) || (val.ItemType == StackValue.Type.Pointer))
+                return val.Value;
+            throw new Exception("Not a string item received");
         }
         public string PopLit()
         {
@@ -815,7 +822,7 @@ namespace Decompiler
                 throw new Exception("Not a literal item recieved");
             if (s1.Datatype == DataType.Bool || s2.Datatype == DataType.Bool)
                 PushCond("(" + s2.Value + " && " + s1.Value + ")");
-            else if (Utils.intparse(s1.Value, out temp) || Utils.intparse(s2.Value, out temp))
+            else if (Utils.IntParse(s1.Value, out temp) || Utils.IntParse(s2.Value, out temp))
                 Push(s2.Value + " & " + s1.Value, DataType.Int);
             else
                 Push("(" + s2.Value + " && " + s1.Value + ")");
@@ -829,7 +836,7 @@ namespace Decompiler
                 throw new Exception("Not a literal item recieved");
             if (s1.Datatype == DataType.Bool || s2.Datatype == DataType.Bool)
                 PushCond("(" + s2.Value + " || " + s1.Value + ")");
-            else if (Utils.intparse(s1.Value, out temp) || Utils.intparse(s2.Value, out temp))
+            else if (Utils.IntParse(s1.Value, out temp) || Utils.IntParse(s2.Value, out temp))
                 Push(s2.Value + " | " + s1.Value, DataType.Int);
             else
                 Push("(" + s2.Value + " || " + s1.Value + ")");
@@ -888,7 +895,7 @@ namespace Decompiler
         {
             string immediate = PopLit();
             int temp;
-            if (Utils.intparse(immediate, out temp))
+            if (Utils.IntParse(immediate, out temp))
             {
                 if (Peek().ItemType == StackValue.Type.Pointer)
                     Push(new StackValue(StackValue.Type.Pointer, PopPointerRef() + ".f_" + (Program.Hex_Index ? temp.ToString("X") : temp.ToString())));
@@ -965,7 +972,7 @@ namespace Decompiler
                 pointer = PopPointerRef();
                 count = PopLit();
 
-                if (!Utils.intparse(count, out amount))
+                if (!Utils.IntParse(count, out amount))
                     throw new Exception("Expecting the amount to push");
                 PushString(pointer, amount);
             }
@@ -974,7 +981,7 @@ namespace Decompiler
                 pointer = PopPointerRef();
                 count = PopLit();
 
-                if (!Utils.intparse(count, out amount))
+                if (!Utils.IntParse(count, out amount))
                     throw new Exception("Expecting the amount to push");
                 PushStruct(pointer, amount);
             }
@@ -1098,7 +1105,7 @@ namespace Decompiler
             pointer = PopPointerRef();
             count = PopLit();
             int amount;
-            if (!Utils.intparse(count, out amount))
+            if (!Utils.IntParse(count, out amount))
                 throw new Exception("Expecting the amount to push");
             string res = pointer + " = {";
             foreach (StackValue val in PopList(amount))
@@ -1147,21 +1154,33 @@ namespace Decompiler
         }
         public string op_strcopy(int size)
         {
+            return $"{PopString()} /*{size}*/ = {PopString()};";
+
+            /*
             string pointer = PopPointer();
             string pointer2 = PopPointer();
             return "StringCopy(" + pointer + ", " + pointer2 + ", " + size.ToString() + ");";
+            */
         }
         public string op_stradd(int size)
         {
+            return $"{PopString()} /*{size}*/ += {PopString()};";
+
+            /*
             string pointer = PopPointer();
             string pointer2 = PopPointer();
             return "StringConCat(" + pointer + ", " + pointer2 + ", " + size.ToString() + ");";
+            */
         }
         public string op_straddi(int size)
         {
+            return op_stradd(size);
+
+            /*
             string pointer = PopPointer();
             string inttoadd = PopLit();
             return "StringIntConCat(" + pointer + ", " + inttoadd + ", " + size.ToString() + ");";
+            */
         }
         public string op_itos(int size)
         {
@@ -1175,7 +1194,7 @@ namespace Decompiler
             string value = PopLit();
             string count = PopLit();
             int amount;
-            if (!Utils.intparse(count, out amount))
+            if (!Utils.IntParse(count, out amount))
             throw new Exception("Int Stack value expected");
             return "MemCopy(" + pointer + ", " + "{" + PopListForCall(amount) + "}, " + value + ");";
         }

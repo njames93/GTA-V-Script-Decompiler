@@ -1093,7 +1093,7 @@ namespace Decompiler
                 case Instruction.PushString:
                     tempstring = Stack.PopLit();
 
-                    if (!Utils.intparse(tempstring, out tempint))
+                    if (!Utils.IntParse(tempstring, out tempint))
                         Stack.Push("StringTable(" + tempstring + ")", Stack.DataType.StringPtr);
                     else if (!this.Scriptfile.StringTable.ContainsKey(tempint))
                         Stack.Push("StringTable(" + tempstring + ")", Stack.DataType.StringPtr);
@@ -1253,7 +1253,7 @@ namespace Decompiler
                 return;
             }
             int tempint;
-            if (Utils.intparse(temp, out tempint))
+            if (Utils.IntParse(temp, out tempint))
             {
                 ReturnType = Types.gettype(Stack.DataType.Int);
                 return;
@@ -1383,7 +1383,7 @@ namespace Decompiler
                         if (Stack.TopType == Stack.DataType.Int)
                         {
                             tempstring = Stack.PopLit();
-                            if (Utils.intparse(tempstring, out tempint))
+                            if (Utils.IntParse(tempstring, out tempint))
                             {
                                 Stack.PeekVar(0).Value = tempint;
                             }
@@ -1400,7 +1400,7 @@ namespace Decompiler
                         if (Stack.TopType == Stack.DataType.Int)
                         {
                             tempstring = Stack.PopLit();
-                            if (Utils.intparse(tempstring, out tempint))
+                            if (Utils.IntParse(tempstring, out tempint))
                             {
                                 Stack.PeekVar(0).Value = tempint;
                             }
@@ -1427,7 +1427,7 @@ namespace Decompiler
                     case Instruction.pArray1:
                     case Instruction.pArray2:
 
-                        if (!Utils.intparse(Stack.PeekItem(1), out tempint))
+                        if (!Utils.IntParse(Stack.PeekItem(1), out tempint))
                             {
                                 tempint = -1;
                             }
@@ -1436,14 +1436,14 @@ namespace Decompiler
                     Stack.Op_ArrayGetP(ins.GetOperandsAsUInt); break;
                     case Instruction.ArrayGet1:
                     case Instruction.ArrayGet2:
-                        if (!Utils.intparse(Stack.PeekItem(1), out tempint))
+                        if (!Utils.IntParse(Stack.PeekItem(1), out tempint))
                         {
                             tempint = -1;
                         }
                         CheckArray(ins.GetOperandsAsUInt, tempint); Stack.Op_ArrayGet(ins.GetOperandsAsUInt); break;
                     case Instruction.ArraySet1:
                     case Instruction.ArraySet2:
-                        if (!Utils.intparse(Stack.PeekItem(1), out tempint))
+                        if (!Utils.IntParse(Stack.PeekItem(1), out tempint))
                             {
                                 tempint = -1;
                             }
@@ -1482,7 +1482,7 @@ namespace Decompiler
                         {
                             tempstring = Stack.PopLit();
                             if (ins.GetOperandsAsUInt > Pcount)
-                                if (Utils.intparse(tempstring, out tempint))
+                                if (Utils.IntParse(tempstring, out tempint))
                                 {
                                     GetFrameVar(ins.GetOperandsAsUInt).Value = tempint;
                                 }
