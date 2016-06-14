@@ -93,6 +93,10 @@ namespace Decompiler
 						continue;
 					string val = data[0];
 					string nat = (Program.Show_Nat_Namespace ? (data[1] + "::") : "") + data[2];
+
+                    // force uppercase
+                    nat = nat.ToUpper();
+
 					ulong value;
 					if (ulong.TryParse(val, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out value))
 					{
