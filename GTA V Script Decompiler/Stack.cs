@@ -204,6 +204,13 @@ namespace Decompiler
             else
                 Push(top);
         }
+        public string PopString()
+        {
+            StackValue val = Pop();
+            if ((val.ItemType == StackValue.Type.Literal) || (val.ItemType == StackValue.Type.Pointer))
+                return val.Value;
+            throw new Exception("Not a string item received");
+        }
         public string PopLit()
         {
             StackValue val = Pop();
@@ -1147,21 +1154,33 @@ namespace Decompiler
         }
         public string op_strcopy(int size)
         {
+            return $"{PopString()} /*{size}*/ = {PopString()};";
+
+            /*
             string pointer = PopPointer();
             string pointer2 = PopPointer();
             return "StringCopy(" + pointer + ", " + pointer2 + ", " + size.ToString() + ");";
+            */
         }
         public string op_stradd(int size)
         {
+            return $"{PopString()} /*{size}*/ += {PopString()};";
+
+            /*
             string pointer = PopPointer();
             string pointer2 = PopPointer();
             return "StringConCat(" + pointer + ", " + pointer2 + ", " + size.ToString() + ");";
+            */
         }
         public string op_straddi(int size)
         {
+            return op_stradd(size);
+
+            /*
             string pointer = PopPointer();
             string inttoadd = PopLit();
             return "StringIntConCat(" + pointer + ", " + inttoadd + ", " + size.ToString() + ");";
+            */
         }
         public string op_itos(int size)
         {
