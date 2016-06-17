@@ -63,7 +63,7 @@ namespace Decompiler
         }
         public void PushHexInt(uint value)
         {
-            _stack.Add(new StackValue(StackValue.Type.Literal, Utils.formathexhash(value), DataType.Int));
+            _stack.Add(new StackValue(StackValue.Type.Literal, Utils.FormatHexHash(value), DataType.Int));
         }
         public void PushVar(string value, Vars_Info.Var Variable)
         {
@@ -240,7 +240,6 @@ namespace Decompiler
             else if (val.ItemType == StackValue.Type.Literal)
                 return val.Value;
                 throw new Exception("Not a pointer item recieved");
-            
         }
         private string PopPointerRef()
         {
@@ -445,8 +444,6 @@ namespace Decompiler
         {
 
             string functionline = name + "(";
-            if (name == "shoot_single_bullet_between_coords")
-            { }
             List<DataType> _params = new List<DataType>();
             int count = 0;
             foreach (StackValue val in PopTest(pcount))
@@ -815,7 +812,7 @@ namespace Decompiler
                 throw new Exception("Not a literal item recieved");
             if (s1.Datatype == DataType.Bool || s2.Datatype == DataType.Bool)
                 PushCond("(" + s2.Value + " && " + s1.Value + ")");
-            else if (Utils.intparse(s1.Value, out temp) || Utils.intparse(s2.Value, out temp))
+            else if (Utils.IntParse(s1.Value, out temp) || Utils.IntParse(s2.Value, out temp))
                 Push(s2.Value + " & " + s1.Value, DataType.Int);
             else
                 Push("(" + s2.Value + " && " + s1.Value + ")");
@@ -829,7 +826,7 @@ namespace Decompiler
                 throw new Exception("Not a literal item recieved");
             if (s1.Datatype == DataType.Bool || s2.Datatype == DataType.Bool)
                 PushCond("(" + s2.Value + " || " + s1.Value + ")");
-            else if (Utils.intparse(s1.Value, out temp) || Utils.intparse(s2.Value, out temp))
+            else if (Utils.IntParse(s1.Value, out temp) || Utils.IntParse(s2.Value, out temp))
                 Push(s2.Value + " | " + s1.Value, DataType.Int);
             else
                 Push("(" + s2.Value + " || " + s1.Value + ")");
@@ -888,7 +885,7 @@ namespace Decompiler
         {
             string immediate = PopLit();
             int temp;
-            if (Utils.intparse(immediate, out temp))
+            if (Utils.IntParse(immediate, out temp))
             {
                 if (Peek().ItemType == StackValue.Type.Pointer)
                     Push(new StackValue(StackValue.Type.Pointer, PopPointerRef() + ".f_" + (Program.Hex_Index ? temp.ToString("X") : temp.ToString())));
@@ -965,7 +962,7 @@ namespace Decompiler
                 pointer = PopPointerRef();
                 count = PopLit();
 
-                if (!Utils.intparse(count, out amount))
+                if (!Utils.IntParse(count, out amount))
                     throw new Exception("Expecting the amount to push");
                 PushString(pointer, amount);
             }
@@ -974,7 +971,7 @@ namespace Decompiler
                 pointer = PopPointerRef();
                 count = PopLit();
 
-                if (!Utils.intparse(count, out amount))
+                if (!Utils.IntParse(count, out amount))
                     throw new Exception("Expecting the amount to push");
                 PushStruct(pointer, amount);
             }
@@ -1098,7 +1095,7 @@ namespace Decompiler
             pointer = PopPointerRef();
             count = PopLit();
             int amount;
-            if (!Utils.intparse(count, out amount))
+            if (!Utils.IntParse(count, out amount))
                 throw new Exception("Expecting the amount to push");
             string res = pointer + " = {";
             foreach (StackValue val in PopList(amount))
@@ -1175,7 +1172,7 @@ namespace Decompiler
             string value = PopLit();
             string count = PopLit();
             int amount;
-            if (!Utils.intparse(count, out amount))
+            if (!Utils.IntParse(count, out amount))
             throw new Exception("Int Stack value expected");
             return "MemCopy(" + pointer + ", " + "{" + PopListForCall(amount) + "}, " + value + ");";
         }
@@ -1387,7 +1384,7 @@ namespace Decompiler
             new DataTypes(Stack.DataType.Float, 3, "float", "f"),
             new DataTypes(Stack.DataType.Int, 3, "int", "i"),
             new DataTypes(Stack.DataType.String, 1, "char[]", "c"),
-            new DataTypes(Stack.DataType.StringPtr, 4, "char*", "s"),
+            new DataTypes(Stack.DataType.StringPtr, 3, "char*", "s"),
             new DataTypes(Stack.DataType.Unk, 0, "var", "u"),
             new DataTypes(Stack.DataType.BoolUnk, 2, "int", "b"),
             new DataTypes(Stack.DataType.Unsure, 1, "var", "u"),

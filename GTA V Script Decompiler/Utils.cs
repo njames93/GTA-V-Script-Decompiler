@@ -23,12 +23,9 @@ namespace Decompiler
 			hash += (hash << 15);
 			return hash;
 		}
-		public static string formathexhash(uint hash)
+		public static string FormatHexHash(uint hash)
 		{
-			string hashres = hash.ToString("X");
-			while (hashres.Length < 8)
-				hashres = "0" + hashres;
-			return hashres;
+			return $"0x{hash:X8}";
 		}
 		public static float SwapEndian(float num)
 		{
@@ -72,8 +69,28 @@ namespace Decompiler
 			Array.Reverse(data);
 			return BitConverter.ToInt16(data, 0);
 		}
-		public static bool intparse(string temp, out int value)
+		public static bool IntParse(string temp, out int value)
 		{
+			//fixes when a string push also has the same index as a function location and the decompiler adds /*func_loc*/ to the string
+			if (temp.Contains("/*") && temp.Contains("*/"))
+			{
+				int index = temp.IndexOf("/*");
+				int index2 = temp.IndexOf("*/", index + 1);
+				if (index2 == -1)
+				{
+					value = -1;
+					return false;
+				} 
+				temp = temp.Substring(0, index) + temp.Substring(index2 + 2);
+			}
+			//fixes the rare case when a string push has the same index as a known hash
+			if (temp.StartsWith("joaat(\""))
+			{
+				temp = temp.Remove(temp.Length - 2).Substring(7);
+				uint val = jenkins_one_at_a_time_hash(temp);
+				value = unchecked((int) val);
+				return true;
+			}
 			if (Program.getIntType == Program.IntType._hex)
 			{
 				return int.TryParse(temp.Substring(2), System.Globalization.NumberStyles.HexNumber, new System.Globalization.CultureInfo("en-gb"), out value);

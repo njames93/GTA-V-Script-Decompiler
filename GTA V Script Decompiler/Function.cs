@@ -454,11 +454,17 @@ namespace Decompiler
                     }
 
                 }
-                //throw new Exception("All Jumps should have been handled");
-                //This code should never be executed from scripts compiled by R*
+                //These seem to be cause from continue statements in for loops
+				//But given the current implementation of codepaths, it is not really faesible
+				//to add in support for for loops. And to save rewriting the entire codepath handling
+				//I'll just ignore this case, only occurs in 2 scripts in the whole script_rel.rpf
+				//If I was to fix this, it would involve rewriting the codepath(probably as a tree
+				//structure like it really should've been done in the first place
                 if (Instructions[Offset].GetOperandsAsInt != 0)
                 {
-                    writeline("Jump @" + Instructions[Offset].GetJumpOffset.ToString() + ";");
+                    writeline("Jump @" + Instructions[Offset].GetJumpOffset.ToString() + $"; //curOff = {Instructions[Offset].Offset}");
+	               //int JustOffset = InstructionMap[Instructions[Offset].GetJumpOffset];
+	               //HLInstruction instruction = Instructions[JustOffset];
                     System.Diagnostics.Debug.WriteLine(this.Scriptfile.name);
                 }
             }
@@ -1092,10 +1098,9 @@ namespace Decompiler
                     break;
                 case Instruction.PushString:
                     tempstring = Stack.PopLit();
-
-                    if (!Utils.intparse(tempstring, out tempint))
+                    if (!Utils.IntParse(tempstring, out tempint))
                         Stack.Push("StringTable(" + tempstring + ")", Stack.DataType.StringPtr);
-                    else if (!this.Scriptfile.StringTable.ContainsKey(tempint))
+                    else if (!this.Scriptfile.StringTable.StringExists(tempint))
                         Stack.Push("StringTable(" + tempstring + ")", Stack.DataType.StringPtr);
                     else
                         Stack.Push("\"" + this.Scriptfile.StringTable[tempint] + "\"", Stack.DataType.StringPtr);
@@ -1253,7 +1258,7 @@ namespace Decompiler
                 return;
             }
             int tempint;
-            if (Utils.intparse(temp, out tempint))
+            if (Utils.IntParse(temp, out tempint))
             {
                 ReturnType = Types.gettype(Stack.DataType.Int);
                 return;
@@ -1383,7 +1388,7 @@ namespace Decompiler
                         if (Stack.TopType == Stack.DataType.Int)
                         {
                             tempstring = Stack.PopLit();
-                            if (Utils.intparse(tempstring, out tempint))
+                            if (Utils.IntParse(tempstring, out tempint))
                             {
                                 Stack.PeekVar(0).Value = tempint;
                             }
@@ -1400,7 +1405,7 @@ namespace Decompiler
                         if (Stack.TopType == Stack.DataType.Int)
                         {
                             tempstring = Stack.PopLit();
-                            if (Utils.intparse(tempstring, out tempint))
+                            if (Utils.IntParse(tempstring, out tempint))
                             {
                                 Stack.PeekVar(0).Value = tempint;
                             }
@@ -1427,7 +1432,7 @@ namespace Decompiler
                     case Instruction.pArray1:
                     case Instruction.pArray2:
 
-                        if (!Utils.intparse(Stack.PeekItem(1), out tempint))
+                        if (!Utils.IntParse(Stack.PeekItem(1), out tempint))
                             {
                                 tempint = -1;
                             }
@@ -1436,14 +1441,14 @@ namespace Decompiler
                     Stack.Op_ArrayGetP(ins.GetOperandsAsUInt); break;
                     case Instruction.ArrayGet1:
                     case Instruction.ArrayGet2:
-                        if (!Utils.intparse(Stack.PeekItem(1), out tempint))
+                        if (!Utils.IntParse(Stack.PeekItem(1), out tempint))
                         {
                             tempint = -1;
                         }
                         CheckArray(ins.GetOperandsAsUInt, tempint); Stack.Op_ArrayGet(ins.GetOperandsAsUInt); break;
                     case Instruction.ArraySet1:
                     case Instruction.ArraySet2:
-                        if (!Utils.intparse(Stack.PeekItem(1), out tempint))
+                        if (!Utils.IntParse(Stack.PeekItem(1), out tempint))
                             {
                                 tempint = -1;
                             }
@@ -1482,7 +1487,7 @@ namespace Decompiler
                         {
                             tempstring = Stack.PopLit();
                             if (ins.GetOperandsAsUInt > Pcount)
-                                if (Utils.intparse(tempstring, out tempint))
+                                if (Utils.IntParse(tempstring, out tempint))
                                 {
                                     GetFrameVar(ins.GetOperandsAsUInt).Value = tempint;
                                 }

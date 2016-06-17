@@ -94,7 +94,7 @@ namespace Decompiler
 			ScriptHeader header = new ScriptHeader();
 			IO.Reader reader = new IO.Reader(scriptStream, false);
 			scriptStream.Seek(0, SeekOrigin.Begin);
-			header.RSC7Offset = (reader.ReadUInt32() == 0x52534337) ? 0x10 : 0x0;
+			header.RSC7Offset = (reader.ReadUInt32() == 0x37435352) ? 0x10 : 0x0;
 			scriptStream.Seek(header.RSC7Offset, SeekOrigin.Begin);
 			header.Magic = reader.ReadInt32(); //0x0
 			reader.Advance();

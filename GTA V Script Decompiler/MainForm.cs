@@ -921,13 +921,13 @@ namespace Decompiler
 					updatestatus($"No Strings Found, Time taken: {DateTime.Now - Start}");
 				else
 				{
-					updatestatus($"Founs {FoundStrings.Count} strings, Time taken: {DateTime.Now - Start}");
+					updatestatus($"Found {FoundStrings.Count} strings, Time taken: {DateTime.Now - Start}");
 					FoundStrings.Sort((x, y) => x.Item1.CompareTo(y.Item1));
 					using (StreamWriter oFile = File.CreateText(Path.Combine(fsd.SelectedPath, "STRINGS.txt")))
 					{
 						foreach (Tuple<uint, string> Item in FoundStrings)
 						{
-							oFile.WriteLine($"0x{Utils.formathexhash(Item.Item1)} : \"{Item.Item2}\"");
+							oFile.WriteLine($"0x{Utils.FormatHexHash(Item.Item1)} : \"{Item.Item2}\"");
 						}
 					}
 				}
@@ -954,7 +954,7 @@ namespace Decompiler
 					{
 						if (HashToFind.Contains(Utils.jenkins_one_at_a_time_hash(str)))
 						{
-							if (islower(str))
+							if (IsLower(str))
 								continue;
 							lock (Program.ThreadLock)
 							{
@@ -969,7 +969,7 @@ namespace Decompiler
 			}
 			Program.ThreadCount--;
 		}
-		private static bool islower(string s)
+		private static bool IsLower(string s)
 		{
 			foreach (char c in s)
 				if (char.IsLower(c))
