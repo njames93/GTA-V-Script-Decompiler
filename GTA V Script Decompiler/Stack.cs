@@ -1558,7 +1558,7 @@ namespace Decompiler
 			new DataTypes(Stack.DataType.IntPtr, 3, "int*", "i"),
 			new DataTypes(Stack.DataType.UnkPtr, 1, "var*", "u"),
 			new DataTypes(Stack.DataType.FloatPtr, 3, "float*", "f"),
-			new DataTypes(Stack.DataType.Vector3, 4, "Vector3", "f"),
+			new DataTypes(Stack.DataType.Vector3, 2, "Vector3", "v"),
 			new DataTypes(Stack.DataType.None, 4, "void", "f"),
 
 		};

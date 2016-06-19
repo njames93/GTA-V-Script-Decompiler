@@ -108,8 +108,10 @@ namespace Decompiler
 				case ListType.Params: throw new DecompilingException("Parameters have different declaration");
 			}
 			int i = 0;
+			int j = -1;
 			foreach (Var var in Vars)
 			{
+				j++;
 				if (!var.Is_Used)
 				{
 					if (!Program.Shift_Variables)
@@ -122,61 +124,116 @@ namespace Decompiler
 						i++;
 					continue;
 				}
-				if (!var.Is_Array)
+				if (var.Immediatesize == 1)
 				{
-					if (var.DataType == Stack.DataType.String)
-					{
-						datatype = "char[" + (var.Immediatesize * 4).ToString() + "] c";
-					}
-					else if (var.Immediatesize == 1)
-						datatype = Types.gettype(var.DataType).vardec;
-					/*switch (var.DataType)
-					{
-
-						case Stack.DataType.Unk: datatype = "var u"; break;
-						case Stack.DataType.Bool: datatype = "bool b"; break;
-						case Stack.DataType.Float: datatype = "float f"; break;
-						case Stack.DataType.Int: datatype = "int i"; break;
-						case Stack.DataType.String: throw new Exception("Strings should have this declared");
-						case Stack.DataType.StringPtr: datatype = "*string s"; break;
-					}*/
-					else if (var.Immediatesize == 3)
-					{
-						datatype = "vector3 v";
-					}
-					else datatype = "struct<" + var.Immediatesize.ToString() + "> ";
+					datatype = Types.gettype(var.DataType).vardec;
+					
+				}
+				else if (var.Immediatesize == 3)
+				{
+					datatype = "vector3 v";
+				}
+				else if (var.DataType == Stack.DataType.String)
+				{
+					datatype = "char c";
 				}
 				else
 				{
-					if (var.DataType == Stack.DataType.String)
-					{
-						datatype = "char[" + (var.Immediatesize * 4).ToString() + "][] c";
-					}
-					else if (var.Immediatesize == 1)
-						datatype = Types.gettype(var.DataType).vararraydec;
-					/*switch (var.DataType)
-					{
-						case Stack.DataType.Unk: datatype = "var[] u"; break;
-						case Stack.DataType.Bool: datatype = "bool[] b"; break;
-						case Stack.DataType.Float: datatype = "float[] f"; break;
-						case Stack.DataType.Int: datatype = "int[] i"; break;
-						case Stack.DataType.String: throw new Exception("Strings should have this declared");
-						case Stack.DataType.StringPtr: datatype = "*string[] s"; break;
-					}*/
-					else if (var.Immediatesize == 3)
-					{
-						datatype = "vector3[] v";
-					}
-					else datatype = "struct<" + var.Immediatesize.ToString() + ">[] ";
+					datatype = "struct<" + var.Immediatesize.ToString() + "> ";
 				}
 				string value = "";
-				if (var.Is_Array)
+				if (!var.Is_Array)
 				{
-					value = " = new " + datatype.Remove(datatype.IndexOf("]")) + var.Value.ToString() + "]";
+					if (Listtype == ListType.Statics)
+					{
+						if (var.Immediatesize == 1)
+						{
+							value = " = " + Utils.Represent(Vars[j].Value, var.DataType);
+						}
+						else if (var.DataType == Stack.DataType.String)
+						{
+
+							List<byte> data = new List<byte>();
+							for (int l = 0; l < var.Immediatesize; l++)
+							{
+								data.AddRange(BitConverter.GetBytes(Vars[j + l].Value));
+							}
+							int len = data.IndexOf(0);
+							data.RemoveRange(len, data.Count - len);
+							value = " = \"" + Encoding.ASCII.GetString(data.ToArray()) + "\"";
+
+						}
+						else if (var.Immediatesize == 3)
+						{
+
+							value += " = { " + Utils.Represent(Vars[j].Value, Stack.DataType.Float) + ", ";
+							value += Utils.Represent(Vars[j + 1].Value, Stack.DataType.Float) + ", ";
+							value += Utils.Represent(Vars[j + 2].Value, Stack.DataType.Float) + " }";
+						}
+					}
 				}
 				else
-					value = (Listtype == ListType.Statics ? " = " + var.Value.ToString() : "");
-				Working.Add(datatype + varlocation + i.ToString() + value + ";");
+				{
+					if (Listtype == ListType.Statics)
+					{
+						if (var.Immediatesize == 1)
+						{
+							value = " = { ";
+							for (int k = 0; k < var.Value; k++)
+							{
+								value += Utils.Represent(Vars[j + 1 + k].Value, var.DataType) + ", ";
+							}
+							if (value.Length > 2)
+							{
+								value = value.Remove(value.Length - 2);
+							}
+							value += " }";
+						}
+						else if (var.DataType == Stack.DataType.String)
+						{
+							value = " = { ";
+							for (int k = 0; k < var.Value; k++)
+							{
+								List<byte> data = new List<byte>();
+								for (int l = 0; l < var.Immediatesize; l++)
+								{
+									data.AddRange(BitConverter.GetBytes(Vars[j + 1 + var.Immediatesize * k + l].Value));
+								}
+								value += "\"" + Encoding.ASCII.GetString(data.ToArray()) + "\", ";
+							}
+							if (value.Length > 2)
+							{
+								value = value.Remove(value.Length - 2);
+							}
+							value += " }";
+						}
+						else if (var.Immediatesize == 3)
+						{
+							value = " = {";
+							for (int k = 0; k < var.Value; k++)
+							{
+								value += "{ " + Utils.Represent(Vars[j + 1 + 3 * k].Value, Stack.DataType.Float) + ", ";
+								value += Utils.Represent(Vars[j + 2 + 3 * k].Value, Stack.DataType.Float) + ", ";
+								value += Utils.Represent(Vars[j + 3 + 3 * k].Value, Stack.DataType.Float) + " }, ";
+							}
+							if (value.Length > 2)
+							{
+								value = value.Remove(value.Length - 2);
+							}
+							value += " }";
+						}
+					}
+				}
+				string decl = datatype + varlocation + i.ToString();
+				if (var.Is_Array)
+				{
+					decl += "[" + var.Value.ToString() + "]";
+				}
+				if (var.DataType == Stack.DataType.String)
+				{
+					decl += "[" + (var.Immediatesize*4).ToString() + "]";
+				}
+				Working.Add(decl + value + ";");
 				i++;
 			}
 			return Working.ToArray();
@@ -190,7 +247,13 @@ namespace Decompiler
 			foreach (Var var in Vars)
 			{
 				if (!var.Is_Used)
+				{
+					if (!Program.Shift_Variables)
+					{
+						i++;	 
+					}
 					continue;
+				}			   
 				string datatype = "";
 				if (!var.Is_Array)
 				{
@@ -200,20 +263,6 @@ namespace Decompiler
 					}
 					else if (var.Immediatesize == 1)
 						datatype = Types.gettype(var.DataType).vardec;
-					/*switch (var.DataType)
-					{
-						case Stack.DataType.Unk: datatype = "var u"; break;
-						case Stack.DataType.Bool: datatype = "bool b"; break;
-						case Stack.DataType.Float: datatype = "float f"; break;
-						case Stack.DataType.Int: datatype = "int i"; break;
-						case Stack.DataType.Ped: datatype = "ped p"; break;
-						case Stack.DataType.Player: datatype = "player P"; break;
-						case Stack.DataType.Object: datatype = "object o"; break;
-						case Stack.DataType.Entity: datatype = "entity e"; break;
-						case Stack.DataType.Vehicle: datatype = "vehicle v"; break;
-						case Stack.DataType.String: throw new Exception("Strings should have this declared");
-						case Stack.DataType.StringPtr: datatype = "*string s"; break;
-					}*/
 					else if (var.Immediatesize == 3)
 					{
 						datatype = "vector3 v";
@@ -228,19 +277,6 @@ namespace Decompiler
 					}
 					else if (var.Immediatesize == 1)
 						datatype = Types.gettype(var.DataType).vararraydec;
-					/*switch (var.DataType)
-					{
-						case Stack.DataType.Unk: datatype = "var[] u"; break;
-						case Stack.DataType.Bool: datatype = "bool[] b"; break;
-						case Stack.DataType.Float: datatype = "float[] f"; break;
-						case Stack.DataType.Int: datatype = "int[] i"; break;
-						case Stack.DataType.Player: datatype = "player[] P"; break;
-						case Stack.DataType.Object: datatype = "object[] o"; break;
-						case Stack.DataType.Entity: datatype = "entity[] e"; break;
-						case Stack.DataType.Vehicle: datatype = "vehicle[] v"; break;
-						case Stack.DataType.String: throw new Exception("Strings should have this declared");
-						case Stack.DataType.StringPtr: datatype = "*string[] s"; break;
-					}*/
 					else if (var.Immediatesize == 3)
 					{
 						datatype = "vector3[] v";

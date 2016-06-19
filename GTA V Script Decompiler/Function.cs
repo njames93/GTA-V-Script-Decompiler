@@ -1950,9 +1950,7 @@ namespace Decompiler
 						break;
 
 
-					case Instruction.Call:
-						FunctionName tempf = GetFunctionNameFromOffset(ins.GetOperandsAsInt);
-						//this seems to cause some kind of circular reference, though i have no idea why
+					case Instruction.Call:			
 						Function func = GetFunctionFromOffset(ins.GetOperandsAsInt);
 						if (!func.predecodeStarted)
 						{
@@ -1974,7 +1972,7 @@ namespace Decompiler
 								CheckInstruction(func.Pcount - j - 1, func.Params.GetTypeAtIndex((uint) j));
 							}
 						}
-						Stack.FunctionCall(tempf.Name, tempf.Pcount, tempf.Rcount);
+						Stack.FunctionCall(func.Name, func.Pcount, func.Rcount);
 						break;
 
 
