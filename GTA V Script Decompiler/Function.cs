@@ -1362,7 +1362,10 @@ namespace Decompiler
 				{
 					if (Types.gettype(type).precedence < Types.gettype(Var.DataType).precedence)
 						continue;
-					Var.DataType = type;
+					if (type == Stack.DataType.StringPtr && Stack.isPointer(index + 1))
+						Var.DataType = Stack.DataType.String;
+					else
+						Var.DataType = type;
 					if (Stack.isPointer(index + i))
 					{
 					}
@@ -1379,10 +1382,40 @@ namespace Decompiler
 			}
 		}
 
-		public void CheckInstructionString(int strsize)
+		public void CheckInstructionString(int index, int strsize, int count = 1)
 		{
-			Vars_Info.Var Var = Stack.PeekVar(0);
-			if (Var != null && Stack.isPointer(0))
+			for (int i = 0; i < count; i++)
+			{
+				Vars_Info.Var Var = Stack.PeekVar(index + i);
+				if (Var != null && (Stack.isLiteral(index + i) || Stack.isPointer(index + i)))
+				{
+					if (Stack.isPointer(index + i))
+					{
+						if (Var.Immediatesize == 1 || Var.Immediatesize == strsize / 4)
+						{
+							Var.DataType = Stack.DataType.String;
+							Var.Immediatesize = strsize / 4;
+						}
+					}
+					else
+						Var.DataType = Stack.DataType.StringPtr;
+					continue;
+				}
+				if (Stack.isnat(index + i))
+				{
+					if (_consoleVer)
+						ScriptFile.npi.updaterettype(Stack.PeekNat(index + i), Stack.DataType.StringPtr);
+					else
+						ScriptFile.X64npi.updaterettype(Stack.PeekNat64(index + i), Stack.DataType.StringPtr);
+				}
+
+			}
+		}
+
+	/*	public void CheckInstructionString(int strsize, int index = 0)
+		{
+			Vars_Info.Var Var = Stack.PeekVar(index);
+			if (Var != null && Stack.isPointer(index))
 			{
 				if (Var.Immediatesize == 1 || Var.Immediatesize == strsize/4)
 				{
@@ -1391,7 +1424,7 @@ namespace Decompiler
 				}
 			}
 
-		}
+		}*/
 
 		public void SetImmediate(int size)
 		{
@@ -1989,23 +2022,21 @@ namespace Decompiler
 						break;
 
 					case Instruction.StrCopy:
-						CheckInstruction(0, Stack.DataType.StringPtr, 2);
-						CheckInstructionString(ins.GetOperandsAsInt);
+						CheckInstructionString(0, ins.GetOperandsAsInt, 2);
 						Stack.op_strcopy(ins.GetOperandsAsInt);
 						break;
 					case Instruction.ItoS:
-						CheckInstruction(0, Stack.DataType.StringPtr);
-						CheckInstructionString(ins.GetOperandsAsInt);
+						CheckInstructionString(0, ins.GetOperandsAsInt);
+						CheckInstruction(1, Stack.DataType.Int);
 						Stack.op_itos(ins.GetOperandsAsInt);
 						break;
 					case Instruction.StrConCat:
-						CheckInstruction(0, Stack.DataType.StringPtr, 2);
-						CheckInstructionString(ins.GetOperandsAsInt);
+						CheckInstructionString(0, ins.GetOperandsAsInt, 2);
 						Stack.op_stradd(ins.GetOperandsAsInt);
 						break;
 					case Instruction.StrConCatInt:
-						CheckInstruction(0, Stack.DataType.StringPtr);
-						CheckInstructionString(ins.GetOperandsAsInt);
+						CheckInstructionString(0, ins.GetOperandsAsInt);
+						CheckInstruction(1, Stack.DataType.Int);
 						Stack.op_straddi(ins.GetOperandsAsInt);
 						break;
 

@@ -1550,7 +1550,7 @@ namespace Decompiler
 			new DataTypes(Stack.DataType.Bool, 4, "int", "i"), //needs fixing up a bit
 			new DataTypes(Stack.DataType.Float, 3, "float", "f"),
 			new DataTypes(Stack.DataType.Int, 3, "int", "i"),
-			new DataTypes(Stack.DataType.String, 1, "char[]", "c"),
+			new DataTypes(Stack.DataType.String, 3, "char[]", "c"),
 			new DataTypes(Stack.DataType.StringPtr, 3, "char*", "s"),
 			new DataTypes(Stack.DataType.Unk, 0, "var", "u"),
 			new DataTypes(Stack.DataType.BoolUnk, 2, "int", "b"),

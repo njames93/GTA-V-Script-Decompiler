@@ -40,7 +40,7 @@ namespace Decompiler
 					string val = data[0];
 					string nat = (Program.Show_Nat_Namespace ? (data[1] + "::") : "") + data[2];
 					uint value;
-					if (uint.TryParse(val, out value))
+					if (uint.TryParse(val, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out value))
 					{
 						if (!ContainsKey(value))
 						{
