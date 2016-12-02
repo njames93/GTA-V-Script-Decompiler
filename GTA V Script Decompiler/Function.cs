@@ -153,7 +153,7 @@ namespace Decompiler
 			name = working + Name;
 			working = "(" + Params.GetPDec() + ")";
 
-			return name + working;
+			return name + working + (Program.IncFuncPos ? ("//Position - 0x" + Location.ToString("X")) : "");
 		}
 
 		/// <summary>
@@ -290,7 +290,7 @@ namespace Decompiler
 			if (Program.Declare_Variables)
 			{
 				bool temp = false;
-				foreach (string s in Vars.GetDeclaration())
+				foreach (string s in Vars.GetDeclaration(_consoleVer))
 				{
 					writeline(s);
 					temp = true;
@@ -1394,7 +1394,7 @@ namespace Decompiler
 						if (Var.Immediatesize == 1 || Var.Immediatesize == strsize / 4)
 						{
 							Var.DataType = Stack.DataType.String;
-							Var.Immediatesize = strsize / 4;
+							Var.Immediatesize = strsize / (_consoleVer? 4 : 8);
 						}
 					}
 					else

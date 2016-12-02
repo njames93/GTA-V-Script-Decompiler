@@ -949,7 +949,7 @@ F7C6792D:vehicle:get_last_ped_in_vehicle_seat
 7C278621:vehicle:get_vehicle_lights_state
 48C80210:vehicle:is_vehicle_tyre_burst
 69880D14:vehicle:set_vehicle_forward_speed
-CBC7D3C8:vehicle:_task_bring_vehicle_to_halt
+CBC7D3C8:vehicle:_set_vehicle_halt
 943A6CFC:vehicle:_0x37EBBF3117BD6A25
 7FB25568:vehicle:set_ped_enabled_bike_ringtone
 593143B9:vehicle:_0x62CA17B74C435651
@@ -1131,7 +1131,7 @@ EF2A6016:vehicle:reset_vehicle_stuck_timer
 B4D3DBFB:vehicle:set_vehicle_has_been_owned_by_player
 D8260751:vehicle:set_vehicle_needs_to_be_hotwired
 0DF5ADB3:vehicle:start_vehicle_horn
-968E5770:vehicle:_0x9D44FCCE98450843
+968E5770:vehicle:_set_vehicle_silent
 0D1CBC65:vehicle:set_vehicle_has_strong_axles
 EC86DF39:vehicle:get_display_name_from_vehicle_model
 ABF02075:vehicle:get_vehicle_deformation_at_pos
@@ -1152,7 +1152,7 @@ A712FF5C:vehicle:set_vehicle_name_debug
 C306A9A3:vehicle:_0x3441CAD2F2231923
 95A9ACCB:vehicle:_0x2B6747FAA9DB9D6B
 24F873FB:vehicle:_set_vehicle_landing_gear
-A6F02670:vehicle:_get_vehicle_landing_gear
+A6F02670:vehicle:get_landing_gear_state
 2867A834:vehicle:is_any_vehicle_near_point
 9DA21956:vehicle:request_vehicle_high_detail_model
 382BE070:vehicle:remove_vehicle_high_detail_model
@@ -1205,8 +1205,8 @@ CE67162C:vehicle:_0x00C09F246ABEDD82
 D08CC1A5:vehicle:get_vehicle_class_max_braking
 D6685803:vehicle:_0x2CE544C68FB812A0
 0C0332A6:vehicle:_0x1033371FC8E842A7
-6574041D:vehicle:_open_vehicle_bomb_bay
-F8EC5751:vehicle:_close_vehicle_bomb_bay
+6574041D:vehicle:open_bomb_bay_doors
+F8EC5751:vehicle:close_bomb_bay_doors
 ADAF3513:vehicle:is_vehicle_searchlight_on
 E2C0DD8A:vehicle:set_vehicle_searchlight
 AB0E79EB:vehicle:_0x639431E895B9AA57
@@ -1248,8 +1248,8 @@ D442521F:vehicle:release_preload_mods
 03BC8F1B:vehicle:get_vehicle_color
 749DEEA2:vehicle:_0xEEBFC7A7EFDC35B4
 7F8C20DD:vehicle:get_vehicle_cause_of_destruction
-A0777943:vehicle:_is_headlight_l_broken
-F178390B:vehicle:_is_headlight_r_broken
+A0777943:vehicle:get_is_left_vehicle_headlight_damaged
+F178390B:vehicle:get_is_right_vehicle_headlight_damaged
 E943B09C:vehicle:_set_vehicle_engine_power_multiplier
 DF594D8D:vehicle:_0x1CF38D529D7441D9
 4D840FC4:vehicle:_0x1F9FB66F3A3842D2
@@ -1264,7 +1264,7 @@ A25CCB8C:vehicle:_0xF488C566413B4232
 113DF5FD:vehicle:_0x0F3B4D4E43177236
 7C8D6464:vehicle:_0x6636C535F6CC2725
 7E84C45C:vehicle:disable_plane_aileron
-7DC6D022:vehicle:_is_vehicle_engine_on
+7DC6D022:vehicle:get_is_vehicle_engine_running
 A03E42DF:vehicle:_0x1D97D1E3A70A649F
 15D40761:vehicle:_set_bike_lean_angle
 1984F88D:vehicle:_0xAB04325045427AAE
@@ -1436,7 +1436,7 @@ DB18FA01:object:_0x31F924B53EADDF65
 A7E936FD:object:_0xF92099527DB8E2A7
 B241806C:object:_0xA2C1F5E92AFE49ED
 D1BAAFB7:object:_0x762DB2D380B48D04
-63B02FAD:object:_0x3430676B11CDF21D
+63B02FAD:object:_highlight_placement_coords
 132B6D92:object:_0xB2D0BDE54F0E8E5A
 EDD01937:object:_0x08F96CA6C551AD51
 6AE36192:object:_0x5EAAD83F8CFB4575
@@ -1791,7 +1791,7 @@ C013972F:gameplay:is_area_occupied
 452E8D9E:gameplay:is_position_occupied
 C161558D:gameplay:is_point_obscured_by_a_mission_entity
 854E9AB8:gameplay:clear_area
-20E4FFD9:gameplay:_clear_area_2
+20E4FFD9:gameplay:_clear_area_of_everything
 63320F3C:gameplay:clear_area_of_vehicles
 F11A3018:gameplay:clear_angled_area_of_vehicles
 BB720FE7:gameplay:clear_area_of_objects
@@ -1841,7 +1841,7 @@ CB7415AC:gameplay:shoot_single_bullet_between_coords
 52ACCB7B:gameplay:_0xE3A7742E0B7A2F8B
 91ABB8E0:gameplay:get_model_dimensions
 85B1C9FA:gameplay:set_fake_wanted_level
-0022A430:gameplay:_0x4C9296CBCD1B971E
+0022A430:gameplay:get_fake_wanted_level
 902E26AC:gameplay:is_bit_set
 20AB0B6B:gameplay:using_mission_creator
 082BA6F2:gameplay:_0xDEA36202FC3382DF
@@ -1892,7 +1892,7 @@ F43D9821:gameplay:cancel_stunt_jump
 8230FF6C:gameplay:set_game_paused
 A0C3CE29:gameplay:set_this_script_can_be_paused
 D06F1720:gameplay:set_this_script_can_remove_blips_created_by_any_script
-FF6191E1:gameplay:int_scores_sorted
+FF6191E1:gameplay:_has_button_combination_just_been_entered
 721B2492:gameplay:_enable_mp_dlc_maps
 E202879D:gameplay:_set_unk_map_flag
 8FF6232C:gameplay:is_frontend_fading
@@ -2113,12 +2113,12 @@ FF92B49D:audio:stop_ped_speaking
 3B8E2D5F:audio:disable_ped_pain_audio
 109D1F89:audio:is_ambient_speech_disabled
 77182D58:audio:set_siren_with_no_driver
-DE8BA3CD:audio:_0x9C11908013EA4715
+DE8BA3CD:audio:_sound_vehicle_horn_this_frame
 6EB92D05:audio:set_horn_enabled
 271A9766:audio:set_audio_vehicle_priority
 2F0A16D1:audio:_0x9D3AF56E94C9AE98
 C6BC16F3:audio:use_siren_as_horn
-33B0B007:audio:_0x4F0C413926060B38
+33B0B007:audio:_set_vehicle_audio
 1C0C5E4C:audio:_0xF1F8157B8C3F171C
 6E660D3F:audio:_0x5DB8010EE71FDEF2
 23BE6432:audio:_0x59E7B488451F4D3A
@@ -2678,9 +2678,9 @@ B49C1442:script:get_event_at_index
 A2826D17:script:shutdown_loading_screen
 C8055034:script:set_no_loading_screen
 B03BCCDF:script:_0xB1577667C3708F9B
-CB7C8994:ui:_0xABA17D7CE615ADBF
-903F5EE4:ui:_0xBD12F8228410D9B4
-94119534:ui:_0x10D373323E5B9C0D
+CB7C8994:ui:_set_loading_prompt_text_entry
+903F5EE4:ui:_show_loading_prompt
+94119534:ui:_remove_loading_prompt
 71077FBD:ui:_0xC65AB383CD91DF98
 B8B3A5D0:ui:_0xD422FCC5F239A915
 A7C8594B:ui:_0x6F1554B0CC2089FA
@@ -2746,7 +2746,7 @@ BF855650:ui:_0x8F9EE5687F8EECCD
 FE272A57:ui:add_text_component_integer
 24D78013:ui:add_text_component_float
 DCE05406:ui:_add_text_component_item_string
-150E03B6:ui:_0x17299B63C7683A2B
+150E03B6:ui:_add_text_component_substring_localized
 5DE98F0A:ui:add_text_component_substring_blip_name
 27A244D8:ui:add_text_component_substring_player_name
 135B3CD0:ui:add_text_component_substring_time
@@ -2799,7 +2799,7 @@ E8D3A910:ui:_0xD2049635DEB9C375
 0E41E45C:ui:_0xD68A5FF8A3A89874
 6BE3ACA8:ui:_0x16A304E6CB2BFAB9
 3B216749:ui:_0x1CCC708F0F850613
-F6E7E92B:ui:_0xF314CF4F0211894E
+F6E7E92B:ui:_set_hud_colour
 3648960D:ui:flash_ability_bar
 24E53FD8:ui:set_ability_bar_value
 629F866B:ui:flash_wanted_display
@@ -3310,7 +3310,7 @@ C4F63A89:graphics:draw_scaleform_movie_3d
 6EAF56DE:graphics:_call_scaleform_movie_function_mixed_params
 5D66CE1E:graphics:_push_scaleform_movie_function_from_hud_component
 215ABBE8:graphics:_push_scaleform_movie_function
-F6015178:graphics:_0xAB58C27C2E6123C6
+F6015178:graphics:_push_scaleform_movie_function_n
 5E219B67:graphics:_0xB9449845F73F5E9C
 02DBF2D7:graphics:_pop_scaleform_movie_function_void
 2F38B526:graphics:_pop_scaleform_movie_function
@@ -3339,7 +3339,7 @@ F3504F4D:graphics:set_tv_volume
 B262DE67:graphics:_0xF7B38B8305F1FE8B
 78C4DCBE:graphics:_0x2201C576FACAEBE8
 CBE7068F:graphics:_0xBEB3D46BB7F043C0
-4D1EB0FB:graphics:_0x0AD973CA1E077B60
+4D1EB0FB:graphics:_load_tv_channel
 796DE696:graphics:_0x74C180030FDE4B69
 D99EC000:graphics:_0xD1C55B110E4DF534
 C2DEBA3D:graphics:enable_movie_subtitles
@@ -3916,7 +3916,7 @@ CCA9C022:network:_0x30DE938B516F0AD2
 1E5F6AEF:network:_0xEEEDA5E6D7080987
 0532DDD2:network:_0x973D76AA760A6CB6
 4ABD1E59:network:network_has_player_started_transition
-CDEBCCE7:network:_0x2615AA2A695930C1
+CDEBCCE7:network:_is_transition_joinable
 B054EC4B:network:network_join_transition
 4F41DF6B:network:network_has_invited_gamer_to_transition
 577DAA8A:network:network_is_activity_session
@@ -4142,7 +4142,7 @@ A4EF02F3:network:_0xB5074DB804E28CE7
 9B8631EB:network:network_get_primary_clan_data_new
 47C8E5FF:network:set_network_id_can_migrate
 68D486B2:network:set_network_id_exists_on_all_machines
-4D15FDB1:network:_0xA8A024587329F36A
+4D15FDB1:network:_set_network_id_sync_to_player
 DE8C0DB8:network:network_set_entity_can_blend
 09CBC4B0:network:_0xF1CA12B18AEF5298
 199E75EF:network:set_network_id_visible_in_cutscene
@@ -4378,7 +4378,7 @@ A40EF65A:network:texture_download_get_name
 424C6E27:network:_0x606E4D3E3CCCF3EB
 D3BBE42F:network:_is_rockstar_banned
 BDBB5948:network:_is_socialclub_banned
-97287D68:network:_is_player_banned
+97287D68:network:_can_play_online
 C6EA802E:network:_0x422D396F80A96547
 FD261E30:network:_0xA699957E60D80214
 8570DD34:network:_0xC22912B1D85F26B1

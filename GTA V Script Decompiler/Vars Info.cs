@@ -37,7 +37,7 @@ namespace Decompiler
 
         public void AddVar(long value)
         {
-            Vars.Add(new Var(Vars.Count, (int) value));
+            Vars.Add(new Var(Vars.Count, value));
         }
         public void checkvars()
         {
@@ -96,7 +96,7 @@ namespace Decompiler
             }
 
         }
-		public string[] GetDeclaration()
+		public string[] GetDeclaration(bool console)
 		{
 			List<string> Working = new List<string>();
 			string varlocation = "";
@@ -170,6 +170,15 @@ namespace Decompiler
 							value += Utils.Represent(Vars[j + 1].Value, Stack.DataType.Float) + ", ";
 							value += Utils.Represent(Vars[j + 2].Value, Stack.DataType.Float) + " }";
 						}
+						else if (var.Immediatesize > 1)
+						{
+							value += " = { " + Utils.Represent(Vars[j].Value, Stack.DataType.Int);
+							for (int l = 1; l < var.Immediatesize; l++)
+							{
+								value += ", " + Utils.Represent(Vars[j + l].Value, Stack.DataType.Int);
+							}
+							value += " } ";
+						}
 					}
 				}
 				else
@@ -197,7 +206,14 @@ namespace Decompiler
 								List<byte> data = new List<byte>();
 								for (int l = 0; l < var.Immediatesize; l++)
 								{
-									data.AddRange(BitConverter.GetBytes(Vars[j + 1 + var.Immediatesize * k + l].Value));
+									if (console)
+									{
+										data.AddRange(BitConverter.GetBytes((int)Vars[j + 1 + var.Immediatesize * k + l].Value));
+									}
+									else
+									{
+										data.AddRange(BitConverter.GetBytes(Vars[j + 1 + var.Immediatesize * k + l].Value));
+									}
 								}
 								value += "\"" + Encoding.ASCII.GetString(data.ToArray()) + "\", ";
 							}
@@ -231,7 +247,7 @@ namespace Decompiler
 				}
 				if (var.DataType == Stack.DataType.String)
 				{
-					decl += "[" + (var.Immediatesize*4).ToString() + "]";
+					decl += "[" + (var.Immediatesize*(console ? 4 : 8)).ToString() + "]";
 				}
 				Working.Add(decl + value + ";");
 				i++;
@@ -346,7 +362,7 @@ namespace Decompiler
                 is_used = true;
                 Datatype = Stack.DataType.Unk;
             }
-            public Var(int index, int Value)
+            public Var(int index, long Value)
             {
                 this.index = index;
                 value = Value;
@@ -357,7 +373,7 @@ namespace Decompiler
                 isstruct = false;
             }
             int index;
-            int value;
+			long value;
             int immediatesize;
             bool isArray;
             bool is_used;
@@ -365,7 +381,7 @@ namespace Decompiler
             bool iscalled = false;
             Stack.DataType Datatype;
             public int Index { get { return index; } }
-            public int Value { get { return value; } set { this.value = value; } }
+            public long Value { get { return value; } set { this.value = value; } }
             public int Immediatesize { get { return immediatesize; } set { immediatesize = value; } }
             public void makearray()
             {

@@ -43,7 +43,7 @@ namespace Decompiler
 			int i = 0;
 			foreach (string native in _natives)
 			{
-				table.Add(i.ToString() + ": " + native);
+				table.Add(i++.ToString("X2") + ": " + native);
 			}
 			return table.ToArray();
 		}
@@ -119,7 +119,7 @@ namespace Decompiler
 			int i = 0;
 			foreach (string native in _natives)
 			{
-				table.Add(i.ToString() + ": " + native);
+				table.Add(i++.ToString("X2") + ": " + native);
 			}
 			return table.ToArray();
 		}

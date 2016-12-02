@@ -54,6 +54,7 @@ namespace Decompiler
 				Program.Config.IniWriteBool("View", "Show_Nat_Namespace", true);
 				Program.Config.IniWriteBool("Base", "Show_Func_Pointer", false);
 				Program.Config.IniWriteBool("Base", "Use_MultiThreading", false);
+				Program.Config.IniWriteBool("Base", "Include_Function_Position", false);
 				Program.Config.IniWriteBool("Base", "Hex_Index", false);
 				Program.Config.IniWriteBool("View", "Line_Numbers", true);
 			}
@@ -63,6 +64,7 @@ namespace Decompiler
 			shiftVariablesToolStripMenuItem.Checked = Program.Find_Shift_Variables();
 			showFuncPointerToolStripMenuItem.Checked = Program.Find_Show_Func_Pointer();
 			useMultiThreadingToolStripMenuItem.Checked = Program.Find_Use_MultiThreading();
+			includeFunctionPositionToolStripMenuItem.Checked = Program.Find_IncFuncPos();
 			includeNativeNamespaceToolStripMenuItem.Checked = Program.Find_Nat_Namespace();
 			globalAndStructHexIndexingToolStripMenuItem.Checked = Program.Find_Hex_Index();
 
@@ -134,9 +136,9 @@ namespace Decompiler
 				fileopen.Save(ms, false);
 
 
-				foreach (KeyValuePair<string, int> locations in fileopen.Function_loc)
+				foreach (KeyValuePair<string, Tuple<int, int>> locations in fileopen.Function_loc)
 				{
-					listView1.Items.Add(new ListViewItem(new string[] {locations.Key, locations.Value.ToString()}));
+					listView1.Items.Add(new ListViewItem(new string[] {locations.Key, locations.Value.Item1.ToString(), locations.Value.Item2.ToString()}));
 				}
 				fileopen.Close();
 				StreamReader sr = new StreamReader(ms);
@@ -367,6 +369,13 @@ namespace Decompiler
 			useMultiThreadingToolStripMenuItem.Checked = !useMultiThreadingToolStripMenuItem.Checked;
 			Program.Config.IniWriteBool("Base", "Use_MultiThreading", useMultiThreadingToolStripMenuItem.Checked);
 			Program.Find_Use_MultiThreading();
+		}
+
+		private void includeFunctionPositionToolStripMenuItem_Click(object sender, EventArgs e)
+		{
+			includeFunctionPositionToolStripMenuItem.Checked = !includeFunctionPositionToolStripMenuItem.Checked;
+			Program.Config.IniWriteBool("Base", "Include_Function_Position", includeFunctionPositionToolStripMenuItem.Checked);
+			Program.Find_IncFuncPos();
 		}
 
 		#endregion
@@ -1002,7 +1011,5 @@ namespace Decompiler
 				}
 			return false;
 		}
-
-
 	}
 }

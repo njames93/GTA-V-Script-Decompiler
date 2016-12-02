@@ -241,7 +241,15 @@ namespace Decompiler
 		{
 			StackValue val = Pop();
 			if (val.ItemType != StackValue.Type.Literal)
-				throw new Exception("Not a literal item recieved");
+			{
+				if (val.ItemType == StackValue.Type.Pointer)
+				{
+					return "&" + val.Value;
+				}
+				else
+					throw new Exception("Not a literal item recieved");
+			}
+				
 			return val.Value;
 		}
 
@@ -249,7 +257,14 @@ namespace Decompiler
 		{
 			StackValue val = Peek();
 			if (val.ItemType != StackValue.Type.Literal)
-				throw new Exception("Not a literal item recieved");
+			{
+				if(val.ItemType == StackValue.Type.Pointer)
+				{
+					return "&" + val.Value;
+				}
+				else
+					throw new Exception("Not a literal item recieved");
+			}
 			return val.Value;
 		}
 
@@ -646,7 +661,7 @@ namespace Decompiler
 			s2 = Pop();
 			if (s1.ItemType == StackValue.Type.Literal && s2.ItemType == StackValue.Type.Literal)
 			{
-				Push(s2.Value + " + " + s1.Value, DataType.Int);
+				Push("(" + s2.Value + " + " + s1.Value + ")", DataType.Int);
 				return;
 			}
 			if (s2.ItemType == StackValue.Type.Pointer && s1.ItemType == StackValue.Type.Literal)
@@ -667,7 +682,7 @@ namespace Decompiler
 			string s1, s2;
 			s1 = PopLit();
 			s2 = PopLit();
-			Push(s2 + " + " + s1, DataType.Float);
+			Push("(" + s2 + " + " + s1 + ")", DataType.Float);
 		}
 
 		public void Op_Sub()
@@ -677,7 +692,7 @@ namespace Decompiler
 			s2 = Pop();
 			if (s1.ItemType == StackValue.Type.Literal && s2.ItemType == StackValue.Type.Literal)
 			{
-				Push(s2.Value + " - " + s1.Value, DataType.Int);
+				Push("(" + s2.Value + " - " + s1.Value + ")", DataType.Int);
 				return;
 			}
 			if (s2.ItemType == StackValue.Type.Pointer && s1.ItemType == StackValue.Type.Literal)
@@ -698,7 +713,7 @@ namespace Decompiler
 			string s1, s2;
 			s1 = PopLit();
 			s2 = PopLit();
-			Push(s2 + " - " + s1, DataType.Float);
+			Push("(" + s2 + " - " + s1 + ")", DataType.Float);
 		}
 
 		public void Op_Mult()
@@ -706,7 +721,7 @@ namespace Decompiler
 			string s1, s2;
 			s1 = PopLit();
 			s2 = PopLit();
-			Push(s2 + " * " + s1, DataType.Int);
+			Push("(" + s2 + " * " + s1 + ")", DataType.Int);
 		}
 
 		public void Op_Multf()
@@ -714,7 +729,7 @@ namespace Decompiler
 			string s1, s2;
 			s1 = PopLit();
 			s2 = PopLit();
-			Push(s2 + " * " + s1, DataType.Float);
+			Push("(" + s2 + " * " + s1 + ")", DataType.Float);
 		}
 
 		public void Op_Div()
@@ -722,7 +737,7 @@ namespace Decompiler
 			string s1, s2;
 			s1 = PopLit();
 			s2 = PopLit();
-			Push(s2 + " / " + s1, DataType.Int);
+			Push("(" + s2 + " / " + s1 + ")", DataType.Int);
 		}
 
 		public void Op_Divf()
@@ -730,7 +745,7 @@ namespace Decompiler
 			string s1, s2;
 			s1 = PopLit();
 			s2 = PopLit();
-			Push(s2 + " / " + s1, DataType.Float);
+			Push("(" + s2 + " / " + s1 + ")", DataType.Float);
 		}
 
 		public void Op_Mod()
@@ -738,7 +753,7 @@ namespace Decompiler
 			string s1, s2;
 			s1 = PopLit();
 			s2 = PopLit();
-			Push(s2 + " % " + s1, DataType.Int);
+			Push("(" + s2 + " % " + s1 + ")", DataType.Int);
 		}
 
 		public void Op_Modf()
@@ -746,7 +761,7 @@ namespace Decompiler
 			string s1, s2;
 			s1 = PopLit();
 			s2 = PopLit();
-			Push(s2 + " % " + s1, DataType.Float);
+			Push("(" + s2 + " % " + s1 + ")", DataType.Float);
 		}
 
 		public void Op_Not()
@@ -1121,7 +1136,14 @@ namespace Decompiler
 			}
 			StackValue val = _stack[_stack.Count - newIndex - 1];
 			if (val.ItemType != StackValue.Type.Literal)
-				throw new Exception("Not a literal item recieved");
+			{
+				if(val.ItemType == StackValue.Type.Pointer)
+				{
+					return "&" + val.Value;
+				}
+				else
+					throw new Exception("Not a literal item recieved");
+			}
 			return val.Value;
 		}
 
@@ -1231,7 +1253,14 @@ namespace Decompiler
 
 		public void Op_AmmImm(int immediate)
 		{
-			Push(PopLit() + " + " + immediate.ToString());
+			if (immediate < 0)
+			{
+				Push(PopLit() + " - " + (-immediate).ToString());
+			}
+			else if (immediate == 0)
+			{ }
+			else
+				Push(PopLit() + " + " + immediate.ToString());
 		}
 
 		public void Op_MultImm(int immediate)

@@ -32,7 +32,7 @@ namespace Decompiler
 
      
 
-        public Dictionary<string, int> Function_loc = new Dictionary<string, int>();
+        public Dictionary<string, Tuple<int, int>> Function_loc = new Dictionary<string, Tuple<int,int>>();
         
         public ScriptFile(Stream scriptStream, bool Console)
         {
@@ -85,7 +85,7 @@ namespace Decompiler
                 {
                     savestream.WriteLine("#region Local Var");
                     i++;
-                    foreach (string s in Statics.GetDeclaration())
+                    foreach (string s in Statics.GetDeclaration(ConsoleVer))
                     {
                         savestream.WriteLine("\t" + s);
                         i++;
@@ -99,7 +99,7 @@ namespace Decompiler
             {
                 string s = f.ToString();
                 savestream.WriteLine(s);
-                Function_loc.Add(f.Name, i);
+                Function_loc.Add(f.Name, new Tuple<int,int>( i, f.Location));
                 i += f.LineCount;
             }
             savestream.Flush();
@@ -123,11 +123,17 @@ namespace Decompiler
 
         public string[] GetNativeTable()
         {
-            return NativeTable.GetNativeTable();
+	        if (ConsoleVer)
+		        return NativeTable.GetNativeTable();
+	        else
+		        return X64NativeTable.GetNativeTable();
         }
         public string[] GetNativeHeader()
         {
-            return NativeTable.GetNativeHeader();
+	        if (ConsoleVer)
+		        return NativeTable.GetNativeHeader();
+	        else
+		        return X64NativeTable.GetNativeHeader();
         }
 
         public void GetFunctionCode()
@@ -162,12 +168,12 @@ namespace Decompiler
             }
             else if (start1 == 0)
             {
-                name = "main";
+                name = "__EntryFunction__";
             }
             else name = "func_" + Functions.Count.ToString();
             int pcount = CodeTable[offset + 1];
             int tmp1 = CodeTable[offset + 2], tmp2 = CodeTable[offset + 3];
-            int vcount = (tmp1 << 0x8) | tmp2;
+            int vcount = ((ConsoleVer)? (tmp1 << 0x8) | tmp2 : (tmp2 << 0x8) | tmp1) ;
             if (vcount < 0)
             {
                 throw new Exception("Well this shouldnt have happened");

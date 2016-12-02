@@ -129,6 +129,20 @@ namespace Decompiler
 			get { return _Use_MultiThreading; }
 		}
 
+
+		public static bool Find_IncFuncPos()
+		{
+			return _IncFuncPos = Program.Config.IniReadBool("Base", "Include_Function_Position", false);
+		}
+
+		private static bool _IncFuncPos = false;
+
+		public static bool IncFuncPos
+		{
+			get { return _IncFuncPos; }
+		}
+
+
 		public static bool Find_Show_Func_Pointer()
 		{
 			return _Show_Func_Pointer = Program.Config.IniReadBool("Base", "Show_Func_Pointer", false);

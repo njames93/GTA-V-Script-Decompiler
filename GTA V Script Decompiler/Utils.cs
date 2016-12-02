@@ -24,7 +24,7 @@ namespace Decompiler
 			return hash;
 		}
 
-		public static string Represent(int value, Stack.DataType type)
+		public static string Represent(long value, Stack.DataType type)
 		{
 			switch (type)
 			{
@@ -38,6 +38,8 @@ namespace Decompiler
 				case Stack.DataType.UnkPtr:
 					return "NULL";
 			}
+			if (value > Int32.MaxValue && value <= UInt32.MaxValue)
+				return ((int) ((uint) value)).ToString();
 			return value.ToString();
 		}
 		public static string FormatHexHash(uint hash)
