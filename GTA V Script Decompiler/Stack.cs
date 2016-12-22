@@ -947,30 +947,37 @@ namespace Decompiler
 			Push(s2 + " ^ " + s1, DataType.Int);
 		}
 
+		string PopStructAccess()
+		{
+			StackValue val = Pop();
+			if(val.ItemType == StackValue.Type.Pointer)
+				return val.Value + ".";
+			else if(val.ItemType == StackValue.Type.Literal)
+				return (val.Value.Contains(" ") ? "(" + val.Value + ")" : val.Value) + "->";
+			throw new Exception("Not a pointer item recieved");
+		}
+
 		public void Op_GetImm(uint immediate)
 		{
-			if (PeekVar(0) != null)
+			if(PeekVar(0)?.Immediatesize == 3)
 			{
-				if (PeekVar(0).Immediatesize == 3)
+				switch(immediate)
 				{
-					switch (immediate)
-					{
-						case 1:
-							Push(new StackValue(StackValue.Type.Literal, PopPointerRef() + ".y"));
-							return;
-						case 2:
-							Push(new StackValue(StackValue.Type.Literal, PopPointerRef() + ".z"));
-							return;
-					}
+					case 1:
+						Push(new StackValue(StackValue.Type.Literal, PopStructAccess() + "y"));
+						return;
+					case 2:
+						Push(new StackValue(StackValue.Type.Literal, PopStructAccess() + "y"));
+						return;
 				}
 			}
 			Push(new StackValue(StackValue.Type.Literal,
-				PopPointerRef() + ".f_" + (Program.Hex_Index ? immediate.ToString("X") : immediate.ToString())));
+				PopStructAccess() + "f_" + (Program.Hex_Index ? immediate.ToString("X") : immediate.ToString())));
 		}
 
 		public string Op_SetImm(uint immediate)
 		{
-			string imm = ".f_" + (Program.Hex_Index ? immediate.ToString("X") : immediate.ToString());
+			string imm = "f_" + (Program.Hex_Index ? immediate.ToString("X") : immediate.ToString());
 			if (PeekVar(0) != null)
 			{
 				if (PeekVar(0).Immediatesize == 3)
@@ -978,28 +985,22 @@ namespace Decompiler
 					switch (immediate)
 					{
 						case 1:
-							imm = ".y";
+							imm = "y";
 							break;
 						case 2:
-							imm = ".z";
+							imm = "z";
 							break;
 					}
 				}
 			}
-			string pointer = PopPointerRef();
+			string pointer = PopStructAccess();
 			string value = PopLit();
 			return setcheck(pointer + imm, value);
 		}
 
 		public void Op_GetImmP(uint immediate)
 		{
-			if (Peek().ItemType == StackValue.Type.Pointer)
-				Push(new StackValue(StackValue.Type.Pointer,
-					PopPointerRef() + ".f_" + (Program.Hex_Index ? immediate.ToString("X") : immediate.ToString())));
-			else if (Peek().ItemType == StackValue.Type.Literal)
-				Push(new StackValue(StackValue.Type.Literal,
-					PopLit() + ".f_" + (Program.Hex_Index ? immediate.ToString("X") : immediate.ToString())));
-			else throw new Exception("Unexpected Stack Value :" + Peek().ItemType.ToString());
+			Push(new StackValue(StackValue.Type.Pointer,PopStructAccess() + "f_" + (Program.Hex_Index ? immediate.ToString("X") : immediate.ToString())));
 		}
 
 		public void Op_GetImmP()
@@ -1008,21 +1009,11 @@ namespace Decompiler
 			int temp;
 			if (Utils.IntParse(immediate, out temp))
 			{
-				if (Peek().ItemType == StackValue.Type.Pointer)
-					Push(new StackValue(StackValue.Type.Pointer,
-						PopPointerRef() + ".f_" + (Program.Hex_Index ? temp.ToString("X") : temp.ToString())));
-				else if (Peek().ItemType == StackValue.Type.Literal)
-					Push(new StackValue(StackValue.Type.Literal,
-						PopLit() + ".f_" + (Program.Hex_Index ? temp.ToString("X") : temp.ToString())));
-				else throw new Exception("Unexpected Stack Value :" + Peek().ItemType.ToString());
+				Push(new StackValue(StackValue.Type.Pointer, PopStructAccess() + "f_" + (Program.Hex_Index ? temp.ToString("X") : temp.ToString())));
 			}
 			else
 			{
-				if (Peek().ItemType == StackValue.Type.Pointer)
-					Push(new StackValue(StackValue.Type.Pointer, PopPointerRef() + ".f_[" + immediate + "]"));
-				else if (Peek().ItemType == StackValue.Type.Literal)
-					Push(new StackValue(StackValue.Type.Literal, PopLit() + ".f_[" + immediate + "]"));
-				else throw new Exception("Unexpected Stack Value :" + Peek().ItemType.ToString());
+				Push(new StackValue(StackValue.Type.Pointer, PopStructAccess() + "f_[" + immediate + "]"));
 			}
 
 		}
@@ -1041,16 +1032,26 @@ namespace Decompiler
 			return " /*" + immediate.ToString() + "*/";
 		}
 
+		public string PopArrayAccess()
+		{
+			StackValue val = Pop();
+			if(val.ItemType == StackValue.Type.Pointer)
+				return val.Value;
+			else if(val.ItemType == StackValue.Type.Literal)
+				return $"(*{val.Value})";
+			throw new Exception("Not a pointer item recieved");
+		}
+
 		public void Op_ArrayGet(uint immediate)
 		{
-			string arrayloc = PopPointerRef();
+			string arrayloc = PopArrayAccess();
 			string index = PopLit();
 			Push(new StackValue(StackValue.Type.Literal, arrayloc + "[" + index + getarray(immediate) + "]"));
 		}
 
 		public string Op_ArraySet(uint immediate)
 		{
-			string arrayloc = PopPointerRef();
+			string arrayloc = PopArrayAccess();
 			string index = PopLit();
 			string value = PopLit();
 			return setcheck(arrayloc + "[" + index + getarray(immediate) + "]", value);
@@ -1062,7 +1063,7 @@ namespace Decompiler
 			string index;
 			if (Peek().ItemType == StackValue.Type.Pointer)
 			{
-				arrayloc = PopPointerRef();
+				arrayloc = PopArrayAccess();
 				index = PopLit();
 				Push(new StackValue(StackValue.Type.Pointer, arrayloc + "[" + index + getarray(immediate) + "]"));
 			}
@@ -1245,10 +1246,10 @@ namespace Decompiler
 			int amount;
 			if (!Utils.IntParse(count, out amount))
 				throw new Exception("Expecting the amount to push");
-			string res = pointer + " = {";
+			string res = pointer + " = { ";
 			foreach (StackValue val in PopList(amount))
 				res += val.Value + ", ";
-			return res.Remove(res.Length - 2) + "};";
+			return res.Remove(res.Length - 2) + " };";
 		}
 
 		public void Op_AmmImm(int immediate)
