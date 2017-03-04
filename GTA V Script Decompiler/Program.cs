@@ -21,6 +21,7 @@ namespace Decompiler
 			ThreadLock = new object();
 			Config = new Ini.IniFile(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "config.ini"));
 			Find_Nat_Namespace();
+			Find_Upper_Natives();
 			//Build NativeFiles from Directory if file exists, if not use the files in the resources
 			string path = Path.Combine(Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location),
 				"natives.dat");
@@ -177,6 +178,18 @@ namespace Decompiler
 		public static bool Hex_Index
 		{
 			get { return _Hex_Index; }
+		}
+
+		public static bool Find_Upper_Natives()
+		{
+			return _upper_Natives = Program.Config.IniReadBool("Base", "Uppercase_Natives", false);
+		}
+
+		private static bool _upper_Natives = false;
+
+		public static bool Upper_Natives
+		{
+			get { return _upper_Natives; }
 		}
 
 	}

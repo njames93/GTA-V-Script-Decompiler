@@ -37,13 +37,41 @@ namespace Decompiler
 					string[] data = line.Split(':');
 					if (data.Length != 3)
 						continue;
-					string val = data[0];
-					string nat = (Program.Show_Nat_Namespace ? (data[1] + "::") : "") + data[2];
+					string val = data[0];	
+					if(val.StartsWith("0x"))
+					{
+						val = val.Substring(2);
+					}
 					uint value;
 					if (uint.TryParse(val, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out value))
 					{
 						if (!ContainsKey(value))
 						{
+							string nat = (Program.Show_Nat_Namespace ? (data[1] + "::") : "");
+							if(Program.Upper_Natives)
+							{
+								nat = nat.ToUpper();
+								if(data[2].StartsWith("_0x"))
+								{
+									nat += data[2].Remove(3) + data[2].Substring(3).ToUpper();
+								}
+								else
+								{
+									nat += data[2].ToUpper();
+								}
+							}
+							else
+							{
+								nat = nat.ToLower();
+								if(data[2].StartsWith("_0x"))
+								{
+									nat += data[2].Remove(3) + data[2].Substring(3).ToUpper();
+								}
+								else
+								{
+									nat += data[2].ToLower();
+								}
+							}
 							Add(value, nat);
 							revmap.Add(nat, value);
 						}
@@ -92,10 +120,38 @@ namespace Decompiler
 					if (data.Length != 3)
 						continue;
 					string val = data[0];
-					string nat = (Program.Show_Nat_Namespace ? (data[1] + "::") : "") + data[2];
+					if(val.StartsWith("0x"))
+					{
+						val = val.Substring(2);
+					}
 					ulong value;
 					if (ulong.TryParse(val, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out value))
 					{
+						string nat = (Program.Show_Nat_Namespace ? (data[1] + "::") : "");
+						if(Program.Upper_Natives)
+						{
+							nat = nat.ToUpper();
+							if(data[2].StartsWith("_0x"))
+							{
+								nat += data[2].Remove(3) + data[2].Substring(3).ToUpper();
+							}
+							else
+							{
+								nat += data[2].ToUpper();
+							}
+						}
+						else
+						{
+							nat = nat.ToLower();
+							if(data[2].StartsWith("_0x"))
+							{
+								nat += data[2].Remove(3) + data[2].Substring(3).ToUpper();
+							}
+							else
+							{
+								nat += data[2].ToLower();
+							}
+						}
 						if (!ContainsKey(value))
 						{
 							Add(value, nat);

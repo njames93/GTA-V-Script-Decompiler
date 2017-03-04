@@ -371,6 +371,19 @@ namespace Decompiler
 				throw new Exception("Error in return items count");
 			return "";
 		}
+		public string FunctionCall(Function function)
+		{
+			string functionline = function.Name + "(" + PopListForCall(function.Pcount) + ")";
+			if(function.Rcount == 0)
+				return functionline + ";";
+			else if(function.Rcount == 1)
+				Push(new StackValue(StackValue.Type.Literal, functionline, function));
+			else if(function.Rcount > 1)
+				PushStruct(functionline, function.Rcount);
+			else
+				throw new Exception("Error in return items count");
+			return "";
+		}
 
 		public string NativeCallTest(uint hash, string name, int pcount, int rcount)
 		{
@@ -967,7 +980,7 @@ namespace Decompiler
 						Push(new StackValue(StackValue.Type.Literal, PopStructAccess() + "y"));
 						return;
 					case 2:
-						Push(new StackValue(StackValue.Type.Literal, PopStructAccess() + "y"));
+						Push(new StackValue(StackValue.Type.Literal, PopStructAccess() + "z"));
 						return;
 				}
 			}
@@ -1158,6 +1171,15 @@ namespace Decompiler
 			return _stack[_stack.Count - newIndex - 1].Variable;
 		}
 
+		public Function PeekFunc(int index)
+		{
+			int newIndex = GetIndex(index);
+			if(newIndex == -1)
+			{
+				return null;
+			}
+			return _stack[_stack.Count - newIndex - 1].Function;
+		}
 		public uint PeekNat(int index)
 		{
 			int newIndex = GetIndex(index);
@@ -1395,7 +1417,6 @@ namespace Decompiler
 			Bool,
 			Unk,
 			UnkPtr,
-			BoolUnk,
 			Unsure,
 			None, //For Empty returns
 			Vector3,
@@ -1419,6 +1440,7 @@ namespace Decompiler
 			uint _hash = 0;
 			ulong _xhash = 0;
 			bool global = false;
+			Function _function = null;
 
 			public StackValue(Type type, string value)
 			{
@@ -1435,6 +1457,15 @@ namespace Decompiler
 				_structSize = 0;
 				_datatype = var.DataType;
 				_var = var;
+			}
+
+			public StackValue(Type type, string name, Function function)
+			{
+				_type = type;
+				_value = name;
+				_structSize = 0;
+				_datatype = function.ReturnType.type;
+				_function = function;
 			}
 
 			public StackValue(Type type, string value, DataType datatype)
@@ -1529,6 +1560,10 @@ namespace Decompiler
 				get { return _var; }
 			}
 
+			public Function Function
+			{
+				get { return _function; }
+			}
 			public bool isNative
 			{
 				get { return _hash != 0 || _xhash != 0; }
@@ -1577,13 +1612,12 @@ namespace Decompiler
 	{
 		public static DataTypes[] _types = new DataTypes[]
 		{
-			new DataTypes(Stack.DataType.Bool, 4, "int", "i"), //needs fixing up a bit
+			new DataTypes(Stack.DataType.Bool, 4, "bool", "b"), //needs fixing up a bit
 			new DataTypes(Stack.DataType.Float, 3, "float", "f"),
 			new DataTypes(Stack.DataType.Int, 3, "int", "i"),
 			new DataTypes(Stack.DataType.String, 3, "char[]", "c"),
 			new DataTypes(Stack.DataType.StringPtr, 3, "char*", "s"),
 			new DataTypes(Stack.DataType.Unk, 0, "var", "u"),
-			new DataTypes(Stack.DataType.BoolUnk, 2, "int", "b"),
 			new DataTypes(Stack.DataType.Unsure, 1, "var", "u"),
 			new DataTypes(Stack.DataType.IntPtr, 3, "int*", "i"),
 			new DataTypes(Stack.DataType.UnkPtr, 1, "var*", "u"),

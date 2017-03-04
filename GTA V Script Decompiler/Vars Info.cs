@@ -15,6 +15,8 @@ namespace Decompiler
         List<Var> Vars;
         Dictionary<int, int> VarRemapper; //not necessary, just shifts variables up if variables before are bigger than 1 DWORD
 		private int count;
+		private int scriptParamCount = 0;
+		private int scriptParamStart { get { return Vars.Count - scriptParamCount; } }
         public Vars_Info(ListType type, int varcount)
         {
             Listtype = type;
@@ -23,7 +25,7 @@ namespace Decompiler
             {
                 Vars.Add(new Var(i));
             }
-			varcount = count;
+			count = varcount;
         }
         public Vars_Info(ListType type)
         {
@@ -67,15 +69,6 @@ namespace Decompiler
             else if (var.Immediatesize == 1)
             {
                 name = Types.gettype(var.DataType).varletter;
-                /*switch (var.DataType)
-                {
-                    case Stack.DataType.Unk: name = "u"; break;
-                    case Stack.DataType.Bool: name = "b"; break;
-                    case Stack.DataType.Float: name = "f"; break;
-                    case Stack.DataType.Int: name = "i"; break;
-                    case Stack.DataType.String: throw new Exception("Strings should be handled already");
-                    case Stack.DataType.StringPtr: name = "s"; break;
-                }*/
             }
             else if (var.Immediatesize == 3)
             {
@@ -84,7 +77,7 @@ namespace Decompiler
 
             switch (Listtype)
             {
-                case ListType.Statics: name += "Local_"; break;
+                case ListType.Statics: name += (index >= scriptParamStart ? "ScriptParam_" : "Local_"); break;
                 case ListType.Vars: name += "Var"; break;
                 case ListType.Params: name += "Param"; break;
             }
@@ -92,25 +85,38 @@ namespace Decompiler
             if (Program.Shift_Variables) return name + VarRemapper[(int)index].ToString();
             else
             {
-                return name + index.ToString();
+                return name + (Listtype == ListType.Statics && index >= scriptParamStart ? index - scriptParamStart : index).ToString();
             }
 
         }
+		public void SetScriptParamCount(int count)
+		{
+			if (Listtype == ListType.Statics)
+			{
+				scriptParamCount = count;
+			}
+		}
 		public string[] GetDeclaration(bool console)
 		{
 			List<string> Working = new List<string>();
 			string varlocation = "";
 			string datatype = "";
-			switch (Listtype)
-			{
-				case ListType.Statics: varlocation = "Local_"; break;
-				case ListType.Vars: varlocation = "Var"; break;
-				case ListType.Params: throw new DecompilingException("Parameters have different declaration");
-			}
+
 			int i = 0;
 			int j = -1;
 			foreach (Var var in Vars)
 			{
+				switch(Listtype)
+				{
+					case ListType.Statics:
+						varlocation =  (i >= scriptParamStart ? "ScriptParam_" : "Local_");
+						break;
+					case ListType.Vars:
+						varlocation = "Var";
+						break;
+					case ListType.Params:
+						throw new DecompilingException("Parameters have different declaration");
+				}
 				j++;
 				if (!var.Is_Used)
 				{
@@ -240,7 +246,7 @@ namespace Decompiler
 						}
 					}
 				}
-				string decl = datatype + varlocation + i.ToString();
+				string decl = datatype + varlocation + (Listtype == ListType.Statics && i >= scriptParamStart ? i - scriptParamStart : i).ToString();
 				if (var.Is_Array)
 				{
 					decl += "[" + var.Value.ToString() + "]";

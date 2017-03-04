@@ -55,6 +55,7 @@ namespace Decompiler
 				Program.Config.IniWriteBool("Base", "Show_Func_Pointer", false);
 				Program.Config.IniWriteBool("Base", "Use_MultiThreading", false);
 				Program.Config.IniWriteBool("Base", "Include_Function_Position", false);
+				Program.Config.IniWriteBool("Base", "Uppercase_Natives", false);
 				Program.Config.IniWriteBool("Base", "Hex_Index", false);
 				Program.Config.IniWriteBool("View", "Line_Numbers", true);
 			}
@@ -67,6 +68,7 @@ namespace Decompiler
 			includeFunctionPositionToolStripMenuItem.Checked = Program.Find_IncFuncPos();
 			includeNativeNamespaceToolStripMenuItem.Checked = Program.Find_Nat_Namespace();
 			globalAndStructHexIndexingToolStripMenuItem.Checked = Program.Find_Hex_Index();
+			uppercaseNativesToolStripMenuItem.Checked = Program.Find_Upper_Natives();
 
 			showLineNumbersToolStripMenuItem.Checked = fctb1.ShowLineNumbers = Program.Config.IniReadBool("View", "Line_Numbers");
 			ToolStripMenuItem t = null;
@@ -332,16 +334,13 @@ namespace Decompiler
 			Program.Find_Show_Func_Pointer();
 		}
 
-		private void includeNativeNamespaceToolStripMenuItem_Click(object sender, EventArgs e)
+		private void RebuildNativeFiles()
 		{
-			includeNativeNamespaceToolStripMenuItem.Checked = !includeNativeNamespaceToolStripMenuItem.Checked;
-			Program.Config.IniWriteBool("Base", "Show_Nat_Namespace", includeNativeNamespaceToolStripMenuItem.Checked);
-			Program.Find_Nat_Namespace();
-			if (Program.nativefile != null)
+			if(Program.nativefile != null)
 			{
 				string path = Path.Combine(Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location),
-					"natives.dat");
-				if (File.Exists(path))
+				"natives.dat");
+				if(File.Exists(path))
 					Program.nativefile = new NativeFile(File.OpenRead(path));
 				else
 					Program.nativefile = new NativeFile(new MemoryStream(Properties.Resources.natives));
@@ -350,11 +349,19 @@ namespace Decompiler
 			{
 				string path = Path.Combine(Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location),
 					"x64natives.dat");
-				if (File.Exists(path))
+				if(File.Exists(path))
 					Program.x64nativefile = new x64NativeFile(File.OpenRead(path));
 				else
 					Program.x64nativefile = new x64NativeFile(new MemoryStream(Properties.Resources.x64natives));
 			}
+		}
+
+		private void includeNativeNamespaceToolStripMenuItem_Click(object sender, EventArgs e)
+		{
+			includeNativeNamespaceToolStripMenuItem.Checked = !includeNativeNamespaceToolStripMenuItem.Checked;
+			Program.Config.IniWriteBool("Base", "Show_Nat_Namespace", includeNativeNamespaceToolStripMenuItem.Checked);
+			Program.Find_Nat_Namespace();
+			RebuildNativeFiles();
 		}
 
 		private void globalAndStructHexIndexingToolStripMenuItem_Click(object sender, EventArgs e)
@@ -376,6 +383,14 @@ namespace Decompiler
 			includeFunctionPositionToolStripMenuItem.Checked = !includeFunctionPositionToolStripMenuItem.Checked;
 			Program.Config.IniWriteBool("Base", "Include_Function_Position", includeFunctionPositionToolStripMenuItem.Checked);
 			Program.Find_IncFuncPos();
+		}
+
+		private void uppercaseNativesToolStripMenuItem_Click(object sender, EventArgs e)
+		{
+			uppercaseNativesToolStripMenuItem.Checked = !uppercaseNativesToolStripMenuItem.Checked;
+			Program.Config.IniWriteBool("Base", "Uppercase_Natives", uppercaseNativesToolStripMenuItem.Checked);
+			Program.Find_Upper_Natives();
+			RebuildNativeFiles();
 		}
 
 		#endregion

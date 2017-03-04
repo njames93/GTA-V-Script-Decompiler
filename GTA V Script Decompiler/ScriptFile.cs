@@ -327,6 +327,7 @@ namespace Decompiler
         private void GetStaticInfo()
         {
             Statics = new Vars_Info(Vars_Info.ListType.Statics);
+			Statics.SetScriptParamCount(Header.ParameterCount);
             IO.Reader reader = new IO.Reader(file, ConsoleVer);
             reader.BaseStream.Position = Header.StaticsOffset + Header.RSC7Offset;
             for (int count = 0; count < Header.StaticsCount; count++)
