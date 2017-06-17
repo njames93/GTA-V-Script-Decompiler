@@ -1,6 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.IO;	  
+using System.IO;
 using System.Windows.Forms;
 
 namespace Decompiler
@@ -16,23 +16,25 @@ namespace Decompiler
 
 		public void savefile()
 		{
-			Stream natfile =
+			using (Stream natfile =
 				File.Create(Path.Combine(Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location),
-					"nativeinfo.dat"));
-			IO.Writer writer = new IO.Writer(natfile);
-			foreach (KeyValuePair<uint, Tuple<Stack.DataType, Stack.DataType[]>> native in Natives)
+					"nativeinfo.dat")))
 			{
-				writer.Write(native.Key);
-				writer.Write(Types.indexof(native.Value.Item1));
-				writer.Write((byte) native.Value.Item2.Length);
-				for (int i = 0; i < native.Value.Item2.Length; i++)
+				using (IO.Writer writer = new IO.Writer(natfile))
 				{
-					writer.Write(Types.indexof(native.Value.Item2[i]));
+					foreach (KeyValuePair<uint, Tuple<Stack.DataType, Stack.DataType[]>> native in Natives)
+					{
+						writer.Write(native.Key);
+						writer.Write(Types.indexof(native.Value.Item1));
+						writer.Write((byte)native.Value.Item2.Length);
+						for (int i = 0; i < native.Value.Item2.Length; i++)
+						{
+							writer.Write(Types.indexof(native.Value.Item2[i]));
+						}
+					}
 				}
 			}
-			writer.Close();
 		}
-
 
 		public void updatenative(uint hash, Stack.DataType returns, params Stack.DataType[] param)
 		{
@@ -103,21 +105,24 @@ namespace Decompiler
 				"nativeinfo.dat");
 			if (!File.Exists(file))
 				return;
-			Stream natfile = File.OpenRead(file);
-			IO.Reader reader = new IO.Reader(natfile, true);
-			while (natfile.Position < natfile.Length)
+			using (Stream natfile = File.OpenRead(file))
 			{
-				uint native = reader.ReadUInt32();
-				Stack.DataType returntype = Types.getatindex(reader.ReadByte());
-				byte count = reader.ReadByte();
-				Stack.DataType[] param = new Stack.DataType[count];
-				for (byte i = 0; i < count; i++)
+				using (IO.Reader reader = new IO.Reader(natfile, true))
 				{
-					param[i] = Types.getatindex(reader.ReadByte());
+					while (natfile.Position < natfile.Length)
+					{
+						uint native = reader.ReadUInt32();
+						Stack.DataType returntype = Types.getatindex(reader.ReadByte());
+						byte count = reader.ReadByte();
+						Stack.DataType[] param = new Stack.DataType[count];
+						for (byte i = 0; i < count; i++)
+						{
+							param[i] = Types.getatindex(reader.ReadByte());
+						}
+						Natives.Add(native, new Tuple<Stack.DataType, Stack.DataType[]>(returntype, param));
+					}
 				}
-				Natives.Add(native, new Tuple<Stack.DataType, Stack.DataType[]>(returntype, param));
 			}
-
 		}
 
 		public string getnativeinfo(uint hash)
@@ -139,44 +144,48 @@ namespace Decompiler
 
 		public void exportnativeinfo()
 		{
-			Stream natfile =
+			using (Stream natfile =
 				File.Create(Path.Combine(Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location),
-					"natives.h"));
-			StreamWriter sw = new StreamWriter(natfile);
-			sw.WriteLine("/*************************************************************");
-			sw.WriteLine("****************** GTA V Native Header file ******************");
-			sw.WriteLine("*************************************************************/\n");
-			sw.WriteLine("#ifndef NATIVE_HEADER\n#define NATIVE_HEADER");
-			sw.WriteLine("typedef unsigned int uint;");
-			sw.WriteLine("typedef uint bool;");
-			sw.WriteLine("typedef uint var;");
-			sw.WriteLine("");
-			List<Tuple<string, string>> natives = new List<Tuple<string, string>>();
-
-			foreach (KeyValuePair<uint, Tuple<Stack.DataType, Stack.DataType[]>> native in Natives)
+					"natives.h")))
 			{
-				string type = Types.gettype(native.Value.Item1).returntype;
-				string line = Program.nativefile.nativefromhash(native.Key) + "(";
+				using (StreamWriter sw = new StreamWriter(natfile))
+				{
+					sw.WriteLine("/*************************************************************");
+					sw.WriteLine("****************** GTA V Native Header file ******************");
+					sw.WriteLine("*************************************************************/\n");
+					sw.WriteLine("#ifndef NATIVE_HEADER\n#define NATIVE_HEADER");
+					sw.WriteLine("typedef unsigned int uint;");
+					sw.WriteLine("typedef uint bool;");
+					sw.WriteLine("typedef uint var;");
+					sw.WriteLine("");
+					List<Tuple<string, string>> natives = new List<Tuple<string, string>>();
 
-				int max = native.Value.Item2.Length;
-				if (max == 0)
-				{
-					natives.Add(new Tuple<string, string>(line + ");\n", type));
-					continue;
+					foreach (KeyValuePair<uint, Tuple<Stack.DataType, Stack.DataType[]>> native in Natives)
+					{
+						string type = Types.gettype(native.Value.Item1).returntype;
+						string line = Program.nativefile.nativefromhash(native.Key) + "(";
+
+						int max = native.Value.Item2.Length;
+						if (max == 0)
+						{
+							natives.Add(new Tuple<string, string>(line + ");\n", type));
+							continue;
+						}
+						for (int i = 0; i < max; i++)
+						{
+							line += Types.gettype(native.Value.Item2[i]).vardec + i + ", ";
+						}
+						natives.Add(new Tuple<string, string>(line.Remove(line.Length - 2) + ");\n", type));
+					}
+					natives.Sort();
+					foreach (Tuple<string, string> native in natives)
+					{
+						sw.Write("extern " + native.Item2 + native.Item1);
+					}
+					sw.WriteLine("#endif");
 				}
-				for (int i = 0; i < max; i++)
-				{
-					line += Types.gettype(native.Value.Item2[i]).vardec + i + ", ";
-				}
-				natives.Add(new Tuple<string, string>(line.Remove(line.Length - 2) + ");\n", type));
 			}
-			natives.Sort();
-			foreach (Tuple<string, string> native in natives)
-			{
-				sw.Write("extern " + native.Item2 + native.Item1);
-			}
-			sw.WriteLine("#endif");
-			sw.Close();
+
 		}
 
 		public string TypeToString(Stack.DataType type)
@@ -220,24 +229,28 @@ namespace Decompiler
 			try
 			{
 				string loc = Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
-				Stream natfile = File.Create(Path.Combine(loc, "x64nativeinfonew.dat"));
-				IO.Writer writer = new IO.Writer(natfile);
-				foreach (KeyValuePair<ulong, Tuple<Stack.DataType, Stack.DataType[]>> native in Natives)
+				using (Stream natfile = File.Create(Path.Combine(loc, "x64nativeinfonew.dat")))
 				{
-					writer.Write(native.Key);
-					writer.Write(Types.indexof(native.Value.Item1));
-					writer.Write((byte) native.Value.Item2.Length);
-					for (int i = 0; i < native.Value.Item2.Length; i++)
+					using (IO.Writer writer = new IO.Writer(natfile))
 					{
-						writer.Write(Types.indexof(native.Value.Item2[i]));
+						foreach (KeyValuePair<ulong, Tuple<Stack.DataType, Stack.DataType[]>> native in Natives)
+						{
+							writer.Write(native.Key);
+							writer.Write(Types.indexof(native.Value.Item1));
+							writer.Write((byte)native.Value.Item2.Length);
+							for (int i = 0; i < native.Value.Item2.Length; i++)
+							{
+								writer.Write(Types.indexof(native.Value.Item2[i]));
+							}
+						}
+						if (File.Exists(Path.Combine(loc, "x64nativeinfo.dat")))
+						{
+							File.Delete("x64nativeinfo.dat");
+						}
+						File.Move(Path.Combine(loc, "x64nativeinfonew.dat"), Path.Combine(loc, "x64nativeinfo.dat"));
 					}
 				}
-				writer.Close();
-				if (File.Exists(Path.Combine(loc, "x64nativeinfo.dat")))
-				{
-					File.Delete("x64nativeinfo.dat");
-				}
-				File.Move(Path.Combine(loc, "x64nativeinfonew.dat"), Path.Combine(loc, "x64nativeinfo.dat"));
+
 			}
 			catch (Exception Exception)
 			{
@@ -337,21 +350,24 @@ namespace Decompiler
 				"x64nativeinfo.dat");
 			if (!File.Exists(file))
 				return;
-			Stream natfile = File.OpenRead(file);
-			IO.Reader reader = new IO.Reader(natfile, false);
-			while (natfile.Position < natfile.Length)
+			using (Stream natfile = File.OpenRead(file))
 			{
-				ulong native = reader.ReadUInt64();
-				Stack.DataType returntype = Types.getatindex(reader.ReadByte());
-				byte count = reader.ReadByte();
-				Stack.DataType[] param = new Stack.DataType[count];
-				for (byte i = 0; i < count; i++)
+				using (IO.Reader reader = new IO.Reader(natfile, false))
 				{
-					param[i] = Types.getatindex(reader.ReadByte());
+					while (natfile.Position < natfile.Length)
+					{
+						ulong native = reader.ReadUInt64();
+						Stack.DataType returntype = Types.getatindex(reader.ReadByte());
+						byte count = reader.ReadByte();
+						Stack.DataType[] param = new Stack.DataType[count];
+						for (byte i = 0; i < count; i++)
+						{
+							param[i] = Types.getatindex(reader.ReadByte());
+						}
+						Natives.Add(native, new Tuple<Stack.DataType, Stack.DataType[]>(returntype, param));
+					}
 				}
-				Natives.Add(native, new Tuple<Stack.DataType, Stack.DataType[]>(returntype, param));
 			}
-
 		}
 
 		public string getnativeinfo(ulong hash)
@@ -373,43 +389,46 @@ namespace Decompiler
 
 		public void exportnativeinfo()
 		{
-			Stream natfile =
+			using (Stream natfile =
 				File.Create(Path.Combine(Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location),
-					"natives.h"));
-			StreamWriter sw = new StreamWriter(natfile);
-			sw.WriteLine("/*************************************************************");
-			sw.WriteLine("****************** GTA V Native Header file ******************");
-			sw.WriteLine("*************************************************************/\n");
-			sw.WriteLine("#define TRUE 1\n#define FALSE 0\n#define true 1\n#define false 0\n");
-			sw.WriteLine("typedef unsigned int uint;");
-			sw.WriteLine("typedef uint bool;");
-			sw.WriteLine("typedef uint var;");
-			sw.WriteLine("");
-			List<Tuple<string, string>> natives = new List<Tuple<string, string>>();
-
-			foreach (KeyValuePair<ulong, Tuple<Stack.DataType, Stack.DataType[]>> native in Natives)
+					"natives.h")))
 			{
-				string type = Types.gettype(native.Value.Item1).returntype;
-				string line = Program.x64nativefile.nativefromhash(native.Key) + "(";
+				using (StreamWriter sw = new StreamWriter(natfile))
+				{
+					sw.WriteLine("/*************************************************************");
+					sw.WriteLine("****************** GTA V Native Header file ******************");
+					sw.WriteLine("*************************************************************/\n");
+					sw.WriteLine("#define TRUE 1\n#define FALSE 0\n#define true 1\n#define false 0\n");
+					sw.WriteLine("typedef unsigned int uint;");
+					sw.WriteLine("typedef uint bool;");
+					sw.WriteLine("typedef uint var;");
+					sw.WriteLine("");
+					List<Tuple<string, string>> natives = new List<Tuple<string, string>>();
 
-				int max = native.Value.Item2.Length;
-				if (max == 0)
-				{
-					natives.Add(new Tuple<string, string>(line + ");\n", type));
-					continue;
+					foreach (KeyValuePair<ulong, Tuple<Stack.DataType, Stack.DataType[]>> native in Natives)
+					{
+						string type = Types.gettype(native.Value.Item1).returntype;
+						string line = Program.x64nativefile.nativefromhash(native.Key) + "(";
+
+						int max = native.Value.Item2.Length;
+						if (max == 0)
+						{
+							natives.Add(new Tuple<string, string>(line + ");\n", type));
+							continue;
+						}
+						for (int i = 0; i < max; i++)
+						{
+							line += Types.gettype(native.Value.Item2[i]).vardec + i + ", ";
+						}
+						natives.Add(new Tuple<string, string>(line.Remove(line.Length - 2) + ");\n", type));
+					}
+					natives.Sort();
+					foreach (Tuple<string, string> native in natives)
+					{
+						sw.Write("extern " + native.Item2 + native.Item1);
+					}
 				}
-				for (int i = 0; i < max; i++)
-				{
-					line += Types.gettype(native.Value.Item2[i]).vardec + i + ", ";
-				}
-				natives.Add(new Tuple<string, string>(line.Remove(line.Length - 2) + ");\n", type));
 			}
-			natives.Sort();
-			foreach (Tuple<string, string> native in natives)
-			{
-				sw.Write("extern " + native.Item2 + native.Item1);
-			}
-			sw.Close();
 		}
 
 		public string TypeToString(Stack.DataType type)

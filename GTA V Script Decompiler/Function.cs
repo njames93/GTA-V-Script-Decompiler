@@ -1217,16 +1217,16 @@ namespace Decompiler
 					Stack.Op_CmpNE();
 					goto HandleJump;
 				case Instruction.JumpLe:
-					Stack.Op_CmpGT();
-					goto HandleJump;
-				case Instruction.JumpLt:
 					Stack.Op_CmpGE();
 					goto HandleJump;
+				case Instruction.JumpLt:
+					Stack.Op_CmpGT();
+					goto HandleJump;
 				case Instruction.JumpGe:
-					Stack.Op_CmpLT();
+					Stack.Op_CmpLE();
 					goto HandleJump;
 				case Instruction.JumpGt:
-					Stack.Op_CmpLE();
+					Stack.Op_CmpLT();
 					goto HandleJump;
 				case Instruction.Call:
 					FunctionName tempf = GetFunctionNameFromOffset(Instructions[Offset].GetOperandsAsInt);
