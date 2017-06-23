@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using System.IO;
 using System.IO.Compression;
 using System.Threading;
+using System.Runtime.InteropServices;
 
 namespace Decompiler
 {
@@ -34,16 +35,20 @@ namespace Decompiler
 
         public Dictionary<string, Tuple<int, int>> Function_loc = new Dictionary<string, Tuple<int,int>>();
         
-        public ScriptFile(Stream scriptStream, bool Console)
+        public ScriptFile(Stream scriptStream, bool Consolee)
         {
-            ConsoleVer = Console;
+            ConsoleVer = Consolee;
             file = scriptStream;
-            Header = ScriptHeader.Generate(scriptStream, Console);
+            //Console.WriteLine("ScriptHeader generation");
+            Header = ScriptHeader.Generate(scriptStream, Consolee);
+            //Console.WriteLine("Generated, parsing stringtable");
             StringTable = new StringTable(scriptStream, Header.StringTableOffsets, Header.StringBlocks, Header.StringsSize);
-            if (Console)
+            //Console.WriteLine("Parsed stringtable, parsing nativetable");
+            if (Consolee)
                 NativeTable = new NativeTable(scriptStream, Header.NativesOffset + Header.RSC7Offset, Header.NativesCount);
             else
                 X64NativeTable = new X64NativeTable(scriptStream, Header.NativesOffset + Header.RSC7Offset, Header.NativesCount, Header.CodeLength);
+            //Console.WriteLine("Parsed nativetable, starting codeblocks' parsing");
             name = Header.ScriptName;
             CodeTable = new List<byte>();
             for (int i = 0; i < Header.CodeBlocks; i++)
@@ -54,15 +59,21 @@ namespace Decompiler
                 scriptStream.Read(working, 0, tablesize);
                 CodeTable.AddRange(working);
             }
+            //Console.WriteLine("Parsed codeblocks, start parsing Static");
             GetStaticInfo();
+            //Console.WriteLine("Done");
             Functions = new List<Function>();
             FunctionLoc = new Dictionary<int, FunctionName>();
+            //Console.WriteLine("Getting functions");
             GetFunctions();
+            //Console.WriteLine("Done, preDecoding them");
             foreach (Function func in Functions)
             {
                 func.PreDecode();
             }
+            //Console.WriteLine("Done, checkvars()");
             Statics.checkvars();
+            //Console.WriteLine("Done, decoding functions");
             foreach (Function func in Functions)
             {
                 func.Decode();

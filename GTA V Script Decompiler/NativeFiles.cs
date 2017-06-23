@@ -85,7 +85,7 @@ namespace Decompiler
 	{
 		public ulong TranslateHash(ulong hash)
 		{
-			while (TranslationTable.ContainsKey(hash))
+			if (TranslationTable.ContainsKey(hash))
 			{
 				hash = TranslationTable[hash];
 			}
