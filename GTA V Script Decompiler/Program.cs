@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Windows.Forms;
 
@@ -38,22 +38,7 @@ namespace Decompiler
 			else
 				x64nativefile = new x64NativeFile(new MemoryStream(Properties.Resources.x64natives));
 
-            String oldscripts = "C:\\Users\\Unidentified\\Desktop\\GTA5Ltatás\\gtascripts_1.40\\";
-            String decompiled = "C:\\Users\\Unidentified\\Desktop\\GTA5Ltatás\\decompiled_1.40\\";
-            foreach (String currentFile in Directory.GetDirectories(oldscripts))
-            {
-                String scriptName = currentFile.Replace(oldscripts, "").Replace("_ysc", "") + ".ysc.full";
-                if (File.Exists(currentFile + "\\" + scriptName) && !scriptName.Equals("barry4.ysc.full"))
-                {
-                    //Console.WriteLine("Decompiling " + scriptName + "...");
-                    FileStream oldScriptStream = File.Open(currentFile + "\\" + scriptName, FileMode.Open);
-                    ScriptFile oldScript = new ScriptFile(oldScriptStream, false);
-                    oldScript.Save(decompiled + "\\" + scriptName.Replace(".ysc.full", "") + ".c");
-                    //Console.WriteLine("Decompiled " + scriptName);
-                }
-            }
-
-            Application.EnableVisualStyles();
+			Application.EnableVisualStyles();
 			Application.SetCompatibleTextRenderingDefault(false);
 			Application.Run(new MainForm());
 		}
@@ -87,10 +72,10 @@ namespace Decompiler
 
 		public static bool Find_Show_Array_Size()
 		{
-            return true;//_Show_Array_Size = Program.Config.IniReadBool("Base", "Show_Array_Size", true);
+			return _Show_Array_Size = Program.Config.IniReadBool("Base", "Show_Array_Size", true);
 		}
 
-		private static bool _Show_Array_Size = true;
+		private static bool _Show_Array_Size = false;
 
 		public static bool Find_Reverse_Hashes()
 		{
@@ -111,10 +96,10 @@ namespace Decompiler
 
 		public static bool Find_Declare_Variables()
 		{
-            return true;//_Declare_Variables = Program.Config.IniReadBool("Base", "Declare_Variables", true);
+			return _Declare_Variables = Program.Config.IniReadBool("Base", "Declare_Variables", true);
 		}
 
-		private static bool _Declare_Variables = true;
+		private static bool _Declare_Variables = false;
 
 		public static bool Declare_Variables
 		{
@@ -123,7 +108,7 @@ namespace Decompiler
 
 		public static bool Find_Shift_Variables()
 		{
-            return true;//_Shift_Variables = Program.Config.IniReadBool("Base", "Shift_Variables", true);
+			return _Shift_Variables = Program.Config.IniReadBool("Base", "Shift_Variables", true);
 		}
 
 		private static bool _Shift_Variables = false;
@@ -135,10 +120,10 @@ namespace Decompiler
 
 		public static bool Find_Use_MultiThreading()
 		{
-            return true;//_Use_MultiThreading = Program.Config.IniReadBool("Base", "Use_MultiThreading", false);
+			return _Use_MultiThreading = Program.Config.IniReadBool("Base", "Use_MultiThreading", false);
 		}
 
-		private static bool _Use_MultiThreading = true;
+		private static bool _Use_MultiThreading = false;
 
 		public static bool Use_MultiThreading
 		{
@@ -148,10 +133,10 @@ namespace Decompiler
 
 		public static bool Find_IncFuncPos()
 		{
-            return true;//_IncFuncPos = Program.Config.IniReadBool("Base", "Include_Function_Position", false);
+			return _IncFuncPos = Program.Config.IniReadBool("Base", "Include_Function_Position", false);
 		}
 
-		private static bool _IncFuncPos = true;
+		private static bool _IncFuncPos = false;
 
 		public static bool IncFuncPos
 		{
@@ -161,10 +146,10 @@ namespace Decompiler
 
 		public static bool Find_Show_Func_Pointer()
 		{
-            return true;//_Show_Func_Pointer = Program.Config.IniReadBool("Base", "Show_Func_Pointer", false);
+			return _Show_Func_Pointer = Program.Config.IniReadBool("Base", "Show_Func_Pointer", false);
 		}
 
-		private static bool _Show_Func_Pointer = true;
+		private static bool _Show_Func_Pointer = false;
 
 		public static bool Show_Func_Pointer
 		{
@@ -173,10 +158,10 @@ namespace Decompiler
 
 		public static bool Find_Nat_Namespace()
 		{
-            return true;//_Show_Nat_Namespace = Program.Config.IniReadBool("Base", "Show_Nat_Namespace", false);
+			return _Show_Nat_Namespace = Program.Config.IniReadBool("Base", "Show_Nat_Namespace", false);
 		}
 
-		private static bool _Show_Nat_Namespace = true;
+		private static bool _Show_Nat_Namespace = false;
 
 		public static bool Show_Nat_Namespace
 		{
@@ -185,7 +170,7 @@ namespace Decompiler
 
 		public static bool Find_Hex_Index()
 		{
-            return false;//_Hex_Index = Program.Config.IniReadBool("Base", "Hex_Index", false);
+			return _Hex_Index = Program.Config.IniReadBool("Base", "Hex_Index", false);
 		}
 
 		private static bool _Hex_Index = false;
@@ -197,10 +182,10 @@ namespace Decompiler
 
 		public static bool Find_Upper_Natives()
 		{
-            return true;//_upper_Natives = Program.Config.IniReadBool("Base", "Uppercase_Natives", false);
+			return _upper_Natives = Program.Config.IniReadBool("Base", "Uppercase_Natives", false);
 		}
 
-		private static bool _upper_Natives = true;
+		private static bool _upper_Natives = false;
 
 		public static bool Upper_Natives
 		{
