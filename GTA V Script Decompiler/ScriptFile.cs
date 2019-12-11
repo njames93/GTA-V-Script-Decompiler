@@ -16,8 +16,12 @@ namespace Decompiler
         public StringTable StringTable;
         public X64NativeTable X64NativeTable;
         private int offset = 0;
+
         public List<Function> Functions;
+        public List<Function> AggFunctions;
         public Dictionary<int, FunctionName> FunctionLoc;
+        public Dictionary<string, Tuple<int, int>> Function_loc = new Dictionary<string, Tuple<int, int>>();
+
         public static Hashes hashbank = new Hashes();
         private Stream file;
         public ScriptHeader Header;
@@ -26,17 +30,19 @@ namespace Decompiler
         internal bool CheckNative = true;
         internal static x64BitNativeParamInfo X64npi = new x64BitNativeParamInfo();
 
-
-        public Dictionary<string, Tuple<int, int>> Function_loc = new Dictionary<string, Tuple<int, int>>();
-
         public ScriptFile(Stream scriptStream)
         {
             file = scriptStream;
+            CodeTable = new List<byte>();
+            Functions = new List<Function>();
+            AggFunctions = new List<Function>();
+            FunctionLoc = new Dictionary<int, FunctionName>();
+
             Header = ScriptHeader.Generate(scriptStream);
             StringTable = new StringTable(scriptStream, Header.StringTableOffsets, Header.StringBlocks, Header.StringsSize);
             X64NativeTable = new X64NativeTable(scriptStream, Header.NativesOffset + Header.RSC7Offset, Header.NativesCount, Header.CodeLength);
             name = Header.ScriptName;
-            CodeTable = new List<byte>();
+
             for (int i = 0; i < Header.CodeBlocks; i++)
             {
                 int tablesize = ((i + 1) * 0x4000 >= Header.CodeLength) ? Header.CodeLength % 0x4000 : 0x4000;
@@ -45,19 +51,14 @@ namespace Decompiler
                 scriptStream.Read(working, 0, tablesize);
                 CodeTable.AddRange(working);
             }
+
             GetStaticInfo();
-            Functions = new List<Function>();
-            FunctionLoc = new Dictionary<int, FunctionName>();
             GetFunctions();
-            foreach (Function func in Functions)
-            {
-                func.PreDecode();
-            }
+            foreach (Function func in Functions) func.PreDecode();
+            if (Program.AggregateFunctions) foreach (Function func in AggFunctions) func.PreDecode();
             Statics.checkvars();
-            foreach (Function func in Functions)
-            {
-                func.Decode();
-            }
+            foreach (Function func in Functions) func.Decode();
+            if (Program.AggregateFunctions) foreach (Function func in AggFunctions) func.Decode();
         }
 
         public void Save(string filename)
@@ -68,38 +69,45 @@ namespace Decompiler
 
         public void Save(Stream stream, bool close = false)
         {
-            int i = 1;
             StreamWriter savestream = new StreamWriter(stream);
-            if (Program.Declare_Variables)
+            try
             {
-                if (Header.StaticsCount > 0)
+                int i = 1;
+                if (Program.Declare_Variables)
                 {
-                    savestream.WriteLine("#region Local Var");
-                    i++;
-                    foreach (string s in Statics.GetDeclaration())
+                    if (Header.StaticsCount > 0)
                     {
-                        savestream.WriteLine("\t" + s);
+                        savestream.WriteLine("#region Local Var");
                         i++;
+                        foreach (string s in Statics.GetDeclaration())
+                        {
+                            savestream.WriteLine("\t" + s);
+                            i++;
+                        }
+                        savestream.WriteLine("#endregion");
+                        savestream.WriteLine("");
+                        i += 2;
                     }
-                    savestream.WriteLine("#endregion");
-                    savestream.WriteLine("");
-                    i += 2;
+                }
+                foreach (Function f in Functions)
+                {
+                    savestream.WriteLine(f.ToString());
+                    Function_loc.Add(f.Name, new Tuple<int, int>(i, f.Location));
+                    i += f.LineCount;
                 }
             }
-            foreach (Function f in Functions)
+            finally
             {
-                string s = f.ToString();
-                savestream.WriteLine(s);
-                Function_loc.Add(f.Name, new Tuple<int, int>(i, f.Location));
-                i += f.LineCount;
+                savestream.Flush();
+                if (close)
+                    savestream.Close();
             }
-            savestream.Flush();
-            if (close)
-                savestream.Close();
         }
 
         public void Close()
         {
+            if (!Program.AggregateFunctions)
+                foreach (Function func in Functions) func.Invalidate();
             file.Close();
         }
 
@@ -107,9 +115,7 @@ namespace Decompiler
         {
             List<string> table = new List<string>();
             foreach (KeyValuePair<int, string> item in StringTable)
-            {
                 table.Add(item.Key.ToString() + ": " + item.Value);
-            }
             return table.ToArray();
         }
 
@@ -127,11 +133,13 @@ namespace Decompiler
         {
             for (int i = 0; i < Functions.Count - 1; i++)
             {
-                int start = Functions[i].MaxLocation;
-                int end = Functions[i + 1].Location;
+                int start = Functions[i].MaxLocation, end = Functions[i + 1].Location;
                 Functions[i].CodeBlock = CodeTable.GetRange(start, end - start);
+                if (Program.AggregateFunctions) AggFunctions[i].CodeBlock = Functions[i].CodeBlock;
             }
+
             Functions[Functions.Count - 1].CodeBlock = CodeTable.GetRange(Functions[Functions.Count - 1].MaxLocation, CodeTable.Count - Functions[Functions.Count - 1].MaxLocation);
+            if (Program.AggregateFunctions) AggFunctions[Functions.Count - 1].CodeBlock = Functions[Functions.Count - 1].CodeBlock;
             foreach (Function func in Functions)
             {
                 if (func.CodeBlock[0] != (int) Instruction.Enter && func.CodeBlock[func.CodeBlock.Count - 3] != (int) Instruction.Return)
@@ -237,10 +245,24 @@ namespace Decompiler
             int Location = start2;
             if (start1 == start2)
             {
-                Functions.Add(new Function(this, name, pcount, vcount, rcount, Location));
+                Function baseFunction = new Function(this, name, pcount, vcount, rcount, Location, -1, false);
+                Functions.Add(baseFunction);
+                if (Program.AggregateFunctions) {
+                    Function aggregateFunction = new Function(this, name, pcount, vcount, rcount, Location, -1, true);
+                    aggregateFunction.BaseFunction = baseFunction;
+                    AggFunctions.Add(aggregateFunction);
+                }
             }
             else
-                Functions.Add(new Function(this, name, pcount, vcount, rcount, Location, start1));
+            {
+                Function baseFunction = new Function(this, name, pcount, vcount, rcount, Location, start1, false);
+                Functions.Add(baseFunction);
+                if (Program.AggregateFunctions) {
+                    Function aggregateFunction = new Function(this, name, pcount, vcount, rcount, Location, start1, true);
+                    aggregateFunction.BaseFunction = baseFunction;
+                    AggFunctions.Add(aggregateFunction);
+                }
+            }
         }
 
         void GetFunctions()
@@ -324,6 +346,16 @@ namespace Decompiler
             for (int count = 0; count < Header.StaticsCount; count++)
             {
                 Statics.AddVar(reader.ReadInt64());
+            }
+        }
+
+        /* Aggregate Function */
+        public void TryAgg()
+        {
+            foreach (Function f in AggFunctions)
+            {
+                Agg.Instance.PushAggregate(this, f, f.ToString());
+                f.Invalidate(); f.BaseFunction.Invalidate();
             }
         }
     }

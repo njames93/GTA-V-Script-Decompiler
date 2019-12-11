@@ -91,6 +91,7 @@
     <Reference Include="System.Windows.Forms" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Agg.cs" />
     <Compile Include="CodePath.cs" />
     <Compile Include="Function.cs" />
     <Compile Include="Hashes.cs" />

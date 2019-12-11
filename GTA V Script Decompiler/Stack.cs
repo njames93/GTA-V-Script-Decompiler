@@ -7,6 +7,7 @@ namespace Decompiler
     public class Stack
     {
         List<StackValue> _stack;
+        public bool IsAggregate { get; private set; } // Stateless stack information.
 
         public DataType TopType
         {
@@ -18,9 +19,10 @@ namespace Decompiler
             }
         }
 
-        public Stack()
+        public Stack(bool isAggregate = false)
         {
             _stack = new List<StackValue>();
+            IsAggregate = isAggregate;
         }
 
         public void Dispose()
@@ -375,7 +377,7 @@ namespace Decompiler
 
         public string FunctionCall(string name, int pcount, int rcount)
         {
-            string functionline = name + "(" + PopListForCall(pcount) + ")";
+            string functionline = (IsAggregate ? "func_" : name) + "(" + PopListForCall(pcount) + ")";
             if (rcount == 0)
                 return functionline + ";";
             else if (rcount == 1)
@@ -386,9 +388,11 @@ namespace Decompiler
                 throw new Exception("Error in return items count");
             return "";
         }
+
         public string FunctionCall(Function function)
         {
             string functionline = function.Name + "(" + PopListForCall(function.Pcount) + ")";
+            if (IsAggregate) functionline = "func_()"; // Burn the PopList call.
             if (function.Rcount == 0)
                 return functionline + ";";
             else if (function.Rcount == 1)
@@ -867,58 +871,95 @@ namespace Decompiler
                 switch (immediate)
                 {
                     case 1:
-                        Push(new StackValue(StackValue.Type.Literal, PopStructAccess() + "y"));
+                    {
+                        string saccess = PopStructAccess();
+                        if (IsAggregate && Agg.Instance.CanAggregateLiteral(saccess))
+                            Push(new StackValue(StackValue.Type.Literal, saccess));
+                        else
+                            Push(new StackValue(StackValue.Type.Literal, saccess + "y"));
                         return;
+                    }
                     case 2:
-                        Push(new StackValue(StackValue.Type.Literal, PopStructAccess() + "z"));
+                    {
+                        string saccess = PopStructAccess();
+                        if (IsAggregate && Agg.Instance.CanAggregateLiteral(saccess))
+                            Push(new StackValue(StackValue.Type.Literal, saccess));
+                        else
+                            Push(new StackValue(StackValue.Type.Literal, saccess + "z"));
                         return;
+                    }
                 }
             }
-            Push(new StackValue(StackValue.Type.Literal,
-                PopStructAccess() + "f_" + (Program.Hex_Index ? immediate.ToString("X") : immediate.ToString())));
+
+            string structAss = PopStructAccess();
+            if (IsAggregate)
+            {
+                if (Agg.Instance.CanAggregateLiteral(structAss))
+                    Push(new StackValue(StackValue.Type.Literal, structAss + "f_"));
+                else
+                    Push(new StackValue(StackValue.Type.Literal, structAss + "f_" + (Program.Hex_Index ? immediate.ToString("X") : immediate.ToString())));
+            }
+            else
+            {
+                Push(new StackValue(StackValue.Type.Literal, structAss + "f_" + (Program.Hex_Index ? immediate.ToString("X") : immediate.ToString())));
+            }
         }
 
         public string Op_SetImm(uint immediate)
         {
-            string imm = "f_" + (Program.Hex_Index ? immediate.ToString("X") : immediate.ToString());
-            if (PeekVar(0) != null)
+            string pointer = PopStructAccess();
+            string value = PopLit();
+
+            string imm = "";
+            if (IsAggregate && Agg.Instance.CanAggregateLiteral(value))
+                imm = "f_";
+            else
             {
-                if (PeekVar(0).Immediatesize == 3)
+                imm = "f_" + (Program.Hex_Index ? immediate.ToString("X") : immediate.ToString());
+                if (PeekVar(0) != null)
                 {
-                    switch (immediate)
+                    if (PeekVar(0).Immediatesize == 3)
                     {
-                        case 1:
-                            imm = "y";
-                            break;
-                        case 2:
-                            imm = "z";
-                            break;
+                        switch (immediate)
+                        {
+                            case 1: imm = "y"; break;
+                            case 2: imm = "z"; break;
+                        }
                     }
                 }
             }
-            string pointer = PopStructAccess();
-            string value = PopLit();
             return setcheck(pointer + imm, value);
         }
 
         public void Op_GetImmP(uint immediate)
         {
-            Push(new StackValue(StackValue.Type.Pointer, PopStructAccess() + "f_" + (Program.Hex_Index ? immediate.ToString("X") : immediate.ToString())));
+            string saccess = PopStructAccess();
+            if (IsAggregate && Agg.Instance.CanAggregateLiteral(saccess))
+                Push(new StackValue(StackValue.Type.Pointer, saccess + "f_"));
+            else
+                Push(new StackValue(StackValue.Type.Pointer, saccess + "f_" + (Program.Hex_Index ? immediate.ToString("X") : immediate.ToString())));
         }
 
         public void Op_GetImmP()
         {
             string immediate = PopLit();
+            string saccess = PopStructAccess();
+
             int temp;
-            if (Utils.IntParse(immediate, out temp))
+            if (IsAggregate && Agg.Instance.CanAggregateLiteral(saccess))
             {
-                Push(new StackValue(StackValue.Type.Pointer, PopStructAccess() + "f_" + (Program.Hex_Index ? temp.ToString("X") : temp.ToString())));
+                if (Utils.IntParse(immediate, out temp))
+                    Push(new StackValue(StackValue.Type.Pointer, saccess + "f_"));
+                else
+                    Push(new StackValue(StackValue.Type.Pointer, saccess + "f_[]"));
             }
             else
             {
-                Push(new StackValue(StackValue.Type.Pointer, PopStructAccess() + "f_[" + immediate + "]"));
+                if (Utils.IntParse(immediate, out temp))
+                    Push(new StackValue(StackValue.Type.Pointer, saccess + "f_" + (Program.Hex_Index ? temp.ToString("X") : temp.ToString())));
+                else
+                    Push(new StackValue(StackValue.Type.Pointer, saccess + "f_[" + immediate + "]"));
             }
-
         }
 
         /// <summary>
@@ -931,6 +972,8 @@ namespace Decompiler
             if (!Program.Show_Array_Size)
                 return "";
             if (immediate == 1)
+                return "";
+            if (IsAggregate)
                 return "";
             return " /*" + immediate.ToString() + "*/";
         }

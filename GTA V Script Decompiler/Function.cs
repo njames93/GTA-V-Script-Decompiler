@@ -22,15 +22,21 @@ namespace Decompiler
         public int Rcount { get; private set; }
         public int Location { get; private set; }
         public int MaxLocation { get; private set; }
+
+        public ScriptFile Scriptfile { get; private set; }
+        public int NativeCount { get; private set; } // Number of decoded native calls.
+        public bool IsAggregate { get; private set; } // Stateless function.
+        public Function BaseFunction { get; set; } // For aggregate functions.
+
         StringBuilder sb = null;
         List<HLInstruction> Instructions;
         Dictionary<int, int> InstructionMap;
         Stack Stack;
+
         int Offset = 0;
         string tabs = "";
         CodePath Outerpath;
         SwitchStatement OuterSwitch;
-        ScriptFile Scriptfile;
         bool writeelse = false;
         //ReturnTypes RetType = ReturnTypes.Unkn;
         public Types.DataTypes ReturnType { get; private set; }
@@ -43,105 +49,110 @@ namespace Decompiler
         public Vars_Info Params { get; private set; }
         public int LineCount = 0;
 
-        public Function(ScriptFile Owner, string name, int pcount, int vcount, int rcount, int location, int locmax = -1)
+        public Function(ScriptFile owner, string name, int pcount, int vcount, int rcount, int location, int locmax = -1, bool isAggregate = false)
         {
-            this.Scriptfile = Owner;
+            Scriptfile = owner;
             Name = name;
             Pcount = pcount;
             Vcount = vcount;
             Rcount = rcount;
             Location = location;
-            if (locmax != -1)
-                MaxLocation = locmax;
-            else
-                MaxLocation = Location;
-            fnName = new FunctionName(Name, Pcount, Rcount, Location, MaxLocation);
-            this.Scriptfile.FunctionLoc.Add(location, fnName);
+            MaxLocation = (locmax != -1) ? locmax : Location;
             Decoded = false;
-            Vars = new Vars_Info(Vars_Info.ListType.Vars, vcount - 2);
-            Params = new Vars_Info(Vars_Info.ListType.Params, pcount);
+
+            NativeCount = 0;
+            IsAggregate = isAggregate;
+            BaseFunction = null;
+
+            fnName = new FunctionName(Name, Pcount, Rcount, Location, MaxLocation);
+            Vars = new Vars_Info(Vars_Info.ListType.Vars, vcount - 2, IsAggregate);
+            Params = new Vars_Info(Vars_Info.ListType.Params, pcount, IsAggregate);
+            if (!IsAggregate)
+                this.Scriptfile.FunctionLoc.Add(location, fnName);
+        }
+
+        /// <summary>
+        /// Compute the hash of the current string buffer (function signature for aggregate functions).
+        /// </summary>
+        /// <returns></returns>
+        public string ToHash() { return Agg.SHA256(sb.ToString()); }
+
+        /// <summary>
+        /// Invalidate function aggregate cache
+        /// </summary>
+        public void Invalidate()
+        {
+            strCache = null; strFirstLineCache = null;
+            if (InstructionMap != null)
+            {
+                InstructionMap.Clear(); InstructionMap = null;
+                Instructions.Clear(); Instructions = null;
+                CodeBlock.Clear(); CodeBlock = null;
+                Stack.Dispose(); Stack = null;
+                sb.Clear(); sb = null;
+            }
         }
 
         /// <summary>
         /// Disposes of the function and returns the function text
         /// </summary>
         /// <returns>The whole function high level code</returns>
+        private string strCache = null;
         public override string ToString()
         {
-            InstructionMap.Clear();
-            Instructions.Clear();
-            CodeBlock.Clear();
-            Stack.Dispose();
-            try
+            if (strCache == null)
             {
-                return FirstLine() + "\r\n" + sb.ToString();
+                InstructionMap.Clear(); InstructionMap = null;
+                Instructions.Clear(); Instructions = null;
+                CodeBlock.Clear(); CodeBlock = null;
+                Stack.Dispose(); Stack = null;
 
-                /*if (RetType == ReturnTypes.Bool || RetType == ReturnTypes.BoolUnk)
-					return FirstLine + "\r\n" + sb.ToString().Replace("return 0;", "return false;").Replace("return 1;", "return true;");
-				else
-					return FirstLine + "\r\n" + sb.ToString();*/
+                try
+                {
+                    if (ReturnType.type  == Stack.DataType.Bool)
+				        strCache = FirstLine() + "\r\n" + sb.ToString().Replace("return 0;", "return false;").Replace("return 1;", "return true;");
+			        else
+				        strCache = FirstLine() + "\r\n" + sb.ToString();
+                }
+                finally
+                {
+                    sb.Clear(); sb = null;
+                    LineCount += 2;
+                }
             }
-            finally
-            {
-                sb.Clear();
-                LineCount += 2;
-            }
+            return strCache;
         }
 
         /// <summary>
         /// Gets the first line of the function Declaration
         /// return type + name + params
         /// </summary>
-        public string FirstLine()
+        private string strFirstLineCache = null;
+        public virtual string FirstLine()
         {
-            string name;
-            string working = "";
-
-            //extract return type of function
-            if (Rcount == 0)
-                working = "void ";
-            else if (Rcount == 1)
+            if (strFirstLineCache == null)
             {
-                working = ReturnType.returntype;
-                /*switch (RetType)
-				{
-					case ReturnTypes.Bool:
-					case ReturnTypes.BoolUnk:
-						working = "bool "; break;
-					case ReturnTypes.Float:
-						working = "float "; break;
-					case ReturnTypes.Int: working = "int "; break;
-					case ReturnTypes.StringPtr: working = "*string "; break;
-					default: working = "var "; break;
-				}*/
-            }
-            else if (Rcount == 3)
-                working = "Vector3 ";
-            else if (Rcount > 1)
-            {
-                if (ReturnType.type == Stack.DataType.String)
+                string name, working = "";
+                if (Rcount == 0) // extract return type of function
+                    working = "void ";
+                else if (Rcount == 1)
+                    working = ReturnType.returntype;
+                else if (Rcount == 3)
+                    working = "Vector3 ";
+                else if (Rcount > 1)
                 {
-                    working = "char[" + (Rcount * 4).ToString() + "] ";
+                    if (ReturnType.type == Stack.DataType.String)
+                        working = "char[" + (Rcount * 4).ToString() + "] ";
+                    else
+                        working = "struct<" + Rcount.ToString() + "> ";
                 }
-                else
-                {
-                    working = "struct<" + Rcount.ToString() + "> ";
-                }
-                /*if (RetType == ReturnTypes.String)
-				{
-					working = "char[" + (Rcount * 4).ToString() + "] ";
-				}
-				else
-				{
-					working = "struct<" + Rcount.ToString() + "> ";
-				}*/
+                else throw new DecompilingException("Unexpected return count");
+
+                name = IsAggregate ? (working + "func_") : (working + Name);
+                working = "(" + Params.GetPDec() + ")";
+                strFirstLineCache = name + working + (Program.IncFuncPos ? ("//Position - 0x" + Location.ToString("X")) : "");
             }
-            else throw new DecompilingException("Unexpected return count");
-
-            name = working + Name;
-            working = "(" + Params.GetPDec() + ")";
-
-            return name + working + (Program.IncFuncPos ? ("//Position - 0x" + Location.ToString("X")) : "");
+            return strFirstLineCache;
         }
 
         /// <summary>
@@ -260,7 +271,7 @@ namespace Decompiler
                 if (Decoded) return;
             }
             //Set up a stack
-            Stack = new Stack();
+            Stack = new Stack(IsAggregate);
 
             //Get The Instructions in the function along with their operands
             //getinstructions();
@@ -880,9 +891,6 @@ namespace Decompiler
         /// </summary>
         public void decodeinstruction()
         {
-            object temp;
-            int tempint;
-            string tempstring;
             if (isnewcodepath()) handlenewpath();
             switch (Instructions[Offset].Instruction)
             {
@@ -997,17 +1005,16 @@ namespace Decompiler
                 case Instruction.iPushInt:
                 case Instruction.iPushI24:
                 {
-                    tempstring = "";
+                    string tempstring = "";
                     if (Program.Show_Func_Pointer)
                     {
-                        tempint = Instructions[Offset].GetOperandsAsInt;
+                        // sanity check, though should never really be an issue as any push values < 10
+                        // wont be 3 or 4 byte pushes
+                        int tempint = Instructions[Offset].GetOperandsAsInt;
                         if (tempint > 10)
-                        //sanity check, though should never really be an issue as any push values < 10 wont be 3 or 4 byte pushes
                         {
                             if (Scriptfile.FunctionLoc.ContainsKey(tempint))
-                            {
-                                tempstring = "/*" + Scriptfile.FunctionLoc[tempint].Name + "*/";
-                            }
+                                tempstring = IsAggregate ? "/* func */" : ("/*" + Scriptfile.FunctionLoc[tempint].Name + "*/");
                         }
                     }
                     Stack.DataType type = Stack.DataType.Int;
@@ -1027,19 +1034,22 @@ namespace Decompiler
                     Stack.Dup();
                     break;
                 case Instruction.pop:
-                    temp = Stack.Drop();
+                {
+                    object temp = Stack.Drop();
                     if (temp is string)
                         writeline(temp as string);
                     break;
+                }
                 case Instruction.Native:
                 {
-                    tempstring = Stack.NativeCallTest(this.Scriptfile.X64NativeTable.GetNativeHashFromIndex(Instructions[Offset].GetNativeIndex),
-                        this.Scriptfile.X64NativeTable.GetNativeFromIndex(Instructions[Offset].GetNativeIndex),
-                        Instructions[Offset].GetNativeParams, Instructions[Offset].GetNativeReturns);
+                    ulong natHash = this.Scriptfile.X64NativeTable.GetNativeHashFromIndex(Instructions[Offset].GetNativeIndex);
+                    string natStr = this.Scriptfile.X64NativeTable.GetNativeFromIndex(Instructions[Offset].GetNativeIndex);
+                    NativeCount++;
+                    if (!IsAggregate) Agg.Instance.Count(natStr);
+
+                    string tempstring = Stack.NativeCallTest(natHash, natStr, Instructions[Offset].GetNativeParams, Instructions[Offset].GetNativeReturns);
                     if (tempstring != "")
-                    {
                         writeline(tempstring);
-                    }
                     break;
                 }
                 case Instruction.Enter:
@@ -1047,13 +1057,15 @@ namespace Decompiler
                 case Instruction.Return:
                 {
                     Stack.DataType DataType = Instructions[Offset].GetOperand(1) == 1 ? Stack.TopType : Stack.DataType.Unk;
-                    tempstring = Stack.PopListForCall(Instructions[Offset].GetOperand(1));
+                    string tempstring = Stack.PopListForCall(Instructions[Offset].GetOperand(1));
                     switch (Instructions[Offset].GetOperand(1))
                     {
                         case 0:
-                            if (Offset < Instructions.Count - 1)
+                        {
+                           if (Offset < Instructions.Count - 1)
                                 writeline("return;");
                             break;
+                        }
                         case 1:
                         {
                             switch (DataType)
@@ -1074,10 +1086,7 @@ namespace Decompiler
                         default:
                         {
                             if (Stack.TopType == Stack.DataType.String)
-                            {
-                                //RetType = ReturnTypes.String;
-                                ReturnType = Types.gettype(Stack.DataType.String);
-                            }
+                                ReturnType = Types.gettype(Stack.DataType.String); // RetType = ReturnTypes.String;
                             writeline("return " + tempstring + ";");
                             break;
                         }
@@ -1089,25 +1098,17 @@ namespace Decompiler
                     break;
                 case Instruction.pSet:
                     if (Stack.PeekVar(1) == null)
-                    {
                         writeline(Stack.Op_RefSet());
-                    }
                     else if (Stack.PeekVar(1).Is_Array)
-                    {
                         Stack.Op_RefSet();
-                    }
                     else
                         writeline(Stack.Op_RefSet());
                     break;
                 case Instruction.pPeekSet:
                     if (Stack.PeekVar(1) == null)
-                    {
                         writeline(Stack.Op_PeekSet());
-                    }
                     else if (Stack.PeekVar(1).Is_Array)
-                    {
                         Stack.Op_PeekSet();
-                    }
                     else
                         writeline(Stack.Op_PeekSet());
                     break;
@@ -1141,13 +1142,15 @@ namespace Decompiler
                     break;
                 case Instruction.SetFrame1:
                 case Instruction.SetFrame2:
-                    tempstring = Stack.Op_Set(GetFrameVarName(Instructions[Offset].GetOperandsAsUInt),
+                {
+                    string tempstring = Stack.Op_Set(GetFrameVarName(Instructions[Offset].GetOperandsAsUInt),
                         GetFrameVar(Instructions[Offset].GetOperandsAsUInt));
                     if (GetFrameVar(Instructions[Offset].GetOperandsAsUInt).DataType == Stack.DataType.Bool)
                         tempstring = tempstring.Replace("= 0;", "= false;").Replace("= 1;", "= true;");
                     if (!GetFrameVar(Instructions[Offset].GetOperandsAsUInt).Is_Array)
                         writeline(tempstring);
                     break;
+                }
                 case Instruction.pStatic1:
                 case Instruction.pStatic2:
                     Stack.PushPVar(Scriptfile.Statics.GetVarName(Instructions[Offset].GetOperandsAsUInt),
@@ -1162,13 +1165,15 @@ namespace Decompiler
                 //Stack.Push(Scriptfile.Statics.GetVarName(Instructions[Offset].GetOperandsAsUInt), Scriptfile.Statics.GetTypeAtIndex(Instructions[Offset].GetOperandsAsUInt)); break;
                 case Instruction.StaticSet1:
                 case Instruction.StaticSet2:
-                    tempstring = Stack.Op_Set(Scriptfile.Statics.GetVarName(Instructions[Offset].GetOperandsAsUInt),
+                {
+                    string tempstring = Stack.Op_Set(Scriptfile.Statics.GetVarName(Instructions[Offset].GetOperandsAsUInt),
                         Scriptfile.Statics.GetVarAtIndex(Instructions[Offset].GetOperandsAsUInt));
                     if (Scriptfile.Statics.GetVarAtIndex(Instructions[Offset].GetOperandsAsUInt).DataType == Stack.DataType.Bool)
                         tempstring = tempstring.Replace("= 0;", "= false;").Replace("= 1;", "= true;");
                     if (!Scriptfile.Statics.GetVarAtIndex(Instructions[Offset].GetOperandsAsUInt).Is_Array)
                         writeline(tempstring);
                     break;
+                }
                 case Instruction.Add1:
                 case Instruction.Add2:
                     Stack.Op_AmmImm(Instructions[Offset].GetOperandsAsInt);
@@ -1194,15 +1199,15 @@ namespace Decompiler
                     break;
                 case Instruction.pGlobal2:
                 case Instruction.pGlobal3:
-                    Stack.PushPGlobal(Instructions[Offset].GetGlobalString);
+                    Stack.PushPGlobal(Instructions[Offset].GetGlobalString(IsAggregate));
                     break;
                 case Instruction.GlobalGet2:
                 case Instruction.GlobalGet3:
-                    Stack.PushGlobal(Instructions[Offset].GetGlobalString);
+                    Stack.PushGlobal(Instructions[Offset].GetGlobalString(IsAggregate));
                     break;
                 case Instruction.GlobalSet2:
                 case Instruction.GlobalSet3:
-                    writeline(Stack.Op_Set(Instructions[Offset].GetGlobalString));
+                    writeline(Stack.Op_Set(Instructions[Offset].GetGlobalString(IsAggregate)));
                     break;
                 case Instruction.Jump:
                     handlejumpcheck();
@@ -1228,18 +1233,20 @@ namespace Decompiler
                     Stack.Op_CmpLE();
                     goto HandleJump;
                 case Instruction.Call:
+                {
                     FunctionName tempf = GetFunctionNameFromOffset(Instructions[Offset].GetOperandsAsInt);
-                    tempstring = Stack.FunctionCall(tempf.Name, tempf.Pcount, tempf.Rcount);
+                    string tempstring = Stack.FunctionCall(tempf.Name, tempf.Pcount, tempf.Rcount);
                     if (tempstring != "")
-                    {
                         writeline(tempstring);
-                    }
                     break;
+                }
                 case Instruction.Switch:
                     handleswitch();
                     break;
                 case Instruction.PushString:
-                    tempstring = Stack.PopLit();
+                {
+                    int tempint;
+                    string tempstring = Stack.PopLit();
                     if (!Utils.IntParse(tempstring, out tempint))
                         Stack.Push("StringTable(" + tempstring + ")", Stack.DataType.StringPtr);
                     else if (!this.Scriptfile.StringTable.StringExists(tempint))
@@ -1247,6 +1254,7 @@ namespace Decompiler
                     else
                         Stack.Push("\"" + this.Scriptfile.StringTable[tempint] + "\"", Stack.DataType.StringPtr);
                     break;
+                }
                 case Instruction.GetHash:
                     Stack.Op_Hash();
                     break;
@@ -1271,9 +1279,7 @@ namespace Decompiler
                     throw new Exception(); // writeline("throw;"); break;
                 case Instruction.pCall:
                     foreach (string s in Stack.pcall())
-                    {
                         writeline(s);
-                    }
                     break;
                 case Instruction.iPush_n1:
                 case Instruction.iPush_0:
@@ -1512,16 +1518,14 @@ namespace Decompiler
 
         }
 
+
         public void decodeinsructionsforvarinfo()
         {
-            Stack = new Stack();
+            Stack = new Stack(IsAggregate);
             ReturnType = Types.gettype(Stack.DataType.Unk);
-            int tempint;
-            string tempstring;
             for (int i = 0; i < Instructions.Count; i++)
             {
                 HLInstruction ins = Instructions[i];
-
                 switch (ins.Instruction)
                 {
                     case Instruction.Nop:
@@ -1689,9 +1693,13 @@ namespace Decompiler
                         Stack.Drop();
                         break;
                     case Instruction.Native:
-                        tempstring = Stack.NativeCallTest(this.Scriptfile.X64NativeTable.GetNativeHashFromIndex(ins.GetNativeIndex),
-                            this.Scriptfile.X64NativeTable.GetNativeFromIndex(ins.GetNativeIndex), ins.GetNativeParams, ins.GetNativeReturns);
+                    {
+                        Stack.NativeCallTest(
+                            this.Scriptfile.X64NativeTable.GetNativeHashFromIndex(ins.GetNativeIndex),
+                            this.Scriptfile.X64NativeTable.GetNativeFromIndex(ins.GetNativeIndex), ins.GetNativeParams, ins.GetNativeReturns
+                        );
                         break;
+                    }
                     case Instruction.Enter:
                         throw new Exception("Unexpected Function Definition");
                     case Instruction.Return:
@@ -1701,6 +1709,7 @@ namespace Decompiler
                         Stack.Op_RefGet();
                         break;
                     case Instruction.pSet:
+                    {
                         if (Stack.PeekVar(1) == null)
                         {
                             Stack.Drop();
@@ -1709,16 +1718,17 @@ namespace Decompiler
                         }
                         if (Stack.TopType == Stack.DataType.Int)
                         {
-                            tempstring = Stack.PopLit();
+                            int tempint;
+                            string tempstring = Stack.PopLit();
                             if (Utils.IntParse(tempstring, out tempint))
-                            {
                                 Stack.PeekVar(0).Value = tempint;
-                            }
                             break;
                         }
                         Stack.Drop();
                         break;
+                    }
                     case Instruction.pPeekSet:
+                    {
                         if (Stack.PeekVar(1) == null)
                         {
                             Stack.Drop();
@@ -1726,15 +1736,16 @@ namespace Decompiler
                         }
                         if (Stack.TopType == Stack.DataType.Int)
                         {
-                            tempstring = Stack.PopLit();
+                            int tempint;
+                            string tempstring = Stack.PopLit();
                             if (Utils.IntParse(tempstring, out tempint))
-                            {
                                 Stack.PeekVar(0).Value = tempint;
-                            }
                         }
                         break;
-
+                    }
                     case Instruction.ToStack:
+                    {
+                        int tempint;
                         if (Program.getIntType == Program.IntType._hex)
                             tempint = int.Parse(Stack.PeekItem(1).Substring(2), System.Globalization.NumberStyles.HexNumber);
                         else
@@ -1742,7 +1753,10 @@ namespace Decompiler
                         SetImmediate(tempint);
                         Stack.Op_ToStack();
                         break;
+                    }
                     case Instruction.FromStack:
+                    {
+                        int tempint;
                         if (Program.getIntType == Program.IntType._hex)
                             tempint = int.Parse(Stack.PeekItem(1).Substring(2), System.Globalization.NumberStyles.HexNumber);
                         else
@@ -1750,47 +1764,41 @@ namespace Decompiler
                         SetImmediate(tempint);
                         Stack.Op_FromStack();
                         break;
-
-
-
+                    }
                     case Instruction.pArray1:
                     case Instruction.pArray2:
-
+                    {
+                        int tempint;
                         if (!Utils.IntParse(Stack.PeekItem(1), out tempint))
-                        {
                             tempint = -1;
-                        }
-
                         CheckArray(ins.GetOperandsAsUInt, tempint);
                         Stack.Op_ArrayGetP(ins.GetOperandsAsUInt);
                         break;
+                    }
                     case Instruction.ArrayGet1:
                     case Instruction.ArrayGet2:
+                    {
+                        int tempint;
                         if (!Utils.IntParse(Stack.PeekItem(1), out tempint))
-                        {
                             tempint = -1;
-                        }
                         CheckArray(ins.GetOperandsAsUInt, tempint);
                         Stack.Op_ArrayGet(ins.GetOperandsAsUInt);
                         break;
+                    }
                     case Instruction.ArraySet1:
                     case Instruction.ArraySet2:
+                    {
+                        int tempint;
                         if (!Utils.IntParse(Stack.PeekItem(1), out tempint))
-                        {
                             tempint = -1;
-                        }
                         CheckArray(ins.GetOperandsAsUInt, tempint);
                         SetArray(Stack.ItemType(2));
                         Vars_Info.Var Var = Stack.PeekVar(0);
                         if (Var != null && Stack.isPointer(0))
-                        {
                             CheckInstruction(2, Var.DataType);
-                        }
                         Stack.Op_ArraySet(ins.GetOperandsAsUInt);
                         break;
-
-
-
+                    }
                     case Instruction.pFrame1:
                     case Instruction.pFrame2:
                         Stack.PushPVar("FrameVar", GetFrameVar(ins.GetOperandsAsUInt));
@@ -1803,27 +1811,27 @@ namespace Decompiler
                         break;
                     case Instruction.SetFrame1:
                     case Instruction.SetFrame2:
+                    {
                         if (Stack.TopType != Stack.DataType.Unk)
                         {
-                            if (Types.gettype(Stack.TopType).precedence >
-                                Types.gettype(GetFrameVar(ins.GetOperandsAsUInt).DataType).precedence)
-                            {
+                            if (Types.gettype(Stack.TopType).precedence > Types.gettype(GetFrameVar(ins.GetOperandsAsUInt).DataType).precedence)
                                 GetFrameVar(ins.GetOperandsAsUInt).DataType = Stack.TopType;
-                            }
                         }
                         else
                         {
                             CheckInstruction(0, GetFrameVar(ins.GetOperandsAsUInt).DataType);
                         }
-                        tempstring = Stack.PopLit();
+
+                        string tempstring = Stack.PopLit();
                         if (Stack.TopType == Stack.DataType.Int)
                         {
                             tempstring = Stack.PopLit();
                             if (ins.GetOperandsAsUInt > Pcount)
+                            {
+                                int tempint;
                                 if (Utils.IntParse(tempstring, out tempint))
-                                {
                                     GetFrameVar(ins.GetOperandsAsUInt).Value = tempint;
-                                }
+                            }
                         }
                         else
                         {
@@ -1831,6 +1839,7 @@ namespace Decompiler
                         }
                         GetFrameVar(ins.GetOperandsAsUInt).call();
                         break;
+                    }
                     case Instruction.pStatic1:
                     case Instruction.pStatic2:
                         Stack.PushPVar("Static", Scriptfile.Statics.GetVarAtIndex(ins.GetOperandsAsUInt));
@@ -1851,9 +1860,6 @@ namespace Decompiler
                         }
                         Stack.Drop();
                         break;
-
-
-
                     case Instruction.Add1:
                     case Instruction.Add2:
                     case Instruction.Mult1:
@@ -1861,8 +1867,6 @@ namespace Decompiler
                         CheckInstruction(0, Stack.DataType.Int);
                         Stack.Op_AmmImm(ins.GetOperandsAsInt);
                         break;
-
-
                     case Instruction.pStructStack:
                         Stack.Op_GetImmP();
                         break;
@@ -1881,22 +1885,21 @@ namespace Decompiler
                         CheckImmediate((int)ins.GetOperandsAsUInt + 1);
                         Stack.Op_SetImm(ins.GetOperandsAsUInt);
                         break;
-
-
                     case Instruction.pGlobal2:
                     case Instruction.pGlobal3:
-                        Stack.PushPointer("Global_" + ins.GetOperandsAsUInt.ToString());
+                        if (IsAggregate) Stack.PushPointer("Global_");
+                        else Stack.PushPointer("Global_" + ins.GetOperandsAsUInt.ToString());
                         break;
                     case Instruction.GlobalGet2:
                     case Instruction.GlobalGet3:
-                        Stack.Push("Global_" + ins.GetOperandsAsUInt.ToString());
+                        if (IsAggregate) Stack.Push("Global_");
+                        else Stack.Push("Global_" + ins.GetOperandsAsUInt.ToString());
                         break;
                     case Instruction.GlobalSet2:
                     case Instruction.GlobalSet3:
-                        Stack.Op_Set("Global_" + ins.GetOperandsAsUInt.ToString());
+                        if (IsAggregate) Stack.Push("Global_");
+                        else Stack.Op_Set("Global_" + ins.GetOperandsAsUInt.ToString());
                         break;
-
-
                     case Instruction.Jump:
                         break;
                     case Instruction.JumpFalse:
@@ -1933,14 +1936,11 @@ namespace Decompiler
                         Stack.Drop();
                         Stack.Drop();
                         break;
-
-
                     case Instruction.Call:
+                    {
                         Function func = GetFunctionFromOffset(ins.GetOperandsAsInt);
                         if (!func.predecodeStarted)
-                        {
                             func.PreDecode();
-                        }
                         if (func.predecoded)
                         {
                             for (int j = 0; j < func.Pcount; j++)
@@ -1959,21 +1959,20 @@ namespace Decompiler
                         }
                         Stack.FunctionCall(func);
                         break;
-
-
+                    }
                     case Instruction.Switch:
                         CheckInstruction(0, Stack.DataType.Int);
                         break;
-
                     case Instruction.PushString:
-                        tempstring = Stack.PopLit();
+                    {
+                        string tempstring = Stack.PopLit();
                         Stack.PushString("");
                         break;
+                    }
                     case Instruction.GetHash:
                         CheckInstruction(0, Stack.DataType.StringPtr);
                         Stack.Op_Hash();
                         break;
-
                     case Instruction.StrCopy:
                         CheckInstructionString(0, ins.GetOperandsAsInt, 2);
                         Stack.op_strcopy(ins.GetOperandsAsInt);
@@ -1992,8 +1991,6 @@ namespace Decompiler
                         CheckInstruction(1, Stack.DataType.Int);
                         Stack.op_straddi(ins.GetOperandsAsInt);
                         break;
-
-
                     case Instruction.MemCopy:
                         Stack.op_sncopy();
                         break;
@@ -2028,7 +2025,6 @@ namespace Decompiler
                         break;
                     default:
                         throw new Exception("Unexpected Instruction");
-
                 }
             }
             Vars.checkvars();

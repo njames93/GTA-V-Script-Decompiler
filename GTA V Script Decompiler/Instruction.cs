@@ -245,25 +245,22 @@ namespace Decompiler
             }
         }
 
-        public string GetGlobalString
+        public string GetGlobalString(bool aggregateName)
         {
-            get
+            switch (instruction)
             {
-                switch (instruction)
-                {
-                    case Instruction.pGlobal2:
-                    case Instruction.GlobalGet2:
-                    case Instruction.GlobalSet2:
-                        return "Global_" +
-                                (Program.Hex_Index ? GetOperandsAsUInt.ToString("X") : GetOperandsAsUInt.ToString());
-                    case Instruction.pGlobal3:
-                    case Instruction.GlobalGet3:
-                    case Instruction.GlobalSet3:
-                        return "Global_" +
-                                (Program.Hex_Index ? GetOperandsAsUInt.ToString("X") : GetOperandsAsUInt.ToString());
-                }
-                throw new Exception("Not a global variable");
+                case Instruction.pGlobal2:
+                case Instruction.GlobalGet2:
+                case Instruction.GlobalSet2:
+                    if (aggregateName) return "Global";
+                    return "Global_" + (Program.Hex_Index ? GetOperandsAsUInt.ToString("X") : GetOperandsAsUInt.ToString());
+                case Instruction.pGlobal3:
+                case Instruction.GlobalGet3:
+                case Instruction.GlobalSet3:
+                    if (aggregateName) return "Global";
+                    return "Global_" + (Program.Hex_Index ? GetOperandsAsUInt.ToString("X") : GetOperandsAsUInt.ToString());
             }
+            throw new Exception("Not a global variable");
         }
     }
 

@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.IO.Compression;
 using System.CodeDom.Compiler;
 using CommandLine;
+using System.Threading;
 
 namespace Decompiler
 {
@@ -30,9 +31,18 @@ namespace Decompiler
 
             [Option('f', "force", Default = false, Required = false, HelpText = "Allow output file overriding.")]
             public bool Force { get; set; }
+
+            [Option('a', "aggregate", Default = false, Required = false, HelpText = "Compute aggregation statistics of bulk dataset.")]
+            public bool Aggregate { get; set; }
+
+            [Option("minlines", Default = -1, Required = false, HelpText = "Minimum function line count for aggregation")]
+            public int AggMinLines { get; set; }
+
+            [Option("minhits", Default = -1, Required = false, HelpText = "Minimum number of occurrences for aggregation.")]
+            public int AggMinHits { get; set; }
         }
 
-        private static void InitializeINIFields()
+        private static void InitializeINIFields(Options o)
         {
             Program.Find_getINTType();
             Program.Find_Show_Array_Size();
@@ -46,6 +56,13 @@ namespace Decompiler
             Program.Find_Hex_Index();
             Program.Find_Upper_Natives();
             Program.Find_Decomplied();
+            Program.Find_Aggregate_MinHits();
+            Program.Find_Aggregate_MinLines();
+
+            Program.SaveDirectory = o.OutputPath;
+            Program._AggregateFunctions = o.Aggregate;
+            if (o.AggMinHits > 0) Program._agg_min_hits = o.AggMinHits;
+            if (o.AggMinLines > 0) Program._agg_min_lines = o.AggMinLines;
         }
 
         private static void InitializeNativeTable(string nativeFile, string translationFile)
@@ -69,12 +86,11 @@ namespace Decompiler
             Parser.Default.ParseArguments<Options>(args).WithParsed<Options>(o =>
             {
                 if (!File.Exists(o.NativeFile)) { Console.WriteLine("Invalid Native File"); return; }
-
                 if (File.Exists(o.YSCPath)) // Decompile a single file if given the option.
                 {
                     if (o.OutputPath != null && File.Exists(o.OutputPath) && !o.Force) { Console.WriteLine("Cannot overwrite file, use -f to force."); return; }
 
-                    InitializeINIFields();
+                    InitializeINIFields(o); Program._AggregateFunctions = false;
                     InitializeNativeTable(o.NativeFile, o.Translation);
                     using (Stream fs = File.OpenRead(o.YSCPath)) {
                         MemoryStream buffer = new MemoryStream(); fs.CopyTo(buffer);
@@ -91,7 +107,7 @@ namespace Decompiler
                 {
                     if (o.OutputPath == null || !Directory.Exists(o.OutputPath)) { Console.WriteLine("Invalid Output Directory"); return; }
 
-                    InitializeINIFields();
+                    InitializeINIFields(o);
                     InitializeNativeTable(o.NativeFile, o.Translation);
                     foreach (string file in Directory.GetFiles(o.YSCPath, "*.ysc"))
                         CompileList.Enqueue(file);
@@ -116,6 +132,11 @@ namespace Decompiler
                         Program.ThreadCount++;
                         Decompile();
                     }
+
+                    if (Program.AggregateFunctions) {
+                        Agg.Instance.SaveAggregate(SaveDirectory);
+                        Agg.Instance.SaveFrequency(SaveDirectory);
+                    }
                 }
                 else
                 {
@@ -126,9 +147,9 @@ namespace Decompiler
 
         static string SaveDirectory = "";
         static Queue<string> CompileList = new Queue<string>();
+        public static ThreadLocal<int> _gcCount = new ThreadLocal<int>(() => { return 0; });
         private static void Decompile()
         {
-            ulong count = 0;
             while (CompileList.Count > 0)
             {
                 string scriptToDecode;
@@ -138,17 +159,18 @@ namespace Decompiler
                 }
                 try
                 {
+                    string output = Path.Combine(SaveDirectory, Path.GetFileNameWithoutExtension(scriptToDecode) + ".c");
                     using (Stream fs = File.OpenRead(scriptToDecode)) {
-                        MemoryStream buffer = new MemoryStream();
-                        fs.CopyTo(buffer);
+                        MemoryStream buffer = new MemoryStream(); fs.CopyTo(buffer);
 
-                        Console.WriteLine("Decompiling: " + scriptToDecode);
+                        Console.WriteLine("Decompiling: " + scriptToDecode + " > " + output);
                         ScriptFile scriptFile = new ScriptFile(buffer);
-                        scriptFile.Save(Path.Combine(SaveDirectory, Path.GetFileNameWithoutExtension(scriptToDecode) + ".c"));
+                        scriptFile.Save(output);
+                        if (Program.AggregateFunctions) scriptFile.TryAgg();
                         scriptFile.Close();
+                        buffer.Close();
 
-                        count++;
-                        if (count % 25 == 0)
+                        if ((_gcCount.Value++) % 25 == 0)
                             GC.Collect();
                     }
                 }
@@ -301,7 +323,6 @@ namespace Decompiler
         }
 
         private static bool _upper_Natives = false;
-
         public static bool Upper_Natives
         {
             get { return _upper_Natives; }
@@ -311,6 +332,31 @@ namespace Decompiler
         {
             X64NativeTable.Translate = Program.Config.IniReadBool("Base", "Decomplied_With_Translation", false);
             return Program.Config.IniReadBool("Base", "Decomplied_With_Translation", false);
+        }
+
+        private static bool _AggregateFunctions = false;
+        public static bool AggregateFunctions { get { return _AggregateFunctions; } }
+
+        private static int _agg_min_lines = 7;
+        public static int AggregateMinLines { get { return _agg_min_lines; } }
+
+        private static int _agg_min_hits = 3;
+        public static int AggregateMinHits { get { return _agg_min_hits; } }
+
+        public static int Find_Aggregate_MinLines()
+        {
+            int tmp;
+            if (int.TryParse(Program.Config.IniReadValue("Base", "Aggregate_MinimumLines").ToLower(), out tmp))
+                _agg_min_lines = tmp;
+            return _agg_min_lines;
+        }
+
+        public static int Find_Aggregate_MinHits()
+        {
+            int tmp;
+            if (int.TryParse(Program.Config.IniReadValue("Base", "Aggregate_MinimumHits").ToLower(), out tmp))
+                _agg_min_hits = tmp;
+            return _agg_min_hits;
         }
     }
 }

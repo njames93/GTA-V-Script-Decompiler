@@ -17,21 +17,26 @@ namespace Decompiler
         private int count;
         private int scriptParamCount = 0;
         private int scriptParamStart { get { return Vars.Count - scriptParamCount; } }
-        public Vars_Info(ListType type, int varcount)
+
+        public bool IsAggregate { get; private set; } // Stateless variable information.
+
+        public Vars_Info(ListType type, int varcount, bool isAggregate = false)
         {
             Listtype = type;
             Vars = new List<Var>();
             for (int i = 0; i < varcount; i++)
-            {
                 Vars.Add(new Var(i));
-            }
             count = varcount;
+
+            IsAggregate = isAggregate;
         }
 
-        public Vars_Info(ListType type)
+        public Vars_Info(ListType type, bool isAggregate = false)
         {
             Listtype = type;
             Vars = new List<Var>();
+
+            IsAggregate = isAggregate;
         }
 
         public void AddVar(int value)
@@ -64,38 +69,46 @@ namespace Decompiler
 
         public string GetVarName(uint index)
         {
-            string name = "";
-            Var var = Vars[(int)index];
-            if (var.DataType == Stack.DataType.String)
+            if (IsAggregate)
             {
-                name = "c";
-            }
-            else if (var.Immediatesize == 1)
-            {
-                name = Types.gettype(var.DataType).varletter;
-            }
-            else if (var.Immediatesize == 3)
-            {
-                name = "v";
-            }
-
-            switch (Listtype)
-            {
-                case ListType.Statics: name += (index >= scriptParamStart ? "ScriptParam_" : "Local_"); break;
-                case ListType.Vars: name += "Var"; break;
-                case ListType.Params: name += "Param"; break;
-            }
-
-            if (Program.Shift_Variables)
-            {
-                if (VarRemapper.ContainsKey((int)index))
-                    return name + VarRemapper[(int)index].ToString();
-                else
-                    return name + "unknownVar";
+                switch (Listtype)
+                {
+                    case ListType.Statics: return (index >= scriptParamStart ? "ScriptParam_" : "Local_");
+                    case ListType.Params: return "Param";
+                    case ListType.Vars:
+                    default:
+                        return "Var";
+                }
             }
             else
             {
-                return name + (Listtype == ListType.Statics && index >= scriptParamStart ? index - scriptParamStart : index).ToString();
+                string name = "";
+                Var var = Vars[(int)index];
+                if (var.DataType == Stack.DataType.String)
+                    name = "c";
+                else if (var.Immediatesize == 1)
+                    name = Types.gettype(var.DataType).varletter;
+                else if (var.Immediatesize == 3)
+                    name = "v";
+
+                switch (Listtype)
+                {
+                    case ListType.Statics: name += (index >= scriptParamStart ? "ScriptParam_" : "Local_"); break;
+                    case ListType.Vars: name += "Var"; break;
+                    case ListType.Params: name += "Param"; break;
+                }
+
+                if (Program.Shift_Variables)
+                {
+                    if (VarRemapper.ContainsKey((int)index))
+                        return name + VarRemapper[(int)index].ToString();
+                    else
+                        return name + "unknownVar";
+                }
+                else
+                {
+                    return name + (Listtype == ListType.Statics && index >= scriptParamStart ? index - scriptParamStart : index).ToString();
+                }
             }
         }
 
@@ -250,14 +263,17 @@ namespace Decompiler
                         }
                     }
                 }
-                string decl = datatype + varlocation + (Listtype == ListType.Statics && i >= scriptParamStart ? i - scriptParamStart : i).ToString();
-                if (var.Is_Array)
+
+                string decl;
+                if (IsAggregate)
+                    decl = datatype;
+                else
                 {
-                    decl += "[" + var.Value.ToString() + "]";
-                }
-                if (var.DataType == Stack.DataType.String)
-                {
-                    decl += "[" + (var.Immediatesize * 8).ToString() + "]";
+                    decl = datatype + varlocation + (Listtype == ListType.Statics && i >= scriptParamStart ? i - scriptParamStart : i).ToString();
+                    if (var.Is_Array)
+                        decl += "[" + var.Value.ToString() + "]";
+                    if (var.DataType == Stack.DataType.String)
+                        decl += "[" + (var.Immediatesize * 8).ToString() + "]";
                 }
                 Working.Add(decl + value + ";");
                 i++;
@@ -310,7 +326,11 @@ namespace Decompiler
                     }
                     else datatype = "struct<" + var.Immediatesize.ToString() + ">[] ";
                 }
-                decl += datatype + "Param" + i.ToString() + ", ";
+
+                if (IsAggregate)
+                    decl += "Param, ";
+                else
+                    decl += datatype + "Param" + i.ToString() + ", ";
                 i++;
             }
             if (decl.Length > 2)
