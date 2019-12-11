@@ -10,6 +10,7 @@ namespace Decompiler
 {
     static class Program
     {
+        public static OpcodeSet Codeset;
         public static x64NativeFile X64npi;
         internal static Ini.IniFile Config;
         public static Object ThreadLock;
@@ -44,6 +45,7 @@ namespace Decompiler
 
         private static void InitializeINIFields(Options o)
         {
+            Program.Codeset = new OpcodeSet();
             Program.Find_getINTType();
             Program.Find_Show_Array_Size();
             Program.Find_Reverse_Hashes();
@@ -96,7 +98,7 @@ namespace Decompiler
                     using (Stream fs = File.OpenRead(o.InputPath))
                     {
                         MemoryStream buffer = new MemoryStream(); fs.CopyTo(buffer);
-                        ScriptFile scriptFile = new ScriptFile(buffer);
+                        ScriptFile scriptFile = new ScriptFile(buffer, Program.Codeset);
 
                         if (o.OutputPath != null)
                             scriptFile.Save(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, o.OutputPath));
@@ -167,7 +169,7 @@ namespace Decompiler
                         MemoryStream buffer = new MemoryStream(); fs.CopyTo(buffer);
 
                         Console.WriteLine("Decompiling: " + scriptToDecode + " > " + output);
-                        ScriptFile scriptFile = new ScriptFile(buffer);
+                        ScriptFile scriptFile = new ScriptFile(buffer, Program.Codeset);
                         scriptFile.Save(output);
                         if (Program.AggregateFunctions) scriptFile.TryAgg();
                         scriptFile.Close();
@@ -358,5 +360,8 @@ namespace Decompiler
 
         private static bool _console = false;
         public static bool Bit32 { get { return _console; } }
+
+        private static bool _rdrOpcodes = false;
+        public static bool RDROpcodes { get { return _rdrOpcodes; } }
     }
 }

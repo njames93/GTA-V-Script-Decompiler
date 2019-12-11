@@ -78,6 +78,14 @@ namespace Decompiler
             }
         }
 
+        public UInt16 GetOperandsAsUInt16
+        {
+            get
+            {
+                return BitConverter.ToUInt16(operands, 0);
+            }
+        }
+
         public float GetFloat
         {
             get
@@ -173,28 +181,46 @@ namespace Decompiler
 
         public string GetSwitchStringCase(int index)
         {
-            if (instruction == Instruction.RAGE_SWITCH)
+            if (instruction != Instruction.RAGE_SWITCH)
+                throw new Exception("Not A Switch Statement");
+
+            int cases;
+            if (Program.RDROpcodes)
             {
-                int cases = GetOperand(0);
-                if (index >= cases)
+                if ((cases = BitConverter.ToUInt16(operands, 0)) <= index)
+					throw new Exception("Out Or Range Script Case");
+				return Program.getIntType == Program.IntType._uint
+					? ScriptFile.hashbank.GetHash(BitConverter.ToUInt32(operands, 2 + index * 6))
+					: ScriptFile.hashbank.GetHash(BitConverter.ToInt32(operands, 2 + index * 6));
+            }
+            else
+            {
+                if ((cases = GetOperand(0)) <= index)
                     throw new Exception("Out Or Range Script Case");
                 return Program.getIntType == Program.IntType._uint
                     ? ScriptFile.hashbank.GetHash(Program.Bit32 ? Utils.SwapEndian(BitConverter.ToUInt32(operands, 1 + index * 6)) : BitConverter.ToUInt32(operands, 1 + index * 6))
                     : ScriptFile.hashbank.GetHash(Program.Bit32 ? Utils.SwapEndian(BitConverter.ToInt32(operands, 1 + index * 6)) : BitConverter.ToInt32(operands, 1 + index * 6));
             }
-            throw new Exception("Not A Switch Statement");
         }
 
         public int GetSwitchOffset(int index)
         {
-            if (instruction == Instruction.RAGE_SWITCH)
+            if (instruction != Instruction.RAGE_SWITCH)
+                throw new Exception("Not A Switch Statement");
+
+            int cases;
+            if (Program.RDROpcodes)
             {
-                int cases = GetOperand(0);
-                if (index >= cases)
-                    throw new Exception("Out of range script case");
+                if ((cases = BitConverter.ToUInt16(operands, 0)) <= index)
+					throw new Exception("Out of range script case");
+				return (offset + 8 + 1) + index * 6 + BitConverter.ToInt16(operands, 6 + index * 6);
+            }
+            else
+            {
+                if ((cases = GetOperand(0)) <= index)
+                    throw new Exception("Out Or Range Script Case");
                 return offset + 8 + index * 6 + (Program.Bit32 ? Utils.SwapEndian(BitConverter.ToInt16(operands, 5 + index * 6)) : BitConverter.ToInt16(operands, 5 + index * 6));
             }
-            throw new Exception("Not A Switch Statement");
         }
 
         public int GetImmBytePush
@@ -261,7 +287,7 @@ namespace Decompiler
         }
     }
 
-    internal enum Instruction //opcodes reversed from gta v default.xex
+    public enum Instruction //opcodes reversed from gta v default.xex
     {
         RAGE_NOP = 0,
         RAGE_IADD, //1
@@ -390,6 +416,50 @@ namespace Decompiler
         RAGE_PUSH_CONST_F5, //124
         RAGE_PUSH_CONST_F6, //125
         RAGE_PUSH_CONST_F7, //126
-        RAGE_last, // 127
+
+        // Extended RDR Instructions
+        RAGE_LOCAL_LOAD_S, //127
+        RAGE_LOCAL_STORE_S, //128
+        RAGE_LOCAL_STORE_SR, //129
+        RAGE_STATIC_LOAD_S, //130
+        RAGE_STATIC_STORE_S, //131
+        RAGE_STATIC_STORE_SR, //132
+        RAGE_LOAD_N_S, //133
+        RAGE_STORE_N_S, //134
+        RAGE_STORE_N_SR, //135
+        RAGE_GLOBAL_LOAD_S, //136
+        RAGE_GLOBAL_STORE_S, //137
+        RAGE_GLOBAL_STORE_SR, //138
+        RAGE_last, //139
+    }
+
+    /// <summary>
+    /// Wrapped used for converting opcodes.
+    /// </summary>
+    public class OpcodeSet
+    {
+        /// <summary>
+        /// Index of RAGE_last
+        /// </summary>
+        public virtual int Count => 127;
+
+        /// <summary>
+        /// Convert a codeblock byte to Instruction.
+        /// </summary>
+        /// <param name="v"></param>
+        /// <returns></returns>
+        public virtual Instruction Map(byte v) { return v < Count ? (Instruction) v : Instruction.RAGE_last; }
+
+        /// <summary>
+        ///
+        /// </summary>
+        /// <param name="list"></param>
+        /// <returns></returns>
+        public virtual List<int> ConvertCodeblock(List<byte> list)
+        {
+            List<int> cCodeBlock = new List<int>();
+            for (int j = 0; j < list.Count; ++j) cCodeBlock.Add((int) Map(list[j]));
+            return cCodeBlock;
+        }
     }
 }

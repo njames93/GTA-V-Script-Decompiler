@@ -186,6 +186,8 @@ namespace Decompiler
         /// The block of code that the function takes up
         /// </summary>
         public List<byte> CodeBlock { get; set; }
+        private Instruction Map(byte b) => Scriptfile.CodeSet.Map(b);
+        private Instruction MapOffset(int offset) => Map(CodeBlock[offset]);
 
         /// <summary>
         /// Gets the function info given the offset where its called from
@@ -337,7 +339,7 @@ namespace Decompiler
         void checkjumpcodepath()
         {
             int cur = Offset;
-            HLInstruction temp = new HLInstruction(CodeBlock[Offset], GetArray(2), cur);
+            HLInstruction temp = new HLInstruction(MapOffset(Offset), GetArray(2), cur);
             if (temp.GetJumpOffset > 0)
             {
                 if (temp.GetJumpOffset < CodeBlock.Count)
@@ -349,9 +351,9 @@ namespace Decompiler
 
             //if the jump is out the function then its useless
             //So nop this jump
-            AddInstruction(cur, new HLInstruction((byte)0, cur));
-            AddInstruction(cur + 1, new HLInstruction((byte)0, cur + 1));
-            AddInstruction(cur + 2, new HLInstruction((byte)0, cur + 2));
+            AddInstruction(cur, new HLInstruction(Instruction.RAGE_NOP, cur));
+            AddInstruction(cur + 1, new HLInstruction(Instruction.RAGE_NOP, cur + 1));
+            AddInstruction(cur + 2, new HLInstruction(Instruction.RAGE_NOP, cur + 2));
         }
 
         /// <summary>
@@ -364,18 +366,18 @@ namespace Decompiler
             int off = 0;
         Start:
             off += 1;
-            if (CodeBlock[Offset + off] == (int) Instruction.RAGE_NOP)
+            if (MapOffset(Offset + off) == Instruction.RAGE_NOP)
                 goto Start;
-            if (CodeBlock[Offset + off] == (int) Instruction.RAGE_JZ)
+            if (MapOffset(Offset + off) == Instruction.RAGE_JZ)
             {
                 Offset = Offset + off + 2;
                 return;
             }
-            if (CodeBlock[Offset + off] == (int) Instruction.RAGE_INOT)
+            if (MapOffset(Offset + off) == Instruction.RAGE_INOT)
             {
                 goto Start;
             }
-            Instructions.Add(new HLInstruction(CodeBlock[Offset], Offset));
+            Instructions.Add(new HLInstruction(MapOffset(Offset), Offset));
             return;
         }
 
@@ -385,11 +387,16 @@ namespace Decompiler
         /// </summary>
         /// <param name="items">how many bytes to grab</param>
         /// <returns>the operands for the instruction</returns>
+        //IEnumerable<byte> GetArray(int items)
+        //{
+        //    int temp = Offset + 1;
+        //    Offset += items;
+        //    return CodeBlock.GetRange(temp, items);
+        //}
         IEnumerable<byte> GetArray(int items)
         {
             int temp = Offset + 1;
             Offset += items;
-
             return CodeBlock.GetRange(temp, items);
         }
 
@@ -767,103 +774,104 @@ namespace Decompiler
                 while (Offset < CodeBlock.Count)
                 {
                     curoff = Offset;
-                    switch (CodeBlock[Offset])
+                    Instruction instruct = MapOffset(Offset);
+                    switch (MapOffset(Offset))
                     {
-                        //		case 0: if (addnop) AddInstruction(curoff, new HLInstruction((byte)0, curoff)); break;
-                        case (int) Instruction.RAGE_PUSH_CONST_U8:
-                            AddInstruction(curoff, new HLInstruction(CodeBlock[Offset], GetArray(1), curoff));
+                        //case Instruction.RAGE_NOP: if (addnop) AddInstruction(curoff, new HLInstruction(instruct, curoff)); break;
+                        case Instruction.RAGE_PUSH_CONST_U8:
+                            AddInstruction(curoff, new HLInstruction(instruct, GetArray(1), curoff));
                             break;
-                        case (int) Instruction.RAGE_PUSH_CONST_U8_U8:
-                            AddInstruction(curoff, new HLInstruction(CodeBlock[Offset], GetArray(2), curoff));
+                        case Instruction.RAGE_PUSH_CONST_U8_U8:
+                            AddInstruction(curoff, new HLInstruction(instruct, GetArray(2), curoff));
                             break;
-                        case (int) Instruction.RAGE_PUSH_CONST_U8_U8_U8:
-                            AddInstruction(curoff, new HLInstruction(CodeBlock[Offset], GetArray(3), curoff));
+                        case Instruction.RAGE_PUSH_CONST_U8_U8_U8:
+                            AddInstruction(curoff, new HLInstruction(instruct, GetArray(3), curoff));
                             break;
-                        case (int) Instruction.RAGE_PUSH_CONST_U32:
-                        case (int) Instruction.RAGE_PUSH_CONST_F:
-                            AddInstruction(curoff, new HLInstruction(CodeBlock[Offset], GetArray(4), curoff));
+                        case Instruction.RAGE_PUSH_CONST_U32:
+                        case Instruction.RAGE_PUSH_CONST_F:
+                            AddInstruction(curoff, new HLInstruction(instruct, GetArray(4), curoff));
                             break;
-                        case (int) Instruction.RAGE_DUP:
+                        case Instruction.RAGE_DUP:
                             // Because of how rockstar codes and/or conditionals, its neater to detect dups
                             // and only add them if they are not used for conditionals
                             checkdupforinstruction();
                             break;
-                        case (int) Instruction.RAGE_NATIVE:
-                            AddInstruction(curoff, new HLInstruction(CodeBlock[Offset], GetArray(3), curoff));
+                        case Instruction.RAGE_NATIVE:
+                            AddInstruction(curoff, new HLInstruction(instruct, GetArray(3), curoff));
                             break;
-                        case (int) Instruction.RAGE_ENTER:
+                        case Instruction.RAGE_ENTER:
                             throw new Exception("Function not exptected");
-                        case (int) Instruction.RAGE_LEAVE:
-                            AddInstruction(curoff, new HLInstruction(CodeBlock[Offset], GetArray(2), curoff));
+                        case Instruction.RAGE_LEAVE:
+                            AddInstruction(curoff, new HLInstruction(instruct, GetArray(2), curoff));
                             break;
-                        case (int) Instruction.RAGE_ARRAY_U8:
-                        case (int) Instruction.RAGE_ARRAY_U8_LOAD:
-                        case (int) Instruction.RAGE_ARRAY_U8_STORE:
-                        case (int) Instruction.RAGE_LOCAL_U8:
-                        case (int) Instruction.RAGE_LOCAL_U8_LOAD:
-                        case (int) Instruction.RAGE_LOCAL_U8_STORE:
-                        case (int) Instruction.RAGE_STATIC_U8:
-                        case (int) Instruction.RAGE_STATIC_U8_LOAD:
-                        case (int) Instruction.RAGE_STATIC_U8_STORE:
-                        case (int) Instruction.RAGE_IADD_U8:
-                        case (int) Instruction.RAGE_IMUL_U8:
-                        case (int) Instruction.RAGE_IOFFSET_U8:
-                        case (int) Instruction.RAGE_IOFFSET_U8_LOAD:
-                        case (int) Instruction.RAGE_IOFFSET_U8_STORE:
-                            AddInstruction(curoff, new HLInstruction(CodeBlock[Offset], GetArray(1), curoff));
+                        case Instruction.RAGE_ARRAY_U8:
+                        case Instruction.RAGE_ARRAY_U8_LOAD:
+                        case Instruction.RAGE_ARRAY_U8_STORE:
+                        case Instruction.RAGE_LOCAL_U8:
+                        case Instruction.RAGE_LOCAL_U8_LOAD:
+                        case Instruction.RAGE_LOCAL_U8_STORE:
+                        case Instruction.RAGE_STATIC_U8:
+                        case Instruction.RAGE_STATIC_U8_LOAD:
+                        case Instruction.RAGE_STATIC_U8_STORE:
+                        case Instruction.RAGE_IADD_U8:
+                        case Instruction.RAGE_IMUL_U8:
+                        case Instruction.RAGE_IOFFSET_U8:
+                        case Instruction.RAGE_IOFFSET_U8_LOAD:
+                        case Instruction.RAGE_IOFFSET_U8_STORE:
+                            AddInstruction(curoff, new HLInstruction(instruct, GetArray(1), curoff));
                             break;
-                        case (int) Instruction.RAGE_PUSH_CONST_S16:
-                        case (int) Instruction.RAGE_IADD_S16:
-                        case (int) Instruction.RAGE_IMUL_S16:
-                        case (int) Instruction.RAGE_IOFFSET_S16:
-                        case (int) Instruction.RAGE_IOFFSET_S16_LOAD:
-                        case (int) Instruction.RAGE_IOFFSET_S16_STORE:
-                        case (int) Instruction.RAGE_ARRAY_U16:
-                        case (int) Instruction.RAGE_ARRAY_U16_LOAD:
-                        case (int) Instruction.RAGE_ARRAY_U16_STORE:
-                        case (int) Instruction.RAGE_LOCAL_U16:
-                        case (int) Instruction.RAGE_LOCAL_U16_LOAD:
-                        case (int) Instruction.RAGE_LOCAL_U16_STORE:
-                        case (int) Instruction.RAGE_STATIC_U16:
-                        case (int) Instruction.RAGE_STATIC_U16_LOAD:
-                        case (int) Instruction.RAGE_STATIC_U16_STORE:
-                        case (int) Instruction.RAGE_GLOBAL_U16:
-                        case (int) Instruction.RAGE_GLOBAL_U16_LOAD:
-                        case (int) Instruction.RAGE_GLOBAL_U16_STORE:
-                            AddInstruction(curoff, new HLInstruction(CodeBlock[Offset], GetArray(2), curoff));
+                        case Instruction.RAGE_PUSH_CONST_S16:
+                        case Instruction.RAGE_IADD_S16:
+                        case Instruction.RAGE_IMUL_S16:
+                        case Instruction.RAGE_IOFFSET_S16:
+                        case Instruction.RAGE_IOFFSET_S16_LOAD:
+                        case Instruction.RAGE_IOFFSET_S16_STORE:
+                        case Instruction.RAGE_ARRAY_U16:
+                        case Instruction.RAGE_ARRAY_U16_LOAD:
+                        case Instruction.RAGE_ARRAY_U16_STORE:
+                        case Instruction.RAGE_LOCAL_U16:
+                        case Instruction.RAGE_LOCAL_U16_LOAD:
+                        case Instruction.RAGE_LOCAL_U16_STORE:
+                        case Instruction.RAGE_STATIC_U16:
+                        case Instruction.RAGE_STATIC_U16_LOAD:
+                        case Instruction.RAGE_STATIC_U16_STORE:
+                        case Instruction.RAGE_GLOBAL_U16:
+                        case Instruction.RAGE_GLOBAL_U16_LOAD:
+                        case Instruction.RAGE_GLOBAL_U16_STORE:
+                            AddInstruction(curoff, new HLInstruction(instruct, GetArray(2), curoff));
                             break;
-                        case (int) Instruction.RAGE_J:
+                        case Instruction.RAGE_J:
                             checkjumpcodepath();
                             break;
-                        case (int) Instruction.RAGE_JZ:
-                        case (int) Instruction.RAGE_IEQ_JZ:
-                        case (int) Instruction.RAGE_INE_JZ:
-                        case (int) Instruction.RAGE_IGT_JZ:
-                        case (int) Instruction.RAGE_IGE_JZ:
-                        case (int) Instruction.RAGE_ILT_JZ:
-                        case (int) Instruction.RAGE_ILE_JZ:
-                            AddInstruction(curoff, new HLInstruction(CodeBlock[Offset], GetArray(2), curoff));
+                        case Instruction.RAGE_JZ:
+                        case Instruction.RAGE_IEQ_JZ:
+                        case Instruction.RAGE_INE_JZ:
+                        case Instruction.RAGE_IGT_JZ:
+                        case Instruction.RAGE_IGE_JZ:
+                        case Instruction.RAGE_ILT_JZ:
+                        case Instruction.RAGE_ILE_JZ:
+                            AddInstruction(curoff, new HLInstruction(instruct, GetArray(2), curoff));
                             break;
-                        case (int) Instruction.RAGE_CALL:
-                        case (int) Instruction.RAGE_GLOBAL_U24:
-                        case (int) Instruction.RAGE_GLOBAL_U24_LOAD:
-                        case (int) Instruction.RAGE_GLOBAL_U24_STORE:
-                        case (int) Instruction.RAGE_PUSH_CONST_U24:
-                            AddInstruction(curoff, new HLInstruction(CodeBlock[Offset], GetArray(3), curoff));
+                        case Instruction.RAGE_CALL:
+                        case Instruction.RAGE_GLOBAL_U24:
+                        case Instruction.RAGE_GLOBAL_U24_LOAD:
+                        case Instruction.RAGE_GLOBAL_U24_STORE:
+                        case Instruction.RAGE_PUSH_CONST_U24:
+                            AddInstruction(curoff, new HLInstruction(instruct, GetArray(3), curoff));
                             break;
-                        case (int) Instruction.RAGE_SWITCH:
+                        case Instruction.RAGE_SWITCH:
                             int temp = CodeBlock[Offset + 1];
-                            AddInstruction(curoff, new HLInstruction(CodeBlock[Offset], GetArray(temp * 6 + 1), curoff));
+                            AddInstruction(curoff, new HLInstruction(instruct, GetArray(temp * 6 + 1), curoff));
                             break;
-                        case (int) Instruction.RAGE_TEXT_LABEL_ASSIGN_STRING:
-                        case (int) Instruction.RAGE_TEXT_LABEL_ASSIGN_INT:
-                        case (int) Instruction.RAGE_TEXT_LABEL_APPEND_STRING:
-                        case (int) Instruction.RAGE_TEXT_LABEL_APPEND_INT:
-                            AddInstruction(curoff, new HLInstruction(CodeBlock[Offset], GetArray(1), curoff));
+                        case Instruction.RAGE_TEXT_LABEL_ASSIGN_STRING:
+                        case Instruction.RAGE_TEXT_LABEL_ASSIGN_INT:
+                        case Instruction.RAGE_TEXT_LABEL_APPEND_STRING:
+                        case Instruction.RAGE_TEXT_LABEL_APPEND_INT:
+                            AddInstruction(curoff, new HLInstruction(instruct, GetArray(1), curoff));
                             break;
                         default:
-                            if (CodeBlock[Offset] < (int) Instruction.RAGE_last)
-                                AddInstruction(curoff, new HLInstruction(CodeBlock[Offset], curoff));
+                            if (CodeBlock[Offset] < Scriptfile.CodeSet.Count)
+                                AddInstruction(curoff, new HLInstruction(instruct, curoff));
                             else throw new Exception("Unexpected Opcode");
                             break;
                     }
@@ -1301,6 +1309,23 @@ namespace Decompiler
                 case Instruction.RAGE_PUSH_CONST_F6:
                 case Instruction.RAGE_PUSH_CONST_F7:
                     Stack.Push(Instructions[Offset].GetImmFloatPush);
+                    break;
+
+                // RDR Extended Instruction Set.
+                case Instruction.RAGE_LOCAL_LOAD_S:
+                case Instruction.RAGE_LOCAL_STORE_S:
+                case Instruction.RAGE_LOCAL_STORE_SR:
+                case Instruction.RAGE_STATIC_LOAD_S:
+                case Instruction.RAGE_STATIC_STORE_S:
+                case Instruction.RAGE_STATIC_STORE_SR:
+                case Instruction.RAGE_LOAD_N_S:
+                case Instruction.RAGE_STORE_N_S:
+                case Instruction.RAGE_STORE_N_SR:
+                case Instruction.RAGE_GLOBAL_LOAD_S:
+                case Instruction.RAGE_GLOBAL_STORE_S:
+                case Instruction.RAGE_GLOBAL_STORE_SR:
+                    if (Scriptfile.CodeSet.Count <= 127) throw new Exception("Unexpected Instruction");
+                    Stack.PushGlobal("RDR_" + Instructions[Offset].Instruction);
                     break;
                 default:
                     throw new Exception("Unexpected Instruction");
@@ -2009,6 +2034,22 @@ namespace Decompiler
                     case Instruction.RAGE_PUSH_CONST_F6:
                     case Instruction.RAGE_PUSH_CONST_F7:
                         Stack.Push(ins.GetImmFloatPush);
+                        break;
+
+                    // RDR Extended Instruction Set.
+                    case Instruction.RAGE_LOCAL_LOAD_S:
+                    case Instruction.RAGE_LOCAL_STORE_S:
+                    case Instruction.RAGE_LOCAL_STORE_SR:
+                    case Instruction.RAGE_STATIC_LOAD_S:
+                    case Instruction.RAGE_STATIC_STORE_S:
+                    case Instruction.RAGE_STATIC_STORE_SR:
+                    case Instruction.RAGE_LOAD_N_S:
+                    case Instruction.RAGE_STORE_N_S:
+                    case Instruction.RAGE_STORE_N_SR:
+                    case Instruction.RAGE_GLOBAL_LOAD_S:
+                    case Instruction.RAGE_GLOBAL_STORE_S:
+                    case Instruction.RAGE_GLOBAL_STORE_SR:
+                        if (Scriptfile.CodeSet.Count <= 127) throw new Exception("Unexpected Instruction");
                         break;
                     default:
                         throw new Exception("Unexpected Instruction");
