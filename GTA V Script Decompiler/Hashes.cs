@@ -21,13 +21,7 @@ namespace Decompiler
             }
             else
             {
-                Stream Decompressed = new MemoryStream();
-                Stream Compressed = new MemoryStream(Properties.Resources.Entities);
-                DeflateStream deflate = new DeflateStream(Compressed, CompressionMode.Decompress);
-                deflate.CopyTo(Decompressed);
-                deflate.Dispose();
-                Decompressed.Position = 0;
-                reader = new StreamReader(Decompressed);
+                reader = new StreamReader(new MemoryStream(Properties.Resources.Entities));
             }
             Populate(reader);
         }

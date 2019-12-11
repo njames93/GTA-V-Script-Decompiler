@@ -14,22 +14,118 @@ namespace Decompiler
         public static Object ThreadLock;
         public static int ThreadCount;
 
-        static string SaveDirectory = "";
-        static Queue<string> CompileList = new Queue<string>();
-        static List<Tuple<uint, string>> FoundStrings = new List<Tuple<uint, string>>();
-
         class Options
         {
             [Option('x', "x64", Required = true, HelpText = "x64native file")]
             public string NativeFile { get; set; }
 
-            [Option('y', "ysc", Required = true, HelpText = "YSC Path")]
+            [Option('y', "ysc", Default = null, Required = true, HelpText = "YSC Path")]
             public string YSCPath { get; set; }
 
-            [Option('o', "out", Required = true, HelpText = "Output Directory")]
+            [Option('o', "out", Default = null, Required = false, HelpText = "Output Directory/File Path")]
             public string OutputPath { get; set; }
+
+            [Option('t', "translation", Default = null, Required = false, HelpText = "Native translation table")]
+            public string Translation { get; set; }
+
+            [Option('f', "force", Default = false, Required = false, HelpText = "Allow output file overriding.")]
+            public bool Force { get; set; }
         }
 
+        private static void InitializeINIFields()
+        {
+            Program.Find_getINTType();
+            Program.Find_Show_Array_Size();
+            Program.Find_Reverse_Hashes();
+            Program.Find_Declare_Variables();
+            Program.Find_Shift_Variables();
+            Program.Find_Show_Func_Pointer();
+            Program.Find_Use_MultiThreading();
+            Program.Find_IncFuncPos();
+            Program.Find_Nat_Namespace();
+            Program.Find_Hex_Index();
+            Program.Find_Upper_Natives();
+            Program.Find_Decomplied();
+        }
+
+        private static void InitializeNativeTable(string nativeFile, string translationFile)
+        {
+            Stream translation;
+            if (translationFile != null && File.Exists(translationFile))
+                translation = File.OpenRead(translationFile);
+            else
+                translation = new MemoryStream(Properties.Resources.native_translation);
+            x64nativefile = new x64NativeFile(File.OpenRead(nativeFile), translation);
+        }
+
+        /// <summary>
+        /// The main entry point for the application.
+        /// </summary>
+        [STAThread]
+        static void Main(string[] args)
+        {
+            ThreadLock = new object();
+            Config = new Ini.IniFile(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "config.ini"));
+            Parser.Default.ParseArguments<Options>(args).WithParsed<Options>(o =>
+            {
+                if (!File.Exists(o.NativeFile)) { Console.WriteLine("Invalid Native File"); return; }
+
+                if (File.Exists(o.YSCPath)) // Decompile a single file if given the option.
+                {
+                    if (o.OutputPath != null && File.Exists(o.OutputPath) && !o.Force) { Console.WriteLine("Cannot overwrite file, use -f to force."); return; }
+
+                    InitializeINIFields();
+                    InitializeNativeTable(o.NativeFile, o.Translation);
+                    using (Stream fs = File.OpenRead(o.YSCPath)) {
+                        MemoryStream buffer = new MemoryStream(); fs.CopyTo(buffer);
+                        ScriptFile scriptFile = new ScriptFile(buffer);
+
+                        if (o.OutputPath != null)
+                            scriptFile.Save(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, o.OutputPath));
+                        else
+                            scriptFile.Save(Console.OpenStandardOutput(), false);
+                        scriptFile.Close();
+                    }
+                }
+                else if (Directory.Exists(o.YSCPath)) // Decompile directory
+                {
+                    if (o.OutputPath == null || !Directory.Exists(o.OutputPath)) { Console.WriteLine("Invalid Output Directory"); return; }
+
+                    InitializeINIFields();
+                    InitializeNativeTable(o.NativeFile, o.Translation);
+                    foreach (string file in Directory.GetFiles(o.YSCPath, "*.ysc"))
+                        CompileList.Enqueue(file);
+                    foreach (string file in Directory.GetFiles(o.YSCPath, "*.ysc.full"))
+                        CompileList.Enqueue(file);
+
+                    if (Program.Use_MultiThreading)
+                    {
+                        for (int i = 0; i < Environment.ProcessorCount - 1; i++)
+                        {
+                            Program.ThreadCount++;
+                            new System.Threading.Thread(Decompile).Start();
+                        }
+
+                        Program.ThreadCount++;
+                        Decompile();
+                        while (Program.ThreadCount > 0)
+                            System.Threading.Thread.Sleep(10);
+                    }
+                    else
+                    {
+                        Program.ThreadCount++;
+                        Decompile();
+                    }
+                }
+                else
+                {
+                    Console.WriteLine("Invalid YSC Path");
+                }
+            });
+        }
+
+        static string SaveDirectory = "";
+        static Queue<string> CompileList = new Queue<string>();
         private static void Decompile()
         {
             ulong count = 0;
@@ -62,69 +158,6 @@ namespace Decompiler
                 }
             }
             Program.ThreadCount--;
-        }
-
-        /// <summary>
-        /// The main entry point for the application.
-        /// </summary>
-        [STAThread]
-        static void Main(string[] args)
-        {
-            ThreadLock = new object();
-            Config = new Ini.IniFile(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "config.ini"));
-            Parser.Default.ParseArguments<Options>(args).WithParsed<Options>(o =>
-            {
-                Program.Find_getINTType();
-                Program.Find_Show_Array_Size();
-                Program.Find_Reverse_Hashes();
-                Program.Find_Declare_Variables();
-                Program.Find_Shift_Variables();
-                Program.Find_Show_Func_Pointer();
-                Program.Find_Use_MultiThreading();
-                Program.Find_IncFuncPos();
-                Program.Find_Nat_Namespace();
-                Program.Find_Hex_Index();
-                Program.Find_Upper_Natives();
-                Program.Find_Decomplied();
-                if (!File.Exists(o.NativeFile))
-                {
-                    Console.WriteLine("Invalid Native File"); return;
-                }
-                else if (!Directory.Exists(o.YSCPath))
-                {
-                    Console.WriteLine("Invalid YSC Path"); return;
-                }
-                else if (!Directory.Exists(o.OutputPath))
-                {
-                    Console.WriteLine("Invalid YSC Path"); return;
-                }
-
-                SaveDirectory = o.OutputPath;
-                x64nativefile = new x64NativeFile(File.OpenRead(o.NativeFile));
-                foreach (string file in Directory.GetFiles(o.YSCPath, "*.ysc"))
-                    CompileList.Enqueue(file);
-                foreach (string file in Directory.GetFiles(o.YSCPath, "*.ysc.full"))
-                    CompileList.Enqueue(file);
-
-                if (Program.Use_MultiThreading)
-                {
-                    for (int i = 0; i < Environment.ProcessorCount - 1; i++)
-                    {
-                        Program.ThreadCount++;
-                        new System.Threading.Thread(Decompile).Start();
-                    }
-
-                    Program.ThreadCount++;
-                    Decompile();
-                    while (Program.ThreadCount > 0)
-                        System.Threading.Thread.Sleep(10);
-                }
-                else
-                {
-                    Program.ThreadCount++;
-                    Decompile();
-                }
-            });
         }
 
         public enum IntType

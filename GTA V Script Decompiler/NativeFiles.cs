@@ -37,7 +37,7 @@ namespace Decompiler
 
         public Dictionary<string, ulong> revmap = new Dictionary<string, ulong>();
         public Dictionary<ulong, ulong> TranslationTable = new Dictionary<ulong, ulong>();
-        public x64NativeFile(Stream Nativefile) : base()
+        public x64NativeFile(Stream Nativefile, Stream translationPath) : base()
         {
             StreamReader sr = new StreamReader(Nativefile);
             while (!sr.EndOfStream)
@@ -90,13 +90,8 @@ namespace Decompiler
                 }
             }
             sr.Close();
-            Stream Decompressed = new MemoryStream();
-            Stream Compressed = new MemoryStream(Properties.Resources.native_translation);
-            DeflateStream deflate = new DeflateStream(Compressed, CompressionMode.Decompress);
-            deflate.CopyTo(Decompressed);
-            deflate.Dispose();
-            Decompressed.Position = 0;
-            sr = new StreamReader(Decompressed);
+
+            sr = new StreamReader(translationPath);
             while (!sr.EndOfStream)
             {
                 string line = sr.ReadLine();
