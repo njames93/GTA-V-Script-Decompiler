@@ -22,17 +22,28 @@ namespace Decompiler
                 {
                     foreach(KeyValuePair<string, JToken> natives in ns.Value.ToObject<RootObject>().Values)
                     {
-                        ulong hash;
-                        if (ulong.TryParse(natives.Key.Substring(2), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out hash))
+                        Native native = natives.Value.ToObject<Native>();
+                        native.Namespace = ns.Key;
+                        if (Program.Bit32)
                         {
-                            Native native = natives.Value.ToObject<Native>();
-                            native.Hash = hash;
-                            native.Namespace = ns.Key;
-
-                            this[hash] = native;
-                            foreach (string s in native.Hashes) {
-                                if (ulong.TryParse(s.Substring(2), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out hash) && hash != 0 && !ContainsKey(hash))
-                                Add(hash, native);
+                            uint jhash;
+                            if (native.Joaat != "" && uint.TryParse(native.Joaat.Substring(2), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out jhash))
+                            {
+                                native.Hash = jhash;
+                                this[jhash] = native;
+                            }
+                        }
+                        else
+                        {
+                            ulong hash;
+                            if (ulong.TryParse(natives.Key.Substring(2), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out hash))
+                            {
+                                native.Hash = hash;
+                                this[hash] = native;
+                                foreach (string s in native.Hashes) {
+                                    if (ulong.TryParse(s.Substring(2), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out hash) && hash != 0 && !ContainsKey(hash))
+                                        Add(hash, native);
+                                }
                             }
                         }
                     }
@@ -42,11 +53,7 @@ namespace Decompiler
 
         public string DisplayTextFromHash(ulong hash)
         {
-            if (ContainsKey(hash)) return this[hash].Display;
-            string temps = hash.ToString("X");
-            while (temps.Length < 16)
-                temps = "0" + temps;
-            return "unk_0x" + temps;
+            return ContainsKey(hash) ? this[hash].Display : "unk_" + Native.CreateNativeStub(hash);
         }
 
         public string GetNativeInfo(ulong hash)
@@ -115,7 +122,7 @@ namespace Decompiler
                 {
                     native = new Native();
                     native.Hash = hash;
-                    native.Name = native.HashString;
+                    native.Name = Native.CreateNativeStub(hash);
                     native.Joaat = "";
                     native.Comment = "";
                     native.Build = "1737";
@@ -316,6 +323,13 @@ namespace Decompiler
 
             _hashStr = hashStr;
             _displayName = dispStr;
+        }
+
+        public static string CreateNativeStub(ulong hash) {
+            string temps = hash.ToString("X");
+            while (temps.Length < (Program.Bit32 ? 8 : 16))
+                temps = "0" + temps;
+            return "0x" + temps;
         }
     }
 

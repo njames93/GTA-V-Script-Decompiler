@@ -20,14 +20,17 @@ namespace Decompiler
             [Option('n', "natives", Required = true, HelpText = "native json file")]
             public string NativeFile { get; set; }
 
-            [Option('y', "ysc", Default = null, Required = true, HelpText = "YSC Path")]
-            public string YSCPath { get; set; }
+            [Option('i', "in", Default = null, Required = true, HelpText = "Input Directory/File Path.")]
+            public string InputPath { get; set; }
 
             [Option('o', "out", Default = null, Required = false, HelpText = "Output Directory/File Path")]
             public string OutputPath { get; set; }
 
             [Option('f', "force", Default = false, Required = false, HelpText = "Allow output file overriding.")]
             public bool Force { get; set; }
+
+            [Option('c', "console", Default = false, Required = false, HelpText = "Use 32Bit console & endianness")]
+            public bool Console { get; set; }
 
             [Option('a', "aggregate", Default = false, Required = false, HelpText = "Compute aggregation statistics of bulk dataset.")]
             public bool Aggregate { get; set; }
@@ -59,6 +62,7 @@ namespace Decompiler
             Program._AggregateFunctions = o.Aggregate;
             if (o.AggMinHits > 0) Program._agg_min_hits = o.AggMinHits;
             if (o.AggMinLines > 0) Program._agg_min_lines = o.AggMinLines;
+            Program._console = o.Console;
         }
 
         private static void InitializeNativeTable(string nativeFile)
@@ -79,16 +83,17 @@ namespace Decompiler
         {
             ThreadLock = new object();
             Config = new Ini.IniFile(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "config.ini"));
+
             Parser.Default.ParseArguments<Options>(args).WithParsed<Options>(o =>
             {
                 if (!File.Exists(o.NativeFile)) { Console.WriteLine("Invalid Native File"); return; }
-                if (File.Exists(o.YSCPath)) // Decompile a single file if given the option.
+                if (File.Exists(o.InputPath)) // Decompile a single file if given the option.
                 {
                     if (o.OutputPath != null && File.Exists(o.OutputPath) && !o.Force) { Console.WriteLine("Cannot overwrite file, use -f to force."); return; }
 
                     InitializeINIFields(o); Program._AggregateFunctions = false;
                     InitializeNativeTable(o.NativeFile);
-                    using (Stream fs = File.OpenRead(o.YSCPath))
+                    using (Stream fs = File.OpenRead(o.InputPath))
                     {
                         MemoryStream buffer = new MemoryStream(); fs.CopyTo(buffer);
                         ScriptFile scriptFile = new ScriptFile(buffer);
@@ -100,15 +105,15 @@ namespace Decompiler
                         scriptFile.Close();
                     }
                 }
-                else if (Directory.Exists(o.YSCPath)) // Decompile directory
+                else if (Directory.Exists(o.InputPath)) // Decompile directory
                 {
                     if (o.OutputPath == null || !Directory.Exists(o.OutputPath)) { Console.WriteLine("Invalid Output Directory"); return; }
 
                     InitializeINIFields(o);
                     InitializeNativeTable(o.NativeFile);
-                    foreach (string file in Directory.GetFiles(o.YSCPath, "*.ysc"))
+                    foreach (string file in Directory.GetFiles(o.InputPath, "*.ysc"))
                         CompileList.Enqueue(file);
-                    foreach (string file in Directory.GetFiles(o.YSCPath, "*.ysc.full"))
+                    foreach (string file in Directory.GetFiles(o.InputPath, "*.ysc.full"))
                         CompileList.Enqueue(file);
 
                     if (Program.Use_MultiThreading)
@@ -350,5 +355,8 @@ namespace Decompiler
                 _agg_min_hits = tmp;
             return _agg_min_hits;
         }
+
+        private static bool _console = false;
+        public static bool Bit32 { get { return _console; } }
     }
 }

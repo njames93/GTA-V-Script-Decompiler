@@ -169,7 +169,7 @@ namespace Decompiler
             else name = "func_" + Functions.Count.ToString();
             int pcount = CodeTable[offset + 1];
             int tmp1 = CodeTable[offset + 2], tmp2 = CodeTable[offset + 3];
-            int vcount = (tmp2 << 0x8) | tmp1;
+            int vcount = ((Program.Bit32) ? (tmp1 << 0x8) | tmp2 : (tmp2 << 0x8) | tmp1);
             if (vcount < 0)
             {
                 throw new Exception("Well this shouldnt have happened");
@@ -344,7 +344,7 @@ namespace Decompiler
             reader.BaseStream.Position = Header.StaticsOffset + Header.RSC7Offset;
             for (int count = 0; count < Header.StaticsCount; count++)
             {
-                Statics.AddVar(reader.ReadInt64());
+                Statics.AddVar(Program.Bit32 ? reader.SReadInt32() : reader.ReadInt64());
             }
         }
 

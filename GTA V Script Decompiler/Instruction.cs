@@ -69,11 +69,11 @@ namespace Decompiler
                     case 1:
                         return operands[0];
                     case 2:
-                        return BitConverter.ToInt16(operands, 0);
+                        return Program.Bit32 ? Utils.SwapEndian(BitConverter.ToInt16(operands, 0)) : BitConverter.ToInt16(operands, 0);
                     case 3:
-                        return operands[2] << 16 | operands[1] << 8 | operands[0];
+                        return Program.Bit32 ? (operands[0] << 16 | operands[1] << 8 | operands[2]) : (operands[2] << 16 | operands[1] << 8 | operands[0]);
                     case 4:
-                        return BitConverter.ToInt32(operands, 0);
+                        return Program.Bit32 ? Utils.SwapEndian(BitConverter.ToInt32(operands, 0)) : BitConverter.ToInt32(operands, 0);
                     default:
                         throw new Exception("Invalid amount of operands (" + operands.Count().ToString() + ")");
                 }
@@ -86,8 +86,7 @@ namespace Decompiler
             {
                 if (operands.Count() != 4)
                     throw new Exception("Not a Float");
-                else
-                    return BitConverter.ToSingle(operands, 0);
+                return Program.Bit32 ? Utils.SwapEndian(BitConverter.ToSingle(operands, 0)) : BitConverter.ToSingle(operands, 0);
             }
         }
 
@@ -105,11 +104,11 @@ namespace Decompiler
                     case 1:
                         return operands[0];
                     case 2:
-                        return BitConverter.ToUInt16(operands, 0);
+                        return Program.Bit32 ? (uint) Utils.SwapEndian(BitConverter.ToInt16(operands, 0)) : BitConverter.ToUInt16(operands, 0);
                     case 3:
-                        return (uint)(operands[2] << 16 | operands[1] << 8 | operands[0]);
+                        return Program.Bit32 ? (uint)(operands[2] << 16 | operands[1] << 8 | operands[0]) : (uint)(operands[2] << 16 | operands[1] << 8 | operands[0]);
                     case 4:
-                        return BitConverter.ToUInt32(operands, 0);
+                        return Program.Bit32 ? BitConverter.ToUInt32(operands, 0) : BitConverter.ToUInt32(operands, 0);
                     default:
                         throw new Exception("Invalid amount of operands (" + operands.Count().ToString() + ")");
                 }
@@ -121,7 +120,7 @@ namespace Decompiler
             get
             {
                 if (IsJumpInstruction)
-                    return BitConverter.ToInt16(operands, 0) + offset + 3;
+                    return Program.Bit32 ? Utils.SwapEndian(BitConverter.ToInt16(operands, 0)) + offset + 3 : BitConverter.ToInt16(operands, 0) + offset + 3;
                 throw new Exception("Not A jump");
             }
         }
@@ -182,8 +181,8 @@ namespace Decompiler
                 if (index >= cases)
                     throw new Exception("Out Or Range Script Case");
                 return Program.getIntType == Program.IntType._uint
-                    ? ScriptFile.hashbank.GetHash(BitConverter.ToUInt32(operands, 1 + index * 6))
-                    : ScriptFile.hashbank.GetHash(BitConverter.ToInt32(operands, 1 + index * 6));
+                    ? ScriptFile.hashbank.GetHash(Program.Bit32 ? Utils.SwapEndian(BitConverter.ToUInt32(operands, 1 + index * 6)) : BitConverter.ToUInt32(operands, 1 + index * 6))
+                    : ScriptFile.hashbank.GetHash(Program.Bit32 ? Utils.SwapEndian(BitConverter.ToInt32(operands, 1 + index * 6)) : BitConverter.ToInt32(operands, 1 + index * 6));
             }
             throw new Exception("Not A Switch Statement");
         }
@@ -195,7 +194,7 @@ namespace Decompiler
                 int cases = GetOperand(0);
                 if (index >= cases)
                     throw new Exception("Out of range script case");
-                return offset + 8 + index * 6 + BitConverter.ToInt16(operands, 5 + index * 6);
+                return offset + 8 + index * 6 + (Program.Bit32 ? Utils.SwapEndian(BitConverter.ToInt16(operands, 5 + index * 6)) : BitConverter.ToInt16(operands, 5 + index * 6));
             }
             throw new Exception("Not A Switch Statement");
         }

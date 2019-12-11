@@ -22,19 +22,13 @@ namespace Decompiler
                 //Then the natives needs to go back through translation tables to get to their hash as defined in the vanilla game version
                 //or the earliest game version that native was introduced in.
                 //Just some of the steps Rockstar take to make reverse engineering harder
-                nat = Utils.RotateLeft(reader.ReadUInt64(), (codeSize + count) & 0x3F);
+                nat = Program.Bit32 ? reader.SReadUInt32() : Utils.RotateLeft(reader.ReadUInt64(), (codeSize + count) & 0x3F);
+
                 _nativehash.Add(nat);
                 if (Program.X64npi.ContainsKey(nat))
-                {
                     _natives.Add(Program.X64npi[nat].Display);
-                }
                 else
-                {
-                    string temps = nat.ToString("X");
-                    while (temps.Length < 16)
-                        temps = "0" + temps;
-                    _natives.Add("unk_0x" + temps);
-                }
+                    _natives.Add("unk_" + Native.CreateNativeStub(nat));
                 count++;
             }
 
