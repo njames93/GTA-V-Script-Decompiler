@@ -417,16 +417,16 @@ namespace Decompiler
                     {
                         if (val.Variable != null)
                         {
-                            if (Types.gettype(val.Variable.DataType).precedence < Types.gettype(ScriptFile.X64npi.getparamtype(hash, count)).precedence)
+                            if (val.Variable.DataType.Precedence() < ScriptFile.X64npi.GetParamType(hash, count).Precedence())
                             {
                                 val.Variable.DataType = ScriptFile.X64npi.getparamtype(hash, count);
                             }
-                            else if (Types.gettype(val.Variable.DataType).precedence > Types.gettype(ScriptFile.X64npi.getparamtype(hash, count)).precedence)
+                            else if (val.Variable.DataType.Precedence() > ScriptFile.X64npi.GetParamType(hash, count).Precedence())
                             {
                                 ScriptFile.X64npi.updateparam(hash, val.Variable.DataType, count);
                             }
                         }
-                        if (val.Datatype == DataType.Bool || ScriptFile.X64npi.getparamtype(hash, count) == DataType.Bool)
+                        if (val.Datatype == DataType.Bool || ScriptFile.X64npi.GetParamType(hash, count) == DataType.Bool)
                         {
                             bool temp;
                             if (bool.TryParse(val.Value, out temp))
@@ -438,7 +438,7 @@ namespace Decompiler
                             else
                                 functionline += val.Value + ", ";
                         }
-                        else if (val.Datatype == DataType.Int && ScriptFile.X64npi.getparamtype(hash, count) == DataType.Float)
+                        else if (val.Datatype == DataType.Int && ScriptFile.X64npi.GetParamType(hash, count) == DataType.Float)
                         {
                             switch (Program.getIntType)
                             {
@@ -496,12 +496,9 @@ namespace Decompiler
                     }
                     case StackValue.Type.Pointer:
                     {
-                        if (val.isNotVar)
-                            functionline += "&(" + val.Value + "), ";
-                        else
-                            functionline += "&" + val.Value + ", ";
-                        if (Types.hasptr(val.Datatype))
-                            _params.Add(Types.getpointerver(val.Datatype));
+                        functionline += val.isNotVar ? ("&(" + val.Value + "), ") : ("&" + val.Value + ", ");
+                        if (val.Datatype.PointerType() != Stack.DataType.Unk)
+                            _params.Add(val.Datatype.PointerType());
                         else
                             _params.Add(val.Datatype);
                         count++;
@@ -532,27 +529,26 @@ namespace Decompiler
             if (pcount > 0)
                 functionline = functionline.Remove(functionline.Length - 2) + ")";
             else
-
                 functionline += ")";
             if (rcount == 0)
             {
-                ScriptFile.X64npi.updatenative(hash, DataType.None, _params.ToArray());
+                ScriptFile.X64npi.UpdateNative(hash, DataType.None, _params.ToArray());
                 return functionline + ";";
             }
             else if (rcount == 1)
             {
-                ScriptFile.X64npi.updatenative(hash, ScriptFile.X64npi.getrettype(hash), _params.ToArray());
-                PushNative(functionline, hash, ScriptFile.X64npi.getrettype(hash));
+                ScriptFile.X64npi.UpdateNative(hash, ScriptFile.X64npi.getrettype(hash), _params.ToArray());
+                PushNative(functionline, hash, ScriptFile.X64npi.GetReturnType(hash));
             }
             else if (rcount > 1)
             {
                 if (rcount == 2)
-                    ScriptFile.X64npi.updatenative(hash, DataType.Unk, _params.ToArray());
+                    ScriptFile.X64npi.UpdateNative(hash, DataType.Unk, _params.ToArray());
                 else if (rcount == 3)
-                    ScriptFile.X64npi.updatenative(hash, DataType.Vector3, _params.ToArray());
+                    ScriptFile.X64npi.UpdateNative(hash, DataType.Vector3, _params.ToArray());
                 else
                     throw new Exception("Error in return items count");
-                PushStructNative(functionline, hash, rcount, ScriptFile.X64npi.getrettype(hash));
+                PushStructNative(functionline, hash, rcount, ScriptFile.X64npi.GetReturnType(hash));
             }
             else
                 throw new Exception("Error in return items count");
@@ -1339,12 +1335,13 @@ namespace Decompiler
             String,
             StringPtr,
             Bool,
+            BoolPtr,
             Unk,
             UnkPtr,
             Unsure,
             None, //For Empty returns
             Vector3,
-
+            Vector3Ptr,
         }
 
         private class StackValue
@@ -1387,7 +1384,7 @@ namespace Decompiler
                 _type = type;
                 _value = name;
                 _structSize = 0;
-                _datatype = function.ReturnType.type;
+                _datatype = function.ReturnType;
                 _function = function;
             }
 
@@ -1473,115 +1470,124 @@ namespace Decompiler
         #endregion
     }
 
-    public static class Types
+    public static class DataTypeExtensions
     {
-        public static DataTypes[] _types = new DataTypes[]
-        {
-            new DataTypes(Stack.DataType.Bool, 4, "bool", "b"), //needs fixing up a bit
-			new DataTypes(Stack.DataType.Float, 3, "float", "f"),
-            new DataTypes(Stack.DataType.Int, 3, "int", "i"),
-            new DataTypes(Stack.DataType.String, 3, "char[]", "c"),
-            new DataTypes(Stack.DataType.StringPtr, 3, "char*", "s"),
-            new DataTypes(Stack.DataType.Unk, 0, "var", "u"),
-            new DataTypes(Stack.DataType.Unsure, 1, "var", "u"),
-            new DataTypes(Stack.DataType.IntPtr, 3, "int*", "i"),
-            new DataTypes(Stack.DataType.UnkPtr, 1, "var*", "u"),
-            new DataTypes(Stack.DataType.FloatPtr, 3, "float*", "f"),
-            new DataTypes(Stack.DataType.Vector3, 2, "Vector3", "v"),
-            new DataTypes(Stack.DataType.None, 4, "void", "f"),
 
-        };
+        public static bool IsUnknown(this Stack.DataType c) { return (c == Stack.DataType.Unk || c == Stack.DataType.UnkPtr); }
+        public static string ReturnType(this Stack.DataType c) { return LongName(c) + " "; }
+        public static string VarArrayDeclaration(this Stack.DataType c) { return LongName(c) + "[] " + ShortName(c); }
+        public static string VarDeclaration(this Stack.DataType c) { return LongName(c) + " " + ShortName(c); }
 
-        public static DataTypes gettype(Stack.DataType type)
+        /// <summary>
+        ///
+        /// </summary>
+        public static Stack.DataType PointerType(this Stack.DataType c)
         {
-            foreach (DataTypes d in _types)
+            switch (c)
             {
-                if (d.type == type)
-                    return d;
-            }
-            throw new Exception("Unknown return type");
-        }
-
-        public static byte indexof(Stack.DataType type)
-        {
-            for (byte i = 0; i < _types.Length; i++)
-            {
-                if (_types[i].type == type)
-                    return i;
-            }
-            return 255;
-        }
-
-        public static Stack.DataType getatindex(byte index)
-        {
-            return _types[index].type;
-        }
-
-        public static Stack.DataType getpointerver(Stack.DataType type)
-        {
-            switch (type)
-            {
-                case Stack.DataType.Int:
-                    return Stack.DataType.IntPtr;
-                case Stack.DataType.Unk:
-                    return Stack.DataType.UnkPtr;
-                case Stack.DataType.Float:
-                    return Stack.DataType.FloatPtr;
-                default:
-                    return type;
+                case Stack.DataType.Int: return Stack.DataType.IntPtr;
+                case Stack.DataType.Unk: return Stack.DataType.UnkPtr;
+                case Stack.DataType.Float: return Stack.DataType.FloatPtr;
+                case Stack.DataType.Bool: return Stack.DataType.BoolPtr;
+                case Stack.DataType.Vector3: return Stack.DataType.Vector3Ptr;
+                default: return Stack.DataType.Unk;
             }
         }
 
-        public static bool hasptr(Stack.DataType type)
+        /// <summary>
+        ///
+        /// </summary>
+        public static Stack.DataType BaseType(this Stack.DataType c)
         {
-            switch (type)
+            switch (c)
             {
-                case Stack.DataType.Int:
-                case Stack.DataType.Unk:
+                case Stack.DataType.IntPtr: return Stack.DataType.Int;
+                case Stack.DataType.UnkPtr: return Stack.DataType.Unk;
+                case Stack.DataType.FloatPtr: return Stack.DataType.Float;
+                case Stack.DataType.BoolPtr: return Stack.DataType.Bool;
+                case Stack.DataType.Vector3Ptr: return Stack.DataType.Vector3;
+                default: return Stack.DataType.Unk;
+            }
+        }
+
+        /// <summary>
+        /// Conversion of stack datatypes to precedence integers.
+        /// </summary>
+        public static int Precedence(this Stack.DataType c)
+        {
+            switch (c)
+            {
                 case Stack.DataType.Unsure:
+                case Stack.DataType.UnkPtr:
+                    return 1;
+                case Stack.DataType.Vector3:
+                    return 2;
+                case Stack.DataType.BoolPtr:
                 case Stack.DataType.Float:
-                    return true;
+                case Stack.DataType.Int:
+                case Stack.DataType.String:
+                case Stack.DataType.StringPtr:
+                case Stack.DataType.IntPtr:
+                case Stack.DataType.FloatPtr:
+                case Stack.DataType.Vector3Ptr:
+                    return 3;
+                case Stack.DataType.Bool:
+                case Stack.DataType.None:
+                    return 4;
+                case Stack.DataType.Unk:
                 default:
-                    return false;
+                    return 0;
             }
         }
 
-        public struct DataTypes
+        /// <summary>
+        /// Conversion of stack datatypes to string/type labels.
+        /// </summary>
+        public static string LongName(this Stack.DataType c)
         {
-            public Stack.DataType type;
-            public int precedence;
-            public string singlename;
-            public string varletter;
-
-            public DataTypes(Stack.DataType type, int precedence, string singlename, string varletter)
+            switch (c)
             {
-                this.type = type;
-                this.precedence = precedence;
-                this.singlename = singlename;
-                this.varletter = varletter;
+                case Stack.DataType.Bool: return "bool";
+                case Stack.DataType.BoolPtr: return "bool*";
+                case Stack.DataType.Float: return "float";
+                case Stack.DataType.FloatPtr: return "float*";
+                case Stack.DataType.Int: return "int";
+                case Stack.DataType.IntPtr: return "int*";
+                case Stack.DataType.String: return "char[]";
+                case Stack.DataType.StringPtr: return "char*";
+                case Stack.DataType.Vector3: return "Vector3";
+                case Stack.DataType.Vector3Ptr: return "Vector3*";
+                case Stack.DataType.None: return "void";
+                case Stack.DataType.Unk: return "var";
+                case Stack.DataType.UnkPtr: return "var*";
+                case Stack.DataType.Unsure:
+                default:
+                    return "var";
             }
+        }
 
-            public string returntype
+        /// <summary>
+        ///
+        /// </summary>
+        public static string ShortName(this Stack.DataType c)
+        {
+            switch (c)
             {
-                get { return singlename + " "; }
-            }
-
-            public string vardec
-            {
-                get { return singlename + " " + varletter; }
-            }
-
-            public string vararraydec
-            {
-                get { return singlename + "[] " + varletter; }
-            }
-
-            public void check(DataTypes Second)
-            {
-                if (this.precedence < Second.precedence)
-                {
-                    this = Second;
-                }
+                case Stack.DataType.Bool: return "b";
+                case Stack.DataType.BoolPtr: return "b";
+                case Stack.DataType.Float: return "f";
+                case Stack.DataType.FloatPtr: return "f";
+                case Stack.DataType.Int: return "i";
+                case Stack.DataType.IntPtr: return "i";
+                case Stack.DataType.String: return "c";
+                case Stack.DataType.StringPtr: return "s";
+                case Stack.DataType.Vector3: return "v";
+                case Stack.DataType.Vector3Ptr: return "v";
+                case Stack.DataType.None: return "f";
+                case Stack.DataType.Unk: return "u";
+                case Stack.DataType.UnkPtr: return "u";
+                case Stack.DataType.Unsure: return "u";
+                default: return "u";
             }
         }
     }
