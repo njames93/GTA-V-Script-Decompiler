@@ -131,8 +131,7 @@ namespace Decompiler
         public void loadfile()
         {
             Natives = new Dictionary<ulong, Tuple<Stack.DataType, Stack.DataType[]>>();
-            string file = Path.Combine(Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location),
-                "x64nativeinfo.dat");
+            string file = Path.Combine(Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location), "x64nativeinfo.dat");
             if (!File.Exists(file))
                 return;
             Stream natfile = File.OpenRead(file);

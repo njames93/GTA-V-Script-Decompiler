@@ -6,6 +6,8 @@ namespace Decompiler
 {
     public class X64NativeTable
     {
+        public static bool Translate { get; set; } = false;
+
         List<string> _natives;
         List<ulong> _nativehash;
         public X64NativeTable(Stream scriptFile, int position, int length, int codeSize)
@@ -24,7 +26,7 @@ namespace Decompiler
                 //Just some of the steps Rockstar take to make reverse engineering harder
                 nat = Program.x64nativefile.TranslateHash(rotl(reader.ReadUInt64(), codeSize + count));
                 _nativehash.Add(nat);
-                if (Program.x64nativefile.ContainsKey(nat))
+                if (Program.x64nativefile.ContainsKey(nat) && !Translate)
                 {
                     _natives.Add(Program.x64nativefile[nat]);
                 }

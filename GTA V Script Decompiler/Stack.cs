@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 
 namespace Decompiler
 {
@@ -95,7 +96,7 @@ namespace Decompiler
 
         public void Push(float value)
         {
-            _stack.Add(new StackValue(StackValue.Type.Literal, value.ToString() + "f", DataType.Float));
+            _stack.Add(new StackValue(StackValue.Type.Literal, value.ToString(CultureInfo.InvariantCulture) + "f", DataType.Float));
         }
 
         public void PushPointer(string value)
@@ -423,7 +424,10 @@ namespace Decompiler
                         }
                         if (val.Datatype == DataType.Bool || ScriptFile.X64npi.getparamtype(hash, count) == DataType.Bool)
                         {
-                            if (val.Value == "0")
+                            bool temp;
+                            if (bool.TryParse(val.Value, out temp))
+                                functionline += temp ? "true, " : "false, ";
+                            else if (val.Value == "0")
                                 functionline += "false, ";
                             else if (val.Value == "1")
                                 functionline += "true, ";
@@ -441,7 +445,7 @@ namespace Decompiler
                                     {
                                         temp = Utils.SwapEndian(temp);
                                         float floatval = Utils.SwapEndian(BitConverter.ToSingle(BitConverter.GetBytes(temp), 0));
-                                        functionline += floatval.ToString() + "f, ";
+                                        functionline += floatval.ToString(CultureInfo.InvariantCulture) + "f, ";
                                     }
                                     else
                                         functionline += val.Value + ", ";
@@ -454,7 +458,7 @@ namespace Decompiler
                                     {
                                         tempu = Utils.SwapEndian(tempu);
                                         float floatval = Utils.SwapEndian(BitConverter.ToSingle(BitConverter.GetBytes(tempu), 0));
-                                        functionline += floatval.ToString() + "f, ";
+                                        functionline += floatval.ToString(CultureInfo.InvariantCulture) + "f, ";
                                     }
                                     else
                                         functionline += val.Value + ", ";
@@ -466,12 +470,11 @@ namespace Decompiler
                                     string temps = val.Value;
                                     if (temps.StartsWith("0x"))
                                         temps = temps.Substring(2);
-                                    if (int.TryParse(temps, System.Globalization.NumberStyles.HexNumber,
-                                        System.Globalization.CultureInfo.InvariantCulture, out temp))
+                                    if (int.TryParse(temps, System.Globalization.NumberStyles.HexNumber, System.Globalization.CultureInfo.InvariantCulture, out temp))
                                     {
                                         temp = Utils.SwapEndian(temp);
                                         float floatval = Utils.SwapEndian(BitConverter.ToSingle(BitConverter.GetBytes(temp), 0));
-                                        functionline += floatval.ToString() + "f, ";
+                                        functionline += floatval.ToString(CultureInfo.InvariantCulture) + "f, ";
                                     }
                                     else
                                         functionline += val.Value + ", ";

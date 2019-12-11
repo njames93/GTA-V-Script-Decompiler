@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -31,7 +32,7 @@ namespace Decompiler
                 case Stack.DataType.Float:
                     return BitConverter.ToSingle(BitConverter.GetBytes(value), 0).ToString() + "f";
                 case Stack.DataType.Bool:
-                    break;//return value == 0 ? "false" : "true";				//still need to fix bools
+                    return value == 0 ? "false" : "true"; // still need to fix bools
                 case Stack.DataType.FloatPtr:
                 case Stack.DataType.IntPtr:
                 case Stack.DataType.StringPtr:

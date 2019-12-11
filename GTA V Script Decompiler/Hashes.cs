@@ -12,15 +12,12 @@ namespace Decompiler
         public Hashes()
         {
             hashes = new Dictionary<int, string>();
+            string file = Path.Combine(Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location), "entities.dat");
+
             StreamReader reader;
-            if (
-                File.Exists(Path.Combine(Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location),
-                    "entities.dat")))
+            if (File.Exists(file))
             {
-                reader =
-                    new StreamReader(
-                        File.OpenRead(Path.Combine(Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location),
-                            "entities.dat")));
+                reader = new StreamReader(File.OpenRead(file));
             }
             else
             {
@@ -32,6 +29,11 @@ namespace Decompiler
                 Decompressed.Position = 0;
                 reader = new StreamReader(Decompressed);
             }
+            Populate(reader);
+        }
+
+        private void Populate(StreamReader reader)
+        {
             while (!reader.EndOfStream)
             {
                 string line = reader.ReadLine();
@@ -48,7 +50,7 @@ namespace Decompiler
                     hash = (int)Convert.ToUInt32(split[0]);
                 }
                 if (!hashes.ContainsKey(hash) && hash != 0)
-                    hashes.Add(hash, split[1]);
+                    hashes.Add(hash, split[1].ToLower());
             }
 
         }

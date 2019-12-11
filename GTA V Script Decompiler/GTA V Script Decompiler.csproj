@@ -5,10 +5,10 @@
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
     <ProjectGuid>{399F1C85-D843-4F79-8920-4761EA2C1533}</ProjectGuid>
-    <OutputType>WinExe</OutputType>
+    <OutputType>Exe</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>Decompiler</RootNamespace>
-    <AssemblyName>GTA V Script Decompiler</AssemblyName>
+    <AssemblyName>decompiler</AssemblyName>
     <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <TargetFrameworkProfile />
@@ -78,6 +78,9 @@
     <GenerateSerializationAssemblies>Off</GenerateSerializationAssemblies>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="CommandLine, Version=2.6.0.0, Culture=neutral, PublicKeyToken=5a870481e358d379, processorArchitecture=MSIL">
+      <HintPath>..\packages\CommandLineParser.2.6.0\lib\net45\CommandLine.dll</HintPath>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Data.DataSetExtensions" />
@@ -89,19 +92,9 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="CodePath.cs" />
-    <Compile Include="FolderSelectDialog.cs" />
-    <Compile Include="MainForm.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="MainForm.Designer.cs">
-      <DependentUpon>MainForm.cs</DependentUpon>
-    </Compile>
     <Compile Include="Function.cs" />
     <Compile Include="Hashes.cs" />
     <Compile Include="INI.cs" />
-    <Compile Include="InputBox.cs">
-      <SubType>Form</SubType>
-    </Compile>
     <Compile Include="Instruction.cs" />
     <Compile Include="IO.cs" />
     <Compile Include="Native Param Info.cs" />
@@ -115,9 +108,6 @@
     <Compile Include="Utils.cs" />
     <Compile Include="Vars Info.cs" />
     <Compile Include="ScriptFile.cs" />
-    <EmbeddedResource Include="MainForm.resx">
-      <DependentUpon>MainForm.cs</DependentUpon>
-    </EmbeddedResource>
     <EmbeddedResource Include="Properties\Resources.resx">
       <Generator>ResXFileCodeGenerator</Generator>
       <LastGenOutput>Resources.Designer.cs</LastGenOutput>
@@ -139,8 +129,10 @@
       <DependentUpon>Settings.settings</DependentUpon>
       <DesignTimeSharedInput>True</DesignTimeSharedInput>
     </Compile>
+    <None Include="Resources\config.ini" />
     <None Include="Resources\Entities.dat" />
     <None Include="Resources\native_translation.dat" />
+    <None Include="Resources\x64nativeinfo.dat" />
     <None Include="Resources\x64natives.dat" />
   </ItemGroup>
   <ItemGroup>

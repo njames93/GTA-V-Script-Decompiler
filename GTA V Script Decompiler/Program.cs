@@ -1,6 +1,9 @@
 using System;
 using System.IO;
-using System.Windows.Forms;
+using System.Collections.Generic;
+using System.IO.Compression;
+using System.CodeDom.Compiler;
+using CommandLine;
 
 namespace Decompiler
 {
@@ -11,26 +14,117 @@ namespace Decompiler
         public static Object ThreadLock;
         public static int ThreadCount;
 
+        static string SaveDirectory = "";
+        static Queue<string> CompileList = new Queue<string>();
+        static List<Tuple<uint, string>> FoundStrings = new List<Tuple<uint, string>>();
+
+        class Options
+        {
+            [Option('x', "x64", Required = true, HelpText = "x64native file")]
+            public string NativeFile { get; set; }
+
+            [Option('y', "ysc", Required = true, HelpText = "YSC Path")]
+            public string YSCPath { get; set; }
+
+            [Option('o', "out", Required = true, HelpText = "Output Directory")]
+            public string OutputPath { get; set; }
+        }
+
+        private static void Decompile()
+        {
+            ulong count = 0;
+            while (CompileList.Count > 0)
+            {
+                string scriptToDecode;
+                lock (Program.ThreadLock)
+                {
+                    scriptToDecode = CompileList.Dequeue();
+                }
+                try
+                {
+                    using (Stream fs = File.OpenRead(scriptToDecode)) {
+                        MemoryStream buffer = new MemoryStream();
+                        fs.CopyTo(buffer);
+
+                        Console.WriteLine("Decompiling: " + scriptToDecode);
+                        ScriptFile scriptFile = new ScriptFile(buffer);
+                        scriptFile.Save(Path.Combine(SaveDirectory, Path.GetFileNameWithoutExtension(scriptToDecode) + ".c"));
+                        scriptFile.Close();
+
+                        count++;
+                        if (count % 25 == 0)
+                            GC.Collect();
+                    }
+                }
+                catch (Exception ex)
+                {
+                    throw new SystemException("Error decompiling script " + Path.GetFileNameWithoutExtension(scriptToDecode) + " - " + ex.Message);
+                }
+            }
+            Program.ThreadCount--;
+        }
+
         /// <summary>
         /// The main entry point for the application.
         /// </summary>
         [STAThread]
-        static void Main()
+        static void Main(string[] args)
         {
             ThreadLock = new object();
             Config = new Ini.IniFile(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "config.ini"));
-            Find_Nat_Namespace();
-            Find_Upper_Natives();
-            //Build NativeFiles from Directory if file exists, if not use the files in the resources
-            string path = Path.Combine(Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location), "x64natives.dat");
-            if (File.Exists(path))
-                x64nativefile = new x64NativeFile(File.OpenRead(path));
-            else
-                x64nativefile = new x64NativeFile(new MemoryStream(Properties.Resources.x64natives));
+            Parser.Default.ParseArguments<Options>(args).WithParsed<Options>(o =>
+            {
+                Program.Find_getINTType();
+                Program.Find_Show_Array_Size();
+                Program.Find_Reverse_Hashes();
+                Program.Find_Declare_Variables();
+                Program.Find_Shift_Variables();
+                Program.Find_Show_Func_Pointer();
+                Program.Find_Use_MultiThreading();
+                Program.Find_IncFuncPos();
+                Program.Find_Nat_Namespace();
+                Program.Find_Hex_Index();
+                Program.Find_Upper_Natives();
+                Program.Find_Decomplied();
+                if (!File.Exists(o.NativeFile))
+                {
+                    Console.WriteLine("Invalid Native File"); return;
+                }
+                else if (!Directory.Exists(o.YSCPath))
+                {
+                    Console.WriteLine("Invalid YSC Path"); return;
+                }
+                else if (!Directory.Exists(o.OutputPath))
+                {
+                    Console.WriteLine("Invalid YSC Path"); return;
+                }
 
-            Application.EnableVisualStyles();
-            Application.SetCompatibleTextRenderingDefault(false);
-            Application.Run(new MainForm());
+                SaveDirectory = o.OutputPath;
+                x64nativefile = new x64NativeFile(File.OpenRead(o.NativeFile));
+                foreach (string file in Directory.GetFiles(o.YSCPath, "*.ysc"))
+                    CompileList.Enqueue(file);
+                foreach (string file in Directory.GetFiles(o.YSCPath, "*.ysc.full"))
+                    CompileList.Enqueue(file);
+
+                if (Program.Use_MultiThreading)
+                {
+                    for (int i = 0; i < Environment.ProcessorCount - 1; i++)
+                    {
+                        Program.ThreadCount++;
+                        new System.Threading.Thread(Decompile).Start();
+                    }
+
+                    Program.ThreadCount++;
+                    Decompile();
+                    while (Program.ThreadCount > 0)
+                        System.Threading.Thread.Sleep(10);
+                }
+                else
+                {
+                    Program.ThreadCount++;
+                    Decompile();
+                }
+            });
         }
 
         public enum IntType
@@ -120,7 +214,6 @@ namespace Decompiler
             get { return _Use_MultiThreading; }
         }
 
-
         public static bool Find_IncFuncPos()
         {
             return _IncFuncPos = Program.Config.IniReadBool("Base", "Include_Function_Position", false);
@@ -132,7 +225,6 @@ namespace Decompiler
         {
             get { return _IncFuncPos; }
         }
-
 
         public static bool Find_Show_Func_Pointer()
         {
@@ -182,5 +274,10 @@ namespace Decompiler
             get { return _upper_Natives; }
         }
 
+        public static bool Find_Decomplied()
+        {
+            X64NativeTable.Translate = Program.Config.IniReadBool("Base", "Decomplied_With_Translation", false);
+            return Program.Config.IniReadBool("Base", "Decomplied_With_Translation", false);
+        }
     }
 }
