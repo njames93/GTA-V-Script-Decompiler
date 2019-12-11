@@ -422,16 +422,16 @@ namespace Decompiler
                     {
                         if (val.Variable != null)
                         {
-                            if (val.Variable.DataType.Precedence() < native.Params[count].StackType.Precedence())
+                            if (val.Variable.DataType.Precedence() < native.GetParam(count).StackType.Precedence())
                             {
-                                val.Variable.DataType = native.Params[count].StackType;
+                                val.Variable.DataType = native.GetParam(count).StackType;
                             }
-                            else if (val.Variable.DataType.Precedence() > native.Params[count].StackType.Precedence())
+                            else if (val.Variable.DataType.Precedence() > native.GetParam(count).StackType.Precedence())
                             {
                                 Program.X64npi.UpdateParam(hash, val.Variable.DataType, count);
                             }
                         }
-                        if (val.Datatype == DataType.Bool || native.Params[count].StackType == DataType.Bool)
+                        if (val.Datatype == DataType.Bool || native.GetParam(count).StackType == DataType.Bool)
                         {
                             bool temp;
                             if (bool.TryParse(val.Value, out temp))
@@ -443,7 +443,7 @@ namespace Decompiler
                             else
                                 functionline += val.Value + ", ";
                         }
-                        else if (val.Datatype == DataType.Int && native.Params[count].StackType == DataType.Float)
+                        else if (val.Datatype == DataType.Int && native.GetParam(count).StackType == DataType.Float)
                         {
                             switch (Program.getIntType)
                             {

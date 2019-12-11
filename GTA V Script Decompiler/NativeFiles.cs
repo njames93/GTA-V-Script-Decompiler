@@ -69,7 +69,15 @@ namespace Decompiler
             if (native.Params.Count == 0)
                 return dec + ");";
             for (int i = 0; i < native.Params.Count; i++)
-                dec += native.Params[i].StackType.VarDeclaration() + i + ", ";
+            {
+                if (native.Params[i].Vardiac)
+                {
+                    dec += "...";
+                    break;
+                }
+                else
+                    dec += native.Params[i].StackType.VarDeclaration() + i + ", ";
+            }
             return dec.Remove(dec.Length - 2) + ");";
         }
 
@@ -84,7 +92,7 @@ namespace Decompiler
             Native native;
             if (TryGetValue(hash, out native))
             {
-                if (index < native.Params.Count)
+                if (index < native.Params.Count && !native.Vardiac)
                 {
                     Param p = native.Params[index];
                     if (p.StackType.IsUnknown())
@@ -113,7 +121,7 @@ namespace Decompiler
                     * Remove natives and make all types "Any", since we cannot
                     * be confident in the current type information
                     */
-                    if (native.Params.Count != pcount)
+                    if (native.Params.Count != pcount && !native.Vardiac)
                     {
                         Console.WriteLine("Native Argument Mismatch: " + native.HashString + " " + pcount + "/" + native.Params.Count);
                         native.Params.Clear();
@@ -151,6 +159,8 @@ namespace Decompiler
                 native.Return = returns.LongName();
                 for (int i = 0; i < param.Length; ++i)
                 {
+                    if (native.Params[i].Vardiac)
+                        break;
                     if (native.Params[i].StackType.IsUnknown())
                         native.Params[i].Type = param[i].LongName();
                 }
@@ -250,12 +260,16 @@ namespace Decompiler
 
     public class Native
     {
+        public static readonly Param VardiacParam = new Param("const char*", "Parameter");
+
         private bool _dirty = false;
+        private bool _vardiac = false;
         private string _return;
         private string _name;
         private string _namespace;
         private string _hashStr;
         private string _displayName;
+        private IList<Param> _params;
 
         public Native() { }
 
@@ -281,7 +295,17 @@ namespace Decompiler
         public string Comment { get; set; }
 
         [Newtonsoft.Json.JsonProperty("params")]
-        public IList<Param> Params { get; set; }
+        public IList<Param> Params
+        {
+            get => _params;
+            set {
+                _params = value;
+                _vardiac = false; // Update vardiac condition
+                foreach (Param p in _params) _vardiac = _vardiac | p.Vardiac;
+            }
+        }
+
+        public Param GetParam(int index) => (index >= Params.Count && Vardiac) ? Native.VardiacParam : Params[index];
 
         [Newtonsoft.Json.JsonProperty("hashes")]
         public IList<string> Hashes { get; set; }
@@ -304,6 +328,7 @@ namespace Decompiler
         /**
          * Cached Fields
          */
+        public bool Vardiac => _vardiac;
         public string HashString { get { UpdateDirty() ; return _hashStr; } }
         public string Display { get { UpdateDirty() ; return _displayName; } }
 
@@ -348,6 +373,7 @@ namespace Decompiler
     public class Param
     {
         private string _type;
+        private bool _vardiac; // Temporary fix for 0xFA925AC00EB830B9.
         private Stack.DataType _sType;
 
         public Param() { }
@@ -361,12 +387,22 @@ namespace Decompiler
         public string Type
         {
             get => _type;
-            set { _type = value; _sType = x64NativeFile.TypeMap[_type]; }
+            set
+            {
+                _vardiac = value == "";
+                _type = _vardiac ? "const char*" : value;
+                _sType = x64NativeFile.TypeMap[_type];
+            }
         }
 
         /// <summary>
         ///
         /// </summary>
         public Stack.DataType StackType => _sType;
+
+        /// <summary>
+        ///
+        /// </summary>
+        public bool Vardiac => _vardiac;
     }
 }
