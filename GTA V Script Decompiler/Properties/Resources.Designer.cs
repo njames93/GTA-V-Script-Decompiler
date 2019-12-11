@@ -69,5 +69,15 @@ namespace Decompiler.Properties {
                 return ((byte[])(obj));
             }
         }
+        
+        /// <summary>
+        ///   Looks up a localized resource of type System.Byte[].
+        /// </summary>
+        internal static byte[] Natives {
+            get {
+                object obj = ResourceManager.GetObject("Natives", resourceCulture);
+                return ((byte[])(obj));
+            }
+        }
     }
 }

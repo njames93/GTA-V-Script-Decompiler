@@ -134,6 +134,7 @@
     </Compile>
     <None Include="Resources\config.ini" />
     <None Include="Resources\Entities.dat" />
+    <None Include="Resources\natives.json" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />

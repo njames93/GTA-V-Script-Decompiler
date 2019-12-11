@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 
 namespace Decompiler
 {
@@ -406,6 +407,10 @@ namespace Decompiler
 
         public string NativeCallTest(ulong hash, string name, int pcount, int rcount)
         {
+            Native native;
+            if (!Program.X64npi.FetchNativeCall(hash, name, pcount, rcount, out native))
+                throw new Exception("Unknown Exception for Hash: " + hash.ToString("X"));
+
             string functionline = name + "(";
             List<DataType> _params = new List<DataType>();
             int count = 0;
@@ -417,16 +422,16 @@ namespace Decompiler
                     {
                         if (val.Variable != null)
                         {
-                            if (val.Variable.DataType.Precedence() < ScriptFile.X64npi.GetParamType(hash, count).Precedence())
+                            if (val.Variable.DataType.Precedence() < native.Params[count].StackType.Precedence())
                             {
-                                val.Variable.DataType = ScriptFile.X64npi.getparamtype(hash, count);
+                                val.Variable.DataType = native.Params[count].StackType;
                             }
-                            else if (val.Variable.DataType.Precedence() > ScriptFile.X64npi.GetParamType(hash, count).Precedence())
+                            else if (val.Variable.DataType.Precedence() > native.Params[count].StackType.Precedence())
                             {
-                                ScriptFile.X64npi.updateparam(hash, val.Variable.DataType, count);
+                                Program.X64npi.UpdateParam(hash, val.Variable.DataType, count);
                             }
                         }
-                        if (val.Datatype == DataType.Bool || ScriptFile.X64npi.GetParamType(hash, count) == DataType.Bool)
+                        if (val.Datatype == DataType.Bool || native.Params[count].StackType == DataType.Bool)
                         {
                             bool temp;
                             if (bool.TryParse(val.Value, out temp))
@@ -438,7 +443,7 @@ namespace Decompiler
                             else
                                 functionline += val.Value + ", ";
                         }
-                        else if (val.Datatype == DataType.Int && ScriptFile.X64npi.GetParamType(hash, count) == DataType.Float)
+                        else if (val.Datatype == DataType.Int && native.Params[count].StackType == DataType.Float)
                         {
                             switch (Program.getIntType)
                             {
@@ -532,23 +537,23 @@ namespace Decompiler
                 functionline += ")";
             if (rcount == 0)
             {
-                ScriptFile.X64npi.UpdateNative(hash, DataType.None, _params.ToArray());
+                Program.X64npi.UpdateNative(hash, DataType.None, _params.ToArray());
                 return functionline + ";";
             }
             else if (rcount == 1)
             {
-                ScriptFile.X64npi.UpdateNative(hash, ScriptFile.X64npi.getrettype(hash), _params.ToArray());
-                PushNative(functionline, hash, ScriptFile.X64npi.GetReturnType(hash));
+                Program.X64npi.UpdateNative(hash, Program.X64npi.GetReturnType(hash), _params.ToArray());
+                PushNative(functionline, hash, Program.X64npi.GetReturnType(hash));
             }
             else if (rcount > 1)
             {
                 if (rcount == 2)
-                    ScriptFile.X64npi.UpdateNative(hash, DataType.Unk, _params.ToArray());
+                    Program.X64npi.UpdateNative(hash, DataType.Unk, _params.ToArray());
                 else if (rcount == 3)
-                    ScriptFile.X64npi.UpdateNative(hash, DataType.Vector3, _params.ToArray());
+                    Program.X64npi.UpdateNative(hash, DataType.Vector3, _params.ToArray());
                 else
                     throw new Exception("Error in return items count");
-                PushStructNative(functionline, hash, rcount, ScriptFile.X64npi.GetReturnType(hash));
+                PushStructNative(functionline, hash, rcount, Program.X64npi.GetReturnType(hash));
             }
             else
                 throw new Exception("Error in return items count");

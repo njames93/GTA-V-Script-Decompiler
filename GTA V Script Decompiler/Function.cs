@@ -1346,7 +1346,7 @@ namespace Decompiler
                 }
                 if (Stack.isnat(index + i))
                 {
-                    ScriptFile.X64npi.updaterettype(Stack.PeekNat64(index + i), type);
+                    Program.X64npi.UpdateRetType(Stack.PeekNat64(index + i), type);
                 }
             }
         }
@@ -1372,7 +1372,7 @@ namespace Decompiler
                 }
                 if (Stack.isnat(index + i))
                 {
-                    ScriptFile.X64npi.updaterettype(Stack.PeekNat64(index + i), Stack.DataType.StringPtr);
+                    Program.X64npi.UpdateRetType(Stack.PeekNat64(index + i), Stack.DataType.StringPtr);
                 }
             }
         }

@@ -1,3 +1,5 @@
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -9,114 +11,336 @@ using System.Threading.Tasks;
 
 namespace Decompiler
 {
-    class x64NativeFile : Dictionary<ulong, string>
+    class x64NativeFile : Dictionary<ulong, Native>
     {
-        public ulong TranslateHash(ulong hash)
+        public x64NativeFile(Stream Nativefile) : base()
         {
-            while (TranslationTable.ContainsKey(hash))
+            using (StreamReader sr = new StreamReader(Nativefile))
             {
-                hash = TranslationTable[hash];
+                RootObject o = (RootObject) new JsonSerializer().Deserialize(sr, typeof(RootObject));
+                foreach(KeyValuePair<string, JToken> ns in o.Values)
+                {
+                    foreach(KeyValuePair<string, JToken> natives in ns.Value.ToObject<RootObject>().Values)
+                    {
+                        ulong hash;
+                        if (ulong.TryParse(natives.Key.Substring(2), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out hash))
+                        {
+                            Native native = natives.Value.ToObject<Native>();
+                            native.Hash = hash;
+                            native.Namespace = ns.Key;
+
+                            this[hash] = native;
+                            foreach (string s in native.Hashes) {
+                                if (ulong.TryParse(s.Substring(2), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out hash) && hash != 0 && !ContainsKey(hash))
+                                Add(hash, native);
+                            }
+                        }
+                    }
+                }
             }
-            return hash;
         }
 
-        public string nativefromhash(ulong hash)
+        public string DisplayTextFromHash(ulong hash)
         {
-            if (Program.x64nativefile.ContainsKey(hash))
+            if (ContainsKey(hash)) return this[hash].Display;
+            string temps = hash.ToString("X");
+            while (temps.Length < 16)
+                temps = "0" + temps;
+            return "unk_0x" + temps;
+        }
+
+        public string GetNativeInfo(ulong hash)
+        {
+            Native native;
+            if (!TryGetValue(hash, out native))
+                throw new Exception("Native not found");
+
+            string dec = native.ReturnParam.StackType.ReturnType() + Program.X64npi.DisplayTextFromHash(hash) + "(";
+            if (native.Params.Count == 0)
+                return dec + ");";
+            for (int i = 0; i < native.Params.Count; i++)
+                dec += native.Params[i].StackType.VarDeclaration() + i + ", ";
+            return dec.Remove(dec.Length - 2) + ");";
+        }
+
+        public Stack.DataType GetReturnType(ulong hash)
+        {
+            Native native;
+            return TryGetValue(hash, out native) ? native.ReturnParam.StackType : Stack.DataType.Unk;
+        }
+
+        public void UpdateParam(ulong hash, Stack.DataType type, int index)
+        {
+            Native native;
+            if (TryGetValue(hash, out native))
             {
-                return this[hash];
+                if (index < native.Params.Count)
+                {
+                    Param p = native.Params[index];
+                    if (p.StackType.IsUnknown())
+                        p.Type = type.LongName();
+                }
+            }
+        }
+
+        public void UpdateRetType(ulong hash, Stack.DataType returns, bool over = false)
+        {
+            Native native;
+            if (TryGetValue(hash, out native))
+            {
+                if (native.ReturnParam.StackType.IsUnknown())
+                    native.ReturnParam.Type = returns.LongName();
+            }
+        }
+
+        public bool FetchNativeCall(ulong hash, string name, int pcount, int rcount, out Native native)
+        {
+            lock (Program.ThreadLock)
+            {
+                if (TryGetValue(hash, out native))
+                {
+                    /**
+                    * Remove natives and make all types "Any", since we cannot
+                    * be confident in the current type information
+                    */
+                    if (native.Params.Count != pcount)
+                    {
+                        Console.WriteLine("Native Argument Mismatch: " + native.HashString + " " + pcount + "/" + native.Params.Count);
+                        native.Params.Clear();
+                        for (int i = 0; i < pcount; ++i)
+                            native.Params.Add(new Param("Any", "Param" + i.ToString()));
+                    }
+                }
+                else
+                {
+                    native = new Native();
+                    native.Hash = hash;
+                    native.Name = native.HashString;
+                    native.Joaat = "";
+                    native.Comment = "";
+                    native.Build = "1737";
+                    native.Namespace = "UNK";
+
+                    native.Return = "Any";
+                    native.Params = new List<Param>();
+                    for (int i = 0; i < pcount; ++i)
+                        native.Params.Add(new Param("Any", "Param" + i.ToString()));
+                    Add(hash, native);
+                }
+            }
+            return true;
+        }
+
+        public void UpdateNative(ulong hash, Stack.DataType returns, params Stack.DataType[] param)
+        {
+            Native native;
+            lock (Program.ThreadLock)
+            {
+                if (!TryGetValue(hash, out native)) throw new Exception("Unknown Native: " + hash.ToString("X"));
+
+                native.Return = returns.LongName();
+                for (int i = 0; i < param.Length; ++i)
+                {
+                    if (native.Params[i].StackType.IsUnknown())
+                        native.Params[i].Type = param[i].LongName();
+                }
+            }
+        }
+
+        /// <summary>
+        /// JSON Types to StackTypes.
+        /// </summary>
+        public static readonly Dictionary<string, Stack.DataType> TypeMap = new Dictionary<string, Stack.DataType> {
+            /* Stack Types */
+            { "var", Stack.DataType.Unk },
+            { "var*", Stack.DataType.UnkPtr },
+            { "bool", Stack.DataType.Bool },
+            { "bool*", Stack.DataType.BoolPtr },
+
+            /* Codegen Types */
+            { "Any", Stack.DataType.Unk },
+            { "Any*", Stack.DataType.UnkPtr },
+            { "void", Stack.DataType.None },
+            { "char[]", Stack.DataType.String },
+            { "char*", Stack.DataType.StringPtr },
+            { "const char*", Stack.DataType.StringPtr },
+            { "Vector3", Stack.DataType.Vector3 },
+            { "Vector3*", Stack.DataType.Vector3Ptr },
+            { "BOOL", Stack.DataType.Bool },
+            { "BOOL*", Stack.DataType.BoolPtr },
+            { "float", Stack.DataType.Float },
+            { "float*",  Stack.DataType.FloatPtr },
+            { "uint", Stack.DataType.Int },
+            { "Hash", Stack.DataType.Int },
+            { "Entity", Stack.DataType.Int },
+            { "Player", Stack.DataType.Int },
+            { "FireId", Stack.DataType.Int },
+            { "Ped", Stack.DataType.Int },
+            { "Vehicle", Stack.DataType.Int },
+            { "Cam", Stack.DataType.Int },
+            { "CarGenerator", Stack.DataType.Int },
+            { "Group", Stack.DataType.Int },
+            { "Train", Stack.DataType.Int },
+            { "Pickup", Stack.DataType.Int },
+            { "Object", Stack.DataType.Int },
+            { "Weapon", Stack.DataType.Int },
+            { "Interior", Stack.DataType.Int },
+            { "Blip", Stack.DataType.Int },
+            { "Texture", Stack.DataType.Int },
+            { "TextureDict", Stack.DataType.Int },
+            { "CoverPoint", Stack.DataType.Int },
+            { "Camera", Stack.DataType.Int },
+            { "TaskSequence", Stack.DataType.Int },
+            { "ColourIndex", Stack.DataType.Int },
+            { "Sphere", Stack.DataType.Int },
+            { "ScrHandle", Stack.DataType.Int },
+            { "int", Stack.DataType.Int },
+            { "long", Stack.DataType.Int },
+            { "Hash*", Stack.DataType.IntPtr },
+            { "Entity*", Stack.DataType.IntPtr },
+            { "Player*", Stack.DataType.IntPtr },
+            { "FireId*", Stack.DataType.IntPtr },
+            { "Ped*", Stack.DataType.IntPtr },
+            { "Vehicle*", Stack.DataType.IntPtr },
+            { "Cam*", Stack.DataType.IntPtr },
+            { "CarGenerator*", Stack.DataType.IntPtr },
+            { "Group*", Stack.DataType.IntPtr },
+            { "Train*", Stack.DataType.IntPtr },
+            { "Pickup*", Stack.DataType.IntPtr },
+            { "Object*", Stack.DataType.IntPtr },
+            { "Weapon*", Stack.DataType.IntPtr },
+            { "Interior*", Stack.DataType.IntPtr },
+            { "Blip*", Stack.DataType.IntPtr },
+            { "Texture*", Stack.DataType.IntPtr },
+            { "TextureDict*", Stack.DataType.IntPtr },
+            { "CoverPoint*", Stack.DataType.IntPtr },
+            { "Camera*", Stack.DataType.IntPtr },
+            { "TaskSequence*", Stack.DataType.IntPtr },
+            { "ColourIndex*", Stack.DataType.IntPtr },
+            { "Sphere*", Stack.DataType.IntPtr },
+            { "ScrHandle*", Stack.DataType.IntPtr },
+            { "int*", Stack.DataType.IntPtr },
+        };
+    }
+
+    internal class RootObject
+    {
+        [JsonExtensionData]
+        public IDictionary<string, JToken> Values { get; set; }
+    }
+
+    public class Native
+    {
+        private bool _dirty = false;
+        private string _return;
+        private string _name;
+        private string _namespace;
+        private string _hashStr;
+        private string _displayName;
+
+        public Native() { }
+
+        public ulong Hash { get; set; }
+
+        public string Namespace
+        {
+            get => _namespace;
+            set { _dirty = true; _namespace = value; }
+        }
+
+        [Newtonsoft.Json.JsonProperty("name")]
+        public string Name
+        {
+            get => _name;
+            set { _dirty = true; _name = value; }
+        }
+
+        [Newtonsoft.Json.JsonProperty("jhash")]
+        public string Joaat { get; set; }
+
+        [Newtonsoft.Json.JsonProperty("comment")]
+        public string Comment { get; set; }
+
+        [Newtonsoft.Json.JsonProperty("params")]
+        public IList<Param> Params { get; set; }
+
+        [Newtonsoft.Json.JsonProperty("hashes")]
+        public IList<string> Hashes { get; set; }
+
+        [Newtonsoft.Json.JsonProperty("return_type")]
+        public string Return
+        {
+            get => _return;
+            set { _return = value; ReturnParam = new Param(_return, "Return"); }
+        }
+
+        /// <summary>
+        /// Return type converted into a parameter object.
+        /// </summary>
+        public Param ReturnParam { get; set; }
+
+        [Newtonsoft.Json.JsonProperty("build")]
+        public string Build { get; set; }
+
+        /**
+         * Cached Fields
+         */
+        public string HashString { get { UpdateDirty() ; return _hashStr; } }
+        public string Display { get { UpdateDirty() ; return _displayName; } }
+
+        private void UpdateDirty()
+        {
+            if (!_dirty) return;
+
+            string hashStr = Hash.ToString("X");
+            while (hashStr.Length < 16) hashStr = "0" + hashStr;
+            hashStr = "0x" + hashStr;
+
+            string dispStr = (Program.Show_Nat_Namespace ? (Namespace + "::") : "");
+            if (Program.Upper_Natives)
+            {
+                dispStr = dispStr.ToUpper();
+                if (Name.StartsWith("_0x"))
+                    dispStr += Name.Remove(3) + Name.Substring(3).ToUpper();
+                else
+                    dispStr += Name.ToUpper();
             }
             else
             {
-                string temps = hash.ToString("X");
-                while (temps.Length < 8)
-                    temps = "0" + temps;
-                return "unk_0x" + temps;
+                dispStr = dispStr.ToLower();
+                if (Name.StartsWith("_0x"))
+                    dispStr += Name.Remove(3) + Name.Substring(3).ToUpper();
+                else
+                    dispStr += Name.ToLower();
             }
-        }
 
-        public Dictionary<string, ulong> revmap = new Dictionary<string, ulong>();
-        public Dictionary<ulong, ulong> TranslationTable = new Dictionary<ulong, ulong>();
-        public x64NativeFile(Stream Nativefile, Stream translationPath) : base()
+            _hashStr = hashStr;
+            _displayName = dispStr;
+        }
+    }
+
+    public class Param
+    {
+        private string _type;
+        private Stack.DataType _sType;
+
+        public Param() { }
+
+        public Param(string type, string name) { Name = name; Type = type; }
+
+        [Newtonsoft.Json.JsonProperty("name")]
+        public string Name { get; set; }
+
+        [Newtonsoft.Json.JsonProperty("type")]
+        public string Type
         {
-            StreamReader sr = new StreamReader(Nativefile);
-            while (!sr.EndOfStream)
-            {
-                string line = sr.ReadLine();
-                if (line.Length > 1)
-                {
-                    string[] data = line.Split(':');
-                    if (data.Length != 3)
-                        continue;
-                    string val = data[0];
-                    if (val.StartsWith("0x"))
-                    {
-                        val = val.Substring(2);
-                    }
-                    ulong value;
-                    if (ulong.TryParse(val, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out value))
-                    {
-                        string nat = (Program.Show_Nat_Namespace ? (data[1] + "::") : "");
-                        if (Program.Upper_Natives)
-                        {
-                            nat = nat.ToUpper();
-                            if (data[2].StartsWith("_0x"))
-                            {
-                                nat += data[2].Remove(3) + data[2].Substring(3).ToUpper();
-                            }
-                            else
-                            {
-                                nat += data[2].ToUpper();
-                            }
-                        }
-                        else
-                        {
-                            nat = nat.ToLower();
-                            if (data[2].StartsWith("_0x"))
-                            {
-                                nat += data[2].Remove(3) + data[2].Substring(3).ToUpper();
-                            }
-                            else
-                            {
-                                nat += data[2].ToLower();
-                            }
-                        }
-                        if (!ContainsKey(value))
-                        {
-                            Add(value, nat);
-                            revmap.Add(nat, value);
-                        }
-                    }
-                }
-            }
-            sr.Close();
-
-            sr = new StreamReader(translationPath);
-            while (!sr.EndOfStream)
-            {
-                string line = sr.ReadLine();
-                if (line.Length > 1)
-                {
-                    string val = line.Remove(line.IndexOfAny(new char[] { ':', '=' }));
-                    string nat = line.Substring(val.Length + 1);
-                    ulong newer;
-                    ulong older;
-                    if (ulong.TryParse(val, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out newer))
-                    {
-                        if (!ContainsKey(newer))
-                        {
-                            if (ulong.TryParse(nat, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out older))
-                            {
-                                if (!TranslationTable.ContainsKey(newer))
-                                {
-                                    TranslationTable.Add(newer, older);
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            sr.Close();
+            get => _type;
+            set { _type = value; _sType = x64NativeFile.TypeMap[_type]; }
         }
+
+        /// <summary>
+        ///
+        /// </summary>
+        public Stack.DataType StackType => _sType;
     }
 }

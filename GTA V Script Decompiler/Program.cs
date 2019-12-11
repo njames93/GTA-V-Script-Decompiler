@@ -10,14 +10,14 @@ namespace Decompiler
 {
     static class Program
     {
-        public static x64NativeFile x64nativefile;
+        public static x64NativeFile X64npi;
         internal static Ini.IniFile Config;
         public static Object ThreadLock;
         public static int ThreadCount;
 
         class Options
         {
-            [Option('x', "x64", Required = true, HelpText = "x64native file")]
+            [Option('n', "natives", Required = true, HelpText = "native json file")]
             public string NativeFile { get; set; }
 
             [Option('y', "ysc", Default = null, Required = true, HelpText = "YSC Path")]
@@ -52,7 +52,6 @@ namespace Decompiler
             Program.Find_Nat_Namespace();
             Program.Find_Hex_Index();
             Program.Find_Upper_Natives();
-            Program.Find_Decomplied();
             Program.Find_Aggregate_MinHits();
             Program.Find_Aggregate_MinLines();
 
@@ -62,14 +61,14 @@ namespace Decompiler
             if (o.AggMinLines > 0) Program._agg_min_lines = o.AggMinLines;
         }
 
-        private static void InitializeNativeTable(string nativeFile, string translationFile)
+        private static void InitializeNativeTable(string nativeFile)
         {
-            Stream translation;
-            if (translationFile != null && File.Exists(translationFile))
-                translation = File.OpenRead(translationFile);
+            Stream nativeJson;
+            if (nativeFile != null && File.Exists(nativeFile))
+                nativeJson = File.OpenRead(nativeFile);
             else
-                translation = new MemoryStream(Properties.Resources.native_translation);
-            x64nativefile = new x64NativeFile(File.OpenRead(nativeFile), translation);
+                nativeJson = new MemoryStream(Properties.Resources.Natives);
+            X64npi = new x64NativeFile(nativeJson);
         }
 
         /// <summary>
@@ -88,8 +87,9 @@ namespace Decompiler
                     if (o.OutputPath != null && File.Exists(o.OutputPath) && !o.Force) { Console.WriteLine("Cannot overwrite file, use -f to force."); return; }
 
                     InitializeINIFields(o); Program._AggregateFunctions = false;
-                    InitializeNativeTable(o.NativeFile, o.Translation);
-                    using (Stream fs = File.OpenRead(o.YSCPath)) {
+                    InitializeNativeTable(o.NativeFile);
+                    using (Stream fs = File.OpenRead(o.YSCPath))
+                    {
                         MemoryStream buffer = new MemoryStream(); fs.CopyTo(buffer);
                         ScriptFile scriptFile = new ScriptFile(buffer);
 
@@ -105,7 +105,7 @@ namespace Decompiler
                     if (o.OutputPath == null || !Directory.Exists(o.OutputPath)) { Console.WriteLine("Invalid Output Directory"); return; }
 
                     InitializeINIFields(o);
-                    InitializeNativeTable(o.NativeFile, o.Translation);
+                    InitializeNativeTable(o.NativeFile);
                     foreach (string file in Directory.GetFiles(o.YSCPath, "*.ysc"))
                         CompileList.Enqueue(file);
                     foreach (string file in Directory.GetFiles(o.YSCPath, "*.ysc.full"))
@@ -130,7 +130,8 @@ namespace Decompiler
                         Decompile();
                     }
 
-                    if (Program.AggregateFunctions) {
+                    if (Program.AggregateFunctions)
+                    {
                         Agg.Instance.SaveAggregate(SaveDirectory);
                         Agg.Instance.SaveFrequency(SaveDirectory);
                     }
@@ -323,12 +324,6 @@ namespace Decompiler
         public static bool Upper_Natives
         {
             get { return _upper_Natives; }
-        }
-
-        public static bool Find_Decomplied()
-        {
-            X64NativeTable.Translate = Program.Config.IniReadBool("Base", "Decomplied_With_Translation", false);
-            return Program.Config.IniReadBool("Base", "Decomplied_With_Translation", false);
         }
 
         private static bool _AggregateFunctions = false;
