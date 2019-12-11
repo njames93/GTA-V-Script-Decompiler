@@ -24,7 +24,7 @@ namespace Decompiler
                 //Then the natives needs to go back through translation tables to get to their hash as defined in the vanilla game version
                 //or the earliest game version that native was introduced in.
                 //Just some of the steps Rockstar take to make reverse engineering harder
-                nat = Program.x64nativefile.TranslateHash(rotl(reader.ReadUInt64(), codeSize + count));
+                nat = Program.x64nativefile.TranslateHash(Utils.RotateLeft(reader.ReadUInt64(), (codeSize + count) & 0x3F));
                 _nativehash.Add(nat);
                 if (Program.x64nativefile.ContainsKey(nat) && !Translate)
                 {
@@ -70,12 +70,6 @@ namespace Decompiler
             if (index >= _natives.Count)
                 throw new ArgumentOutOfRangeException("Index is greater than native table size");
             return _natives[index];
-        }
-
-        private ulong rotl(ulong hash, int rotate)
-        {
-            rotate %= 64;
-            return hash << rotate | hash >> (64 - rotate);
         }
 
         public ulong GetNativeHashFromIndex(int index)

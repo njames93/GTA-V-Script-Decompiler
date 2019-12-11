@@ -127,5 +127,15 @@ namespace Decompiler
             else
                 return int.TryParse(temp, out value);
         }
+
+        public static UInt64 RotateRight(UInt64 x, int n)
+        {
+            return (((x) >> (n)) | ((x) << (64 - (n))));
+        }
+
+        public static UInt64 RotateLeft(UInt64 x, int n)
+        {
+            return (((x) << (n)) | ((x) >> (64 - (n))));
+        }
     }
 }
