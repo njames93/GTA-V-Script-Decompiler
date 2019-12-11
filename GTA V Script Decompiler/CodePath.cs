@@ -13,6 +13,8 @@ namespace Decompiler
         public int EndOffset;
         public int BreakOffset;
         public CodePathType Type;
+        public bool Escaped = false;
+
         public List<CodePath> ChildPaths;
 
         public CodePath(CodePathType Type, int EndOffset, int BreakOffset)
@@ -39,6 +41,16 @@ namespace Decompiler
             this.ChildPaths.Add(C);
             return C;
         }
+
+        public bool IsSwitch => (Type == CodePathType.Switch);
+
+        public virtual bool AllEscaped()
+        {
+            bool escaped = true;
+            foreach (CodePath p in ChildPaths)
+                escaped &= p.Escaped;
+            return escaped;
+        }
     }
 
     internal enum CodePathType
@@ -46,42 +58,61 @@ namespace Decompiler
         While,
         If,
         Else,
-        Main
+        Main,
+        Switch
     }
 
-    internal class SwitchStatement
+    internal class SwitchPath : CodePath
     {
+        public int ActiveOffset = -1;
+        public bool HasDefaulted = false;
+        public Dictionary<int, bool> EscapedCases = new Dictionary<int, bool>();
+
         public Dictionary<int, List<string>> Cases;
         public List<int> Offsets;
-        public int breakoffset;
-        public SwitchStatement Parent;
-        public List<SwitchStatement> ChildSwitches;
 
-        public SwitchStatement(Dictionary<int, List<string>> Cases, int BreakOffset)
+        public SwitchPath(CodePathType Type, int EndOffset, int BreakOffset)
+            : base(Type, EndOffset, BreakOffset)
         {
-            Parent = null;
-            this.Cases = Cases;
-            this.breakoffset = BreakOffset;
-            ChildSwitches = new List<SwitchStatement>();
-            Offsets = Cases == null ? new List<int>() : Cases.Keys.ToList();
-            Offsets.Add(BreakOffset);
+            Offsets = new List<int>();
+            Cases = new Dictionary<int, List<string>>();
         }
 
-        public SwitchStatement(SwitchStatement Parent, Dictionary<int, List<string>> Cases, int BreakOffset)
+        public SwitchPath(CodePath Parent, CodePathType Type, int EndOffset, int BreakOffset)
+            : base(Parent, Type, EndOffset, BreakOffset)
         {
-            this.Parent = Parent;
-            this.Cases = Cases;
-            this.breakoffset = BreakOffset;
-            ChildSwitches = new List<SwitchStatement>();
-            Offsets = Cases == null ? new List<int>() : Cases.Keys.ToList();
-            Offsets.Add(BreakOffset);
+            Offsets = new List<int>();
+            Cases = new Dictionary<int, List<string>>();
         }
 
-        public SwitchStatement CreateSwitchStatement(Dictionary<int, List<string>> Cases, int BreakOffset)
+        public SwitchPath(Dictionary<int, List<string>> Cases, int EndOffset, int BreakOffset)
+            : base(CodePathType.Switch, EndOffset, BreakOffset)
         {
-            SwitchStatement S = new SwitchStatement(this, Cases, BreakOffset);
-            this.ChildSwitches.Add(S);
-            return S;
+            this.Cases = Cases;
+            Offsets = Cases == null ? new List<int>() : Cases.Keys.ToList();
+            Offsets.Add(BreakOffset);
+            if (Program.RDROpcodes) Offsets.Sort();
+            foreach (int offset in Offsets)
+                EscapedCases[offset] = false;
+        }
+
+        public SwitchPath(CodePath Parent, Dictionary<int, List<string>> Cases, int EndOffset, int BreakOffset)
+            : base(Parent, CodePathType.Switch, EndOffset, BreakOffset)
+        {
+            this.Cases = Cases;
+            Offsets = Cases == null ? new List<int>() : Cases.Keys.ToList();
+            Offsets.Add(BreakOffset);
+            if (Program.RDROpcodes) Offsets.Sort();
+            foreach (int offset in Offsets)
+                EscapedCases[offset] = false;
+        }
+
+        public override bool AllEscaped()
+        {
+            bool escaped = base.AllEscaped();
+            foreach(KeyValuePair<int, bool> entry in EscapedCases)
+                escaped &= entry.Value;
+            return escaped;
         }
     }
 }

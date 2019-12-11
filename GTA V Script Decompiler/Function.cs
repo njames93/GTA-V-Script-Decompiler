@@ -36,7 +36,6 @@ namespace Decompiler
         int Offset = 0;
         string tabs = "";
         CodePath Outerpath;
-        SwitchStatement OuterSwitch;
         bool writeelse = false;
         public Stack.DataType ReturnType { get; private set; }
         FunctionName fnName;
@@ -279,7 +278,6 @@ namespace Decompiler
 
             //Set up the codepaths to a null item
             Outerpath = new CodePath(CodePathType.Main, CodeBlock.Count, -1);
-            OuterSwitch = new SwitchStatement(null, -1);
 
             sb = new StringBuilder();
             opentab();
@@ -299,11 +297,11 @@ namespace Decompiler
             while (Offset < Instructions.Count)
                 decodeinstruction();
             //Fix for switches that end at the end of a function
-            while (OuterSwitch.Parent != null)
+            while (Outerpath.Parent != null && Outerpath.Parent.Type != CodePathType.Main)
             {
-                closetab(false);
+                if (Outerpath.IsSwitch) closetab(false);
                 closetab();
-                OuterSwitch = OuterSwitch.Parent;
+                Outerpath = Outerpath.Parent;
             }
             closetab();
             //fnName.RetType = RetType;
@@ -405,29 +403,33 @@ namespace Decompiler
         /// </summary>
         void handlejumpcheck()
         {
-            //Check the jump location against each switch statement, to see if it is recognised as a break
-            SwitchStatement tempsw = OuterSwitch;
+        //Check the jump location against each switch statement, to see if it is recognised as a break
         startsw:
-            if (Instructions[Offset].GetJumpOffset == tempsw.breakoffset)
+            if (Outerpath.IsSwitch && Instructions[Offset].GetJumpOffset == Outerpath.BreakOffset)
             {
-                writeline("break;");
+                SwitchPath outerSwitch = (SwitchPath)Outerpath;
+                int switchOffset = outerSwitch.ActiveOffset;
+                if (!outerSwitch.EscapedCases[switchOffset])
+                {
+                    writeline("break;");
+                    outerSwitch.HasDefaulted = false;
+                }
+
                 return;
             }
-            else
+            else if (Outerpath.IsSwitch)
             {
-                if (tempsw.Parent != null)
+                if (Outerpath.Parent != null)
                 {
-                    tempsw = tempsw.Parent;
+                    Outerpath = Outerpath.Parent;
                     goto startsw;
                 }
             }
             int tempoff = 0;
             if (Instructions[Offset + 1].Offset == Outerpath.EndOffset)
             {
-
                 if (Instructions[Offset].GetJumpOffset != Instructions[Offset + 1].Offset)
                 {
-
                     if (!Instructions[Offset].IsWhileJump)
                     {
                         //The jump is detected as being an else statement
@@ -482,16 +484,16 @@ namespace Decompiler
         //Needs Merging with method below
         bool isnewcodepath()
         {
-            if (Outerpath.Parent != null)
+            if (!Outerpath.IsSwitch && Outerpath.Parent != null)
             {
                 if (InstructionMap[Outerpath.EndOffset] == Offset)
                 {
                     return true;
                 }
             }
-            if (OuterSwitch.Offsets.Count > 0)
+            if (Outerpath.IsSwitch && ((SwitchPath)Outerpath).Offsets.Count > 0)
             {
-                if (Instructions[Offset].Offset == OuterSwitch.Offsets[0])
+                if (Instructions[Offset].Offset == ((SwitchPath)Outerpath).Offsets[0])
                 {
                     return true;
                 }
@@ -505,7 +507,7 @@ namespace Decompiler
         void handlenewpath()
         {
         start:
-            if (Instructions[Offset].Offset == Outerpath.EndOffset)
+            if (!Outerpath.IsSwitch && Instructions[Offset].Offset == Outerpath.EndOffset)
             {
                 //Offset recognised as the exit instruction of the outermost code path
                 //remove outermost code path
@@ -516,19 +518,27 @@ namespace Decompiler
                 //check next codepath to see if it belongs there aswell
                 goto start;
             }
-            if (OuterSwitch.Offsets.Count > 0)
+
+            if (Outerpath.IsSwitch && ((SwitchPath)Outerpath).Offsets.Count > 0)
             {
+                SwitchPath OuterSwitch = ((SwitchPath)Outerpath);
                 if (Instructions[Offset].Offset == OuterSwitch.Offsets[0])
                 {
-                    closetab(false);
-
                     if (OuterSwitch.Offsets.Count == 1)
                     {
+                        if (OuterSwitch.HasDefaulted && !OuterSwitch.EscapedCases[OuterSwitch.ActiveOffset])
+                        {
+                            writeline("break;");
+                            OuterSwitch.HasDefaulted = false;
+                        }
+                        closetab(false);
+                        OuterSwitch.ActiveOffset = -1;
+
                         //end of switch statement detected
                         //remove child class
-                        SwitchStatement temp = OuterSwitch;
-                        OuterSwitch = OuterSwitch.Parent;
-                        OuterSwitch.ChildSwitches.Remove(temp);
+                        CodePath temp = OuterSwitch;
+                        Outerpath = Outerpath.Parent;
+                        Outerpath.ChildPaths.Remove(temp);
                         closetab();
                         //go check if its the next switch exit instruction
                         //probably isnt and the goto can probably be removed
@@ -536,6 +546,9 @@ namespace Decompiler
                     }
                     else
                     {
+                        closetab(false);
+                        OuterSwitch.ActiveOffset = OuterSwitch.Offsets[0];
+
                         //more cases left in switch
                         //so write the next switch case
                         writeline("");
@@ -543,7 +556,10 @@ namespace Decompiler
                         {
                             string temp = OuterSwitch.Cases[OuterSwitch.Offsets[0]][i];
                             if (temp == "default")
+                            {
+                                OuterSwitch.HasDefaulted = true;
                                 writeline("default:");
+                            }
                             else
                                 writeline("case " + temp + ":");
                         }
@@ -565,37 +581,10 @@ namespace Decompiler
         void handleswitch()
         {
             Dictionary<int, List<string>> cases = new Dictionary<int, List<string>>();
-            string case_val;
-            int offset;
             int defaultloc;
             int breakloc;
             bool usedefault;
             HLInstruction temp;
-
-            UInt16 switchCount = Program.RDROpcodes ? Instructions[Offset].GetOperandsAsUInt16 : Instructions[Offset].GetOperand(0);
-            for (int i = 0; i < switchCount; i++)
-            {
-                //Check if the case is a known hash
-                case_val = Instructions[Offset].GetSwitchStringCase(i);
-
-                //Get the offset to jump to
-                offset = Instructions[Offset].GetSwitchOffset(i);
-
-                if (!cases.ContainsKey(offset))
-                {
-                    //unknown offset
-                    cases.Add(offset, new List<string>(new string[] { case_val }));
-                }
-                else
-                {
-                    //This offset is known, multiple cases are jumping to this path
-                    cases[offset].Add(case_val);
-                }
-            }
-
-            //Not sure how necessary this step is, but just incase R* compiler doesnt order jump offsets, do it anyway
-            List<int> sorted = cases.Keys.ToList();
-            sorted.Sort();
 
             //Hanldle(skip past) any Nops immediately after switch statement
             int tempoff = 0;
@@ -605,13 +594,27 @@ namespace Decompiler
             //Extract the location to jump to if no cases match
             defaultloc = Instructions[Offset + 1 + tempoff].GetJumpOffset;
 
+            UInt16 switchCount = Program.RDROpcodes ? Instructions[Offset].GetOperandsAsUInt16 : Instructions[Offset].GetOperand(0);
+            for (int i = 0; i < switchCount; i++)
+            {
+                string case_val = Instructions[Offset].GetSwitchStringCase(i);
+                int offset = Instructions[Offset].GetSwitchOffset(i); // Get the offset to jump to
+                if (!cases.ContainsKey(offset)) // Check if the case is a known hash
+                    cases.Add(offset, new List<string>(new string[] { case_val }));
+                else // This offset is known, multiple cases are jumping to this path
+                    cases[offset].Add(case_val);
+            }
+
+            //Not sure how necessary this step is, but just incase R* compiler doesnt order jump offsets, do it anyway
+            List<int> sorted = cases.Keys.ToList();
+            sorted.Sort();
+
             //We have found the jump location, so that instruction is no longer needed and can be nopped
             Instructions[Offset + 1 + tempoff].NopInstruction();
 
             //Temporary stage
             breakloc = defaultloc;
             usedefault = true;
-            bool allreturns = true;
 
             //check if case last instruction is a jump to default location, if so default location is a break;
             //if not break location is where last instrcution jumps to
@@ -629,8 +632,6 @@ namespace Decompiler
                 temp = Instructions[index];
                 if (temp.Instruction != Instruction.RAGE_J)
                 {
-                    if (temp.Instruction != Instruction.RAGE_LEAVE)
-                        allreturns = false;
                     continue;
                 }
                 if (temp.GetJumpOffset == defaultloc)
@@ -640,12 +641,6 @@ namespace Decompiler
                     break;
                 }
                 breakloc = temp.GetJumpOffset;
-            }
-            if (usedefault)
-            {
-                //this seems to be causing some errors
-                // if (allreturns)
-                // usedefault = false;
             }
 
             if (usedefault)
@@ -665,18 +660,22 @@ namespace Decompiler
                 }
             }
 
-            //Found all information about switch, write the first case, the rest will be handled when we get to them
+            // Create the class the rest of the decompiler needs to handle the rest of the switch
+            int sortedOffset = sorted[0];
+            Outerpath = new SwitchPath(Outerpath, cases, -1, breakloc);
+
+            // Found all information about switch, write the first case, the rest will be handled when we get to them
             writeline("switch (" + Stack.PopLit() + ")");
             opentab();
-            for (int i = 0; i < cases[sorted[0]].Count; i++)
-            {
-                writeline("case " + cases[sorted[0]][i] + ":");
-            }
+            for (int i = 0; i < cases[sortedOffset].Count; i++)
+                writeline("case " + cases[sortedOffset][i] + ":");
             opentab(false);
-            cases.Remove(sorted[0]);
 
-            //Create the class the rest of the decompiler needs to handle the rest of the switch
-            OuterSwitch = OuterSwitch.CreateSwitchStatement(cases, breakloc);
+            // Need to build the escape paths prior to removing the offsets.
+            cases.Remove(sortedOffset);
+            ((SwitchPath)Outerpath).ActiveOffset = sortedOffset;
+            ((SwitchPath)Outerpath).Cases.Remove(sortedOffset);
+            ((SwitchPath)Outerpath).Offsets.Remove(sortedOffset);
         }
 
         /// <summary>
@@ -1074,6 +1073,12 @@ namespace Decompiler
                     throw new Exception("Unexpected Function Definition");
                 case Instruction.RAGE_LEAVE:
                 {
+                    if (Outerpath.IsSwitch)
+                    {
+                        SwitchPath switchPath = (SwitchPath) Outerpath;
+                        switchPath.EscapedCases[switchPath.ActiveOffset] = true;
+                    }
+
                     Stack.DataType type = Instructions[Offset].GetOperand(1) == 1 ? Stack.TopType : Stack.DataType.Unk;
                     string tempstring = Stack.PopListForCall(Instructions[Offset].GetOperand(1));
                     switch (Instructions[Offset].GetOperand(1))
