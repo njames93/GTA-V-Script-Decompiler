@@ -14,10 +14,8 @@ namespace Decompiler
     {
         List<byte> CodeTable;
         public StringTable StringTable;
-        public NativeTable NativeTable;
         public X64NativeTable X64NativeTable;
         private int offset = 0;
-        public readonly bool ConsoleVer;
         public List<Function> Functions;
         public Dictionary<int, FunctionName> FunctionLoc;
         public static Hashes hashbank = new Hashes();
@@ -26,22 +24,17 @@ namespace Decompiler
         public string name;
         internal Vars_Info Statics;
         internal bool CheckNative = true;
-        internal static NativeParamInfo npi = new NativeParamInfo();
         internal static x64BitNativeParamInfo X64npi = new x64BitNativeParamInfo();
 
 
         public Dictionary<string, Tuple<int, int>> Function_loc = new Dictionary<string, Tuple<int, int>>();
 
-        public ScriptFile(Stream scriptStream, bool Console)
+        public ScriptFile(Stream scriptStream)
         {
-            ConsoleVer = Console;
             file = scriptStream;
-            Header = ScriptHeader.Generate(scriptStream, Console);
+            Header = ScriptHeader.Generate(scriptStream);
             StringTable = new StringTable(scriptStream, Header.StringTableOffsets, Header.StringBlocks, Header.StringsSize);
-            if (Console)
-                NativeTable = new NativeTable(scriptStream, Header.NativesOffset + Header.RSC7Offset, Header.NativesCount);
-            else
-                X64NativeTable = new X64NativeTable(scriptStream, Header.NativesOffset + Header.RSC7Offset, Header.NativesCount, Header.CodeLength);
+            X64NativeTable = new X64NativeTable(scriptStream, Header.NativesOffset + Header.RSC7Offset, Header.NativesCount, Header.CodeLength);
             name = Header.ScriptName;
             CodeTable = new List<byte>();
             for (int i = 0; i < Header.CodeBlocks; i++)
@@ -83,7 +76,7 @@ namespace Decompiler
                 {
                     savestream.WriteLine("#region Local Var");
                     i++;
-                    foreach (string s in Statics.GetDeclaration(ConsoleVer))
+                    foreach (string s in Statics.GetDeclaration())
                     {
                         savestream.WriteLine("\t" + s);
                         i++;
@@ -122,18 +115,12 @@ namespace Decompiler
 
         public string[] GetNativeTable()
         {
-            if (ConsoleVer)
-                return NativeTable.GetNativeTable();
-            else
-                return X64NativeTable.GetNativeTable();
+            return X64NativeTable.GetNativeTable();
         }
 
         public string[] GetNativeHeader()
         {
-            if (ConsoleVer)
-                return NativeTable.GetNativeHeader();
-            else
-                return X64NativeTable.GetNativeHeader();
+            return X64NativeTable.GetNativeHeader();
         }
 
         public void GetFunctionCode()
@@ -175,7 +162,7 @@ namespace Decompiler
             else name = "func_" + Functions.Count.ToString();
             int pcount = CodeTable[offset + 1];
             int tmp1 = CodeTable[offset + 2], tmp2 = CodeTable[offset + 3];
-            int vcount = ((ConsoleVer) ? (tmp1 << 0x8) | tmp2 : (tmp2 << 0x8) | tmp1);
+            int vcount = (tmp2 << 0x8) | tmp1;
             if (vcount < 0)
             {
                 throw new Exception("Well this shouldnt have happened");
@@ -332,14 +319,11 @@ namespace Decompiler
         {
             Statics = new Vars_Info(Vars_Info.ListType.Statics);
             Statics.SetScriptParamCount(Header.ParameterCount);
-            IO.Reader reader = new IO.Reader(file, ConsoleVer);
+            IO.Reader reader = new IO.Reader(file);
             reader.BaseStream.Position = Header.StaticsOffset + Header.RSC7Offset;
             for (int count = 0; count < Header.StaticsCount; count++)
             {
-                if (ConsoleVer)
-                    Statics.AddVar(reader.SReadInt32());
-                else
-                    Statics.AddVar(reader.ReadInt64());
+                Statics.AddVar(reader.ReadInt64());
             }
         }
     }

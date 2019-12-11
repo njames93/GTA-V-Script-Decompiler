@@ -24,7 +24,7 @@ namespace Decompiler
         private bool scriptopen = false;
         ScriptFile fileopen;
         Style highlight;
-        Queue<Tuple<string, bool>> CompileList;
+        Queue<string> CompileList;
         List<Tuple<uint, string>> FoundStrings;
         uint[] HashToFind;
         string SaveDirectory;
@@ -39,7 +39,6 @@ namespace Decompiler
         public MainForm()
         {
             InitializeComponent();
-            ScriptFile.npi = new NativeParamInfo();
 
             //ScriptFile.hashbank = temp;
             // ScriptFile.hashbank = new Hashes();
@@ -105,7 +104,7 @@ namespace Decompiler
         private void openToolStripMenuItem_Click(object sender, EventArgs e)
         {
             OpenFileDialog ofd = new OpenFileDialog();
-            ofd.Filter = "GTA V Script Files|*.xsc;*.csc;*.ysc;*.ysc.full";
+            ofd.Filter = "GTA V Script Files|*.ysc;*.ysc.full";
             if (ofd.ShowDialog() == System.Windows.Forms.DialogResult.OK)
             {
                 DateTime Start = DateTime.Now;
@@ -123,7 +122,7 @@ namespace Decompiler
 				try
 				{
 #endif
-                fileopen = new ScriptFile(ofd.OpenFile(), ext != ".ysc");
+                fileopen = new ScriptFile(ofd.OpenFile());
 #if !DEBUG
 				}
 				catch (Exception ex)
@@ -150,17 +149,13 @@ namespace Decompiler
                 SetFileName(filename);
                 ScriptOpen = true;
                 updatestatus("Ready, Time taken: " + (DateTime.Now - Start).ToString());
-                if (ext != ".ysc")
-                    ScriptFile.npi.savefile();
-                else
-                    ScriptFile.X64npi.savefile();
-
+                ScriptFile.X64npi.savefile();
             }
         }
 
         private void directoryToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            CompileList = new Queue<Tuple<string, bool>>();
+            CompileList = new Queue<string>();
             Program.ThreadCount = 0;
             FolderSelectDialog fsd = new FolderSelectDialog();
             if (fsd.ShowDialog() == System.Windows.Forms.DialogResult.OK)
@@ -170,28 +165,11 @@ namespace Decompiler
                 if (!Directory.Exists(SaveDirectory))
                     Directory.CreateDirectory(SaveDirectory);
                 this.Hide();
-                bool console = false, pc = false;
 
-                foreach (string file in Directory.GetFiles(fsd.SelectedPath, "*.xsc"))
-                {
-                    console = true;
-                    CompileList.Enqueue(new Tuple<string, bool>(file, true));
-                }
-                foreach (string file in Directory.GetFiles(fsd.SelectedPath, "*.csc"))
-                {
-                    console = true;
-                    CompileList.Enqueue(new Tuple<string, bool>(file, true));
-                }
                 foreach (string file in Directory.GetFiles(fsd.SelectedPath, "*.ysc"))
-                {
-                    pc = true;
-                    CompileList.Enqueue(new Tuple<string, bool>(file, false));
-                }
+                    CompileList.Enqueue(file);
                 foreach (string file in Directory.GetFiles(fsd.SelectedPath, "*.ysc.full"))
-                {
-                    pc = true;
-                    CompileList.Enqueue(new Tuple<string, bool>(file, false));
-                }
+                    CompileList.Enqueue(file);
                 if (Program.Use_MultiThreading)
                 {
                     for (int i = 0; i < Environment.ProcessorCount - 1; i++)
@@ -214,10 +192,7 @@ namespace Decompiler
                 }
 
                 updatestatus("Directory Extracted, Time taken: " + (DateTime.Now - Start).ToString());
-                if (console)
-                    ScriptFile.npi.savefile();
-                if (pc)
-                    ScriptFile.X64npi.savefile();
+                ScriptFile.X64npi.savefile();
             }
             this.Show();
         }
@@ -226,20 +201,20 @@ namespace Decompiler
         {
             while (CompileList.Count > 0)
             {
-                Tuple<string, bool> scriptToDecode;
+                string scriptToDecode;
                 lock (Program.ThreadLock)
                 {
                     scriptToDecode = CompileList.Dequeue();
                 }
                 try
                 {
-                    ScriptFile scriptFile = new ScriptFile((Stream)File.OpenRead(scriptToDecode.Item1), scriptToDecode.Item2);
-                    scriptFile.Save(Path.Combine(SaveDirectory, Path.GetFileNameWithoutExtension(scriptToDecode.Item1) + ".c"));
+                    ScriptFile scriptFile = new ScriptFile((Stream)File.OpenRead(scriptToDecode));
+                    scriptFile.Save(Path.Combine(SaveDirectory, Path.GetFileNameWithoutExtension(scriptToDecode) + ".c"));
                     scriptFile.Close();
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show("Error decompiling script " + Path.GetFileNameWithoutExtension(scriptToDecode.Item1) + " - " + ex.Message);
+                    MessageBox.Show("Error decompiling script " + Path.GetFileNameWithoutExtension(scriptToDecode) + " - " + ex.Message);
                 }
             }
             Program.ThreadCount--;
@@ -248,7 +223,7 @@ namespace Decompiler
         private void fileToolStripMenuItem1_Click(object sender, EventArgs e)
         {
             OpenFileDialog ofd = new OpenFileDialog();
-            ofd.Filter = "GTA V Script Files|*.xsc;*.csc;*.ysc";
+            ofd.Filter = "GTA V Script Files|*.ysc";
 #if !DEBUG
 			try
 			{
@@ -257,14 +232,11 @@ namespace Decompiler
             {
 
                 DateTime Start = DateTime.Now;
-                ScriptFile file = new ScriptFile(ofd.OpenFile(), (Path.GetExtension(ofd.FileName) != ".ysc"));
+                ScriptFile file = new ScriptFile(ofd.OpenFile());
                 file.Save(Path.Combine(Path.GetDirectoryName(ofd.FileName),
                     Path.GetFileNameWithoutExtension(ofd.FileName) + ".c"));
                 file.Close();
-                if ((Path.GetExtension(ofd.FileName) != ".ysc"))
-                    ScriptFile.npi.savefile();
-                else
-                    ScriptFile.X64npi.savefile();
+                ScriptFile.X64npi.savefile();
                 updatestatus("File Saved, Time taken: " + (DateTime.Now - Start).ToString());
             }
 #if !DEBUG
@@ -336,19 +308,9 @@ namespace Decompiler
 
         private void RebuildNativeFiles()
         {
-            if (Program.nativefile != null)
-            {
-                string path = Path.Combine(Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location),
-                "natives.dat");
-                if (File.Exists(path))
-                    Program.nativefile = new NativeFile(File.OpenRead(path));
-                else
-                    Program.nativefile = new NativeFile(new MemoryStream(Properties.Resources.natives));
-            }
             if (Program.x64nativefile != null)
             {
-                string path = Path.Combine(Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location),
-                    "x64natives.dat");
+                string path = Path.Combine(Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location), "x64natives.dat");
                 if (File.Exists(path))
                     Program.x64nativefile = new x64NativeFile(File.OpenRead(path));
                 else
@@ -473,41 +435,6 @@ namespace Decompiler
         }
 
         #endregion
-
-        private void entitiesToolStripMenuItem_Click(object sender, EventArgs e)
-        {
-            ScriptFile.hashbank.Export_Entities();
-        }
-
-        private void nativesToolStripMenuItem_Click(object sender, EventArgs e)
-        {
-            string path = Path.Combine(Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location),
-                "natives_exp.dat");
-            FileStream fs = File.Create(path);
-            new MemoryStream(Properties.Resources.natives).CopyTo(fs);
-            fs.Close();
-            System.Diagnostics.Process.Start(
-                Path.Combine(Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location)), "natives_exp.dat");
-        }
-
-        private void closeToolStripMenuItem_Click(object sender, EventArgs e)
-        {
-            this.Close();
-        }
-
-        private void expandAllBlocksToolStripMenuItem_Click(object sender, EventArgs e)
-        {
-            updatestatus("Expanding all blocks...");
-            fctb1.ExpandAllFoldingBlocks();
-            ready();
-        }
-
-        private void collaspeAllBlocksToolStripMenuItem_Click(object sender, EventArgs e)
-        {
-            updatestatus("Collasping all blocks...");
-            fctb1.CollapseAllFoldingBlocks();
-            ready();
-        }
 
         private void fctb1_MouseClick(object sender, MouseEventArgs e)
         {
@@ -750,16 +677,10 @@ namespace Decompiler
 
         }
 
-        private void fullNativeInfoToolStripMenuItem_Click(object sender, EventArgs e)
-        {
-            ScriptFile.npi.exportnativeinfo();
-        }
-
         private void fullPCNativeInfoToolStripMenuItem_Click(object sender, EventArgs e)
         {
             ScriptFile.X64npi.exportnativeinfo();
         }
-
 
         private void stringsTableToolStripMenuItem_Click(object sender, EventArgs e)
         {
@@ -917,7 +838,7 @@ namespace Decompiler
                 return;
             }
             HashToFind = Hashes.ToArray();
-            CompileList = new Queue<Tuple<string, bool>>();
+            CompileList = new Queue<string>();
             FoundStrings = new List<Tuple<uint, string>>();
             Program.ThreadCount = 0;
             FolderSelectDialog fsd = new FolderSelectDialog();
@@ -926,22 +847,10 @@ namespace Decompiler
                 DateTime Start = DateTime.Now;
                 this.Hide();
 
-                foreach (string file in Directory.GetFiles(fsd.SelectedPath, "*.xsc"))
-                {
-                    CompileList.Enqueue(new Tuple<string, bool>(file, true));
-                }
-                foreach (string file in Directory.GetFiles(fsd.SelectedPath, "*.csc"))
-                {
-                    CompileList.Enqueue(new Tuple<string, bool>(file, true));
-                }
                 foreach (string file in Directory.GetFiles(fsd.SelectedPath, "*.ysc"))
-                {
-                    CompileList.Enqueue(new Tuple<string, bool>(file, false));
-                }
+                    CompileList.Enqueue(file);
                 foreach (string file in Directory.GetFiles(fsd.SelectedPath, "*.ysc.full"))
-                {
-                    CompileList.Enqueue(new Tuple<string, bool>(file, false));
-                }
+                    CompileList.Enqueue(file);
                 if (Program.Use_MultiThreading)
                 {
                     for (int i = 0; i < Environment.ProcessorCount - 1; i++)
@@ -988,14 +897,14 @@ namespace Decompiler
         {
             while (CompileList.Count > 0)
             {
-                Tuple<string, bool> scriptToSearch;
+                string scriptToSearch;
                 lock (Program.ThreadLock)
                 {
                     scriptToSearch = CompileList.Dequeue();
                 }
-                using (Stream ScriptFile = File.OpenRead(scriptToSearch.Item1))
+                using (Stream ScriptFile = File.OpenRead(scriptToSearch))
                 {
-                    ScriptHeader header = ScriptHeader.Generate(ScriptFile, scriptToSearch.Item2);
+                    ScriptHeader header = ScriptHeader.Generate(ScriptFile);
                     StringTable table = new StringTable(ScriptFile, header.StringTableOffsets, header.StringBlocks, header.StringsSize);
                     foreach (string str in table.Values)
                     {

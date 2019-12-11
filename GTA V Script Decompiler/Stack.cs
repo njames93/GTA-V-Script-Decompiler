@@ -399,160 +399,6 @@ namespace Decompiler
             return "";
         }
 
-        public string NativeCallTest(uint hash, string name, int pcount, int rcount)
-        {
-
-            string functionline = name + "(";
-            List<DataType> _params = new List<DataType>();
-            int count = 0;
-            foreach (StackValue val in PopTest(pcount))
-            {
-                switch (val.ItemType)
-                {
-                    case StackValue.Type.Literal:
-                    {
-                        if (val.Variable != null)
-                        {
-                            if (Types.gettype(val.Variable.DataType).precedence < Types.gettype(ScriptFile.npi.getparamtype(hash, count)).precedence)
-                            {
-                                val.Variable.DataType = ScriptFile.npi.getparamtype(hash, count);
-                            }
-                            else if (Types.gettype(val.Variable.DataType).precedence > Types.gettype(ScriptFile.npi.getparamtype(hash, count)).precedence)
-                            {
-                                ScriptFile.npi.updateparam(hash, val.Variable.DataType, count);
-                            }
-                        }
-                        if (val.Datatype == DataType.Bool || ScriptFile.npi.getparamtype(hash, count) == DataType.Bool)
-                        {
-                            if (val.Value == "0")
-                                functionline += "false, ";
-                            else if (val.Value == "1")
-                                functionline += "true, ";
-                            else
-                                functionline += val.Value + ", ";
-                        }
-                        else if (val.Datatype == DataType.Int && ScriptFile.npi.getparamtype(hash, count) == DataType.Float)
-                        {
-                            switch (Program.getIntType)
-                            {
-                                case Program.IntType._int:
-                                {
-                                    int temp;
-                                    if (int.TryParse(val.Value, out temp))
-                                    {
-                                        temp = Utils.SwapEndian(temp);
-                                        float floatval = Utils.SwapEndian(BitConverter.ToSingle(BitConverter.GetBytes(temp), 0));
-                                        functionline += floatval.ToString() + "f, ";
-                                    }
-                                    else
-                                        functionline += val.Value + ", ";
-                                    break;
-                                }
-                                case Program.IntType._uint:
-                                {
-                                    uint tempu;
-                                    if (uint.TryParse(val.Value, out tempu))
-                                    {
-                                        tempu = Utils.SwapEndian(tempu);
-                                        float floatval = Utils.SwapEndian(BitConverter.ToSingle(BitConverter.GetBytes(tempu), 0));
-                                        functionline += floatval.ToString() + "f, ";
-                                    }
-                                    else
-                                        functionline += val.Value + ", ";
-                                    break;
-                                }
-                                case Program.IntType._hex:
-                                {
-                                    int temp;
-                                    string temps = val.Value;
-                                    if (temps.StartsWith("0x"))
-                                        temps = temps.Substring(2);
-                                    if (int.TryParse(temps, System.Globalization.NumberStyles.HexNumber,
-                                        System.Globalization.CultureInfo.InvariantCulture, out temp))
-                                    {
-                                        temp = Utils.SwapEndian(temp);
-                                        float floatval = Utils.SwapEndian(BitConverter.ToSingle(BitConverter.GetBytes(temp), 0));
-                                        functionline += floatval.ToString() + "f, ";
-                                    }
-                                    else
-                                        functionline += val.Value + ", ";
-                                    break;
-                                }
-                                default:
-                                    throw new System.ArgumentException("Invalid IntType");
-                            }
-                        }
-                        else
-                            functionline += val.Value + ", ";
-                        _params.Add(val.Datatype);
-                        count++;
-                        break;
-                    }
-                    case StackValue.Type.Pointer:
-                    {
-                        if (val.isNotVar)
-                            functionline += "&(" + val.Value + "), ";
-                        else
-                            functionline += "&" + val.Value + ", ";
-                        if (Types.hasptr(val.Datatype))
-                            _params.Add(Types.getpointerver(val.Datatype));
-                        else
-                            _params.Add(val.Datatype);
-                        count++;
-                        break;
-                    }
-                    case StackValue.Type.Struct:
-                    {
-                        functionline += val.Value + ", ";
-                        if (val.StructSize == 3 && val.Datatype == DataType.Vector3)
-                        {
-                            _params.AddRange(new DataType[] { DataType.Float, DataType.Float, DataType.Float });
-                            count += 3;
-                        }
-                        else
-                        {
-                            for (int i = 0; i < val.StructSize; i++)
-                            {
-                                _params.Add(DataType.Unk);
-                                count++;
-                            }
-                        }
-                        break;
-                    }
-                    default:
-                        throw new Exception("Unexpeced Stack Type\n" + val.ItemType.ToString());
-                }
-            }
-            if (pcount > 0)
-                functionline = functionline.Remove(functionline.Length - 2) + ")";
-            else
-                functionline += ")";
-
-            if (rcount == 0)
-            {
-                ScriptFile.npi.updatenative(hash, DataType.None, _params.ToArray());
-                return functionline + ";";
-            }
-            else if (rcount == 1)
-            {
-                ScriptFile.npi.updatenative(hash, ScriptFile.npi.getrettype(hash), _params.ToArray());
-                PushNative(functionline, hash, ScriptFile.npi.getrettype(hash));
-            }
-            else if (rcount > 1)
-            {
-                if (rcount == 2)
-                    ScriptFile.npi.updatenative(hash, DataType.Unk, _params.ToArray());
-                else if (rcount == 3)
-                    ScriptFile.npi.updatenative(hash, DataType.Vector3, _params.ToArray());
-                else
-                    throw new Exception("Error in return items count");
-                PushStructNative(functionline, hash, rcount, ScriptFile.npi.getrettype(hash));
-            }
-            else
-                throw new Exception("Error in return items count");
-            return "";
-        }
-
         public string NativeCallTest(ulong hash, string name, int pcount, int rcount)
         {
             string functionline = name + "(";
@@ -1221,15 +1067,6 @@ namespace Decompiler
             }
             return _stack[_stack.Count - newIndex - 1].Function;
         }
-        public uint PeekNat(int index)
-        {
-            int newIndex = GetIndex(index);
-            if (newIndex == -1)
-            {
-                return 0;
-            }
-            return _stack[_stack.Count - newIndex - 1].NatHash;
-        }
 
         public ulong PeekNat64(int index)
         {
@@ -1478,7 +1315,6 @@ namespace Decompiler
             int _structSize;
             DataType _datatype;
             Vars_Info.Var _var = null;
-            uint _hash = 0;
             ulong _xhash = 0;
             bool global = false;
             Function _function = null;
@@ -1517,30 +1353,12 @@ namespace Decompiler
                 _datatype = datatype;
             }
 
-            public StackValue(string value, uint hash, DataType datatype)
-            {
-                _type = Type.Literal;
-                _value = value;
-                _structSize = 0;
-                _hash = hash;
-                _datatype = datatype;
-            }
-
             public StackValue(string value, ulong hash, DataType datatype)
             {
                 _type = Type.Literal;
                 _value = value;
                 _structSize = 0;
                 _xhash = hash;
-                _datatype = datatype;
-            }
-
-            public StackValue(string value, int structsize, uint hash, DataType datatype = DataType.Unk)
-            {
-                _type = Type.Struct;
-                _value = value;
-                _structSize = structsize;
-                _hash = hash;
                 _datatype = datatype;
             }
 
@@ -1588,9 +1406,7 @@ namespace Decompiler
 
             public Function Function { get { return _function; } }
 
-            public bool isNative { get { return _hash != 0 || _xhash != 0; } }
-
-            public uint NatHash { get { return _hash; } }
+            public bool isNative { get { return _xhash != 0; } }
 
             public ulong X64NatHash { get { return _xhash; } }
 

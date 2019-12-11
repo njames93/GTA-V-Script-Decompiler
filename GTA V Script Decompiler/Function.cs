@@ -42,12 +42,10 @@ namespace Decompiler
         public Vars_Info Vars { get; private set; }
         public Vars_Info Params { get; private set; }
         public int LineCount = 0;
-        private readonly bool _consoleVer;
 
         public Function(ScriptFile Owner, string name, int pcount, int vcount, int rcount, int location, int locmax = -1)
         {
             this.Scriptfile = Owner;
-            _consoleVer = Owner.ConsoleVer;
             Name = name;
             Pcount = pcount;
             Vcount = vcount;
@@ -279,7 +277,7 @@ namespace Decompiler
             if (Program.Declare_Variables)
             {
                 bool temp = false;
-                foreach (string s in Vars.GetDeclaration(_consoleVer))
+                foreach (string s in Vars.GetDeclaration())
                 {
                     writeline(s);
                     temp = true;
@@ -329,7 +327,7 @@ namespace Decompiler
         void checkjumpcodepath()
         {
             int cur = Offset;
-            HLInstruction temp = new HLInstruction(CodeBlock[Offset], GetArray(2), cur, _consoleVer);
+            HLInstruction temp = new HLInstruction(CodeBlock[Offset], GetArray(2), cur);
             if (temp.GetJumpOffset > 0)
             {
                 if (temp.GetJumpOffset < CodeBlock.Count)
@@ -341,9 +339,9 @@ namespace Decompiler
 
             //if the jump is out the function then its useless
             //So nop this jump
-            AddInstruction(cur, new HLInstruction((byte)0, cur, _consoleVer));
-            AddInstruction(cur + 1, new HLInstruction((byte)0, cur + 1, _consoleVer));
-            AddInstruction(cur + 2, new HLInstruction((byte)0, cur + 2, _consoleVer));
+            AddInstruction(cur, new HLInstruction((byte)0, cur));
+            AddInstruction(cur + 1, new HLInstruction((byte)0, cur + 1));
+            AddInstruction(cur + 2, new HLInstruction((byte)0, cur + 2));
         }
 
         /// <summary>
@@ -367,7 +365,7 @@ namespace Decompiler
             {
                 goto Start;
             }
-            Instructions.Add(new HLInstruction(CodeBlock[Offset], Offset, _consoleVer));
+            Instructions.Add(new HLInstruction(CodeBlock[Offset], Offset));
             return;
         }
 
@@ -763,29 +761,29 @@ namespace Decompiler
                     {
                         //		case 0: if (addnop) AddInstruction(curoff, new HLInstruction((byte)0, curoff)); break;
                         case 37:
-                            AddInstruction(curoff, new HLInstruction(CodeBlock[Offset], GetArray(1), curoff, _consoleVer));
+                            AddInstruction(curoff, new HLInstruction(CodeBlock[Offset], GetArray(1), curoff));
                             break;
                         case 38:
-                            AddInstruction(curoff, new HLInstruction(CodeBlock[Offset], GetArray(2), curoff, _consoleVer));
+                            AddInstruction(curoff, new HLInstruction(CodeBlock[Offset], GetArray(2), curoff));
                             break;
                         case 39:
-                            AddInstruction(curoff, new HLInstruction(CodeBlock[Offset], GetArray(3), curoff, _consoleVer));
+                            AddInstruction(curoff, new HLInstruction(CodeBlock[Offset], GetArray(3), curoff));
                             break;
                         case 40:
                         case 41:
-                            AddInstruction(curoff, new HLInstruction(CodeBlock[Offset], GetArray(4), curoff, _consoleVer));
+                            AddInstruction(curoff, new HLInstruction(CodeBlock[Offset], GetArray(4), curoff));
                             break;
                         case 42: //Because of how rockstar codes and/or conditionals, its neater to detect dups
                                  //and only add them if they are not used for conditionals
                             checkdupforinstruction();
                             break;
                         case 44:
-                            AddInstruction(curoff, new HLInstruction(CodeBlock[Offset], GetArray(3), curoff, _consoleVer));
+                            AddInstruction(curoff, new HLInstruction(CodeBlock[Offset], GetArray(3), curoff));
                             break;
                         case 45:
                             throw new Exception("Function not exptected");
                         case 46:
-                            AddInstruction(curoff, new HLInstruction(CodeBlock[Offset], GetArray(2), curoff, _consoleVer));
+                            AddInstruction(curoff, new HLInstruction(CodeBlock[Offset], GetArray(2), curoff));
                             break;
                         case 52:
                         case 53:
@@ -801,7 +799,7 @@ namespace Decompiler
                         case 64:
                         case 65:
                         case 66:
-                            AddInstruction(curoff, new HLInstruction(CodeBlock[Offset], GetArray(1), curoff, _consoleVer));
+                            AddInstruction(curoff, new HLInstruction(CodeBlock[Offset], GetArray(1), curoff));
                             break;
                         case 67:
                         case 68:
@@ -821,7 +819,7 @@ namespace Decompiler
                         case 82:
                         case 83:
                         case 84:
-                            AddInstruction(curoff, new HLInstruction(CodeBlock[Offset], GetArray(2), curoff, _consoleVer));
+                            AddInstruction(curoff, new HLInstruction(CodeBlock[Offset], GetArray(2), curoff));
                             break;
                         case 85:
                             checkjumpcodepath();
@@ -833,27 +831,27 @@ namespace Decompiler
                         case 90:
                         case 91:
                         case 92:
-                            AddInstruction(curoff, new HLInstruction(CodeBlock[Offset], GetArray(2), curoff, _consoleVer));
+                            AddInstruction(curoff, new HLInstruction(CodeBlock[Offset], GetArray(2), curoff));
                             break;
                         case 93:
                         case 94:
                         case 95:
                         case 96:
                         case 97:
-                            AddInstruction(curoff, new HLInstruction(CodeBlock[Offset], GetArray(3), curoff, _consoleVer));
+                            AddInstruction(curoff, new HLInstruction(CodeBlock[Offset], GetArray(3), curoff));
                             break;
                         case 98:
                             int temp = CodeBlock[Offset + 1];
-                            AddInstruction(curoff, new HLInstruction(CodeBlock[Offset], GetArray(temp * 6 + 1), curoff, _consoleVer));
+                            AddInstruction(curoff, new HLInstruction(CodeBlock[Offset], GetArray(temp * 6 + 1), curoff));
                             break;
                         case 101:
                         case 102:
                         case 103:
                         case 104:
-                            AddInstruction(curoff, new HLInstruction(CodeBlock[Offset], GetArray(1), curoff, _consoleVer));
+                            AddInstruction(curoff, new HLInstruction(CodeBlock[Offset], GetArray(1), curoff));
                             break;
                         default:
-                            if (CodeBlock[Offset] <= 126) AddInstruction(curoff, new HLInstruction(CodeBlock[Offset], curoff, _consoleVer));
+                            if (CodeBlock[Offset] <= 126) AddInstruction(curoff, new HLInstruction(CodeBlock[Offset], curoff));
                             else throw new Exception("Unexpected Opcode");
                             break;
                     }
@@ -996,6 +994,7 @@ namespace Decompiler
                     break;
                 case Instruction.iPushInt:
                 case Instruction.iPushI24:
+                {
                     tempstring = "";
                     if (Program.Show_Func_Pointer)
                     {
@@ -1015,6 +1014,7 @@ namespace Decompiler
                     else
                         Stack.Push(ScriptFile.hashbank.GetHash(Instructions[Offset].GetOperandsAsInt, tempstring), type);
                     break;
+                }
                 case Instruction.iPushShort:
                     Stack.Push(Instructions[Offset].GetOperandsAsInt);
                     break;
@@ -1030,25 +1030,20 @@ namespace Decompiler
                         writeline(temp as string);
                     break;
                 case Instruction.Native:
-                    if (_consoleVer)
-                        tempstring =
-                            Stack.NativeCallTest(this.Scriptfile.NativeTable.GetNativeHashFromIndex(Instructions[Offset].GetNativeIndex),
-                                this.Scriptfile.NativeTable.GetNativeFromIndex(Instructions[Offset].GetNativeIndex),
-                                Instructions[Offset].GetNativeParams, Instructions[Offset].GetNativeReturns);
-                    else
-                        tempstring =
-                            Stack.NativeCallTest(this.Scriptfile.X64NativeTable.GetNativeHashFromIndex(Instructions[Offset].GetNativeIndex),
-                                this.Scriptfile.X64NativeTable.GetNativeFromIndex(Instructions[Offset].GetNativeIndex),
-                                Instructions[Offset].GetNativeParams, Instructions[Offset].GetNativeReturns);
-                    //tempstring = Stack.FunctionCall(this.Scriptfile.NativeTable.GetNativeFromIndex(Instructions[Offset].GetNativeIndex), Instructions[Offset].GetNativeParams, Instructions[Offset].GetNativeReturns);
+                {
+                    tempstring = Stack.NativeCallTest(this.Scriptfile.X64NativeTable.GetNativeHashFromIndex(Instructions[Offset].GetNativeIndex),
+                        this.Scriptfile.X64NativeTable.GetNativeFromIndex(Instructions[Offset].GetNativeIndex),
+                        Instructions[Offset].GetNativeParams, Instructions[Offset].GetNativeReturns);
                     if (tempstring != "")
                     {
                         writeline(tempstring);
                     }
                     break;
+                }
                 case Instruction.Enter:
                     throw new Exception("Unexpected Function Definition");
                 case Instruction.Return:
+                {
                     Stack.DataType DataType = Instructions[Offset].GetOperand(1) == 1 ? Stack.TopType : Stack.DataType.Unk;
                     tempstring = Stack.PopListForCall(Instructions[Offset].GetOperand(1));
                     switch (Instructions[Offset].GetOperand(1))
@@ -1058,6 +1053,7 @@ namespace Decompiler
                                 writeline("return;");
                             break;
                         case 1:
+                        {
                             switch (DataType)
                             {
                                 case Stack.DataType.Bool:
@@ -1072,7 +1068,9 @@ namespace Decompiler
                             }
                             writeline("return " + tempstring + ";");
                             break;
+                        }
                         default:
+                        {
                             if (Stack.TopType == Stack.DataType.String)
                             {
                                 //RetType = ReturnTypes.String;
@@ -1080,8 +1078,10 @@ namespace Decompiler
                             }
                             writeline("return " + tempstring + ";");
                             break;
+                        }
                     }
                     break;
+                }
                 case Instruction.pGet:
                     Stack.Op_RefGet();
                     break;
@@ -1343,10 +1343,7 @@ namespace Decompiler
                 }
                 if (Stack.isnat(index + i))
                 {
-                    if (_consoleVer)
-                        ScriptFile.npi.updaterettype(Stack.PeekNat(index + i), type);
-                    else
-                        ScriptFile.X64npi.updaterettype(Stack.PeekNat64(index + i), type);
+                    ScriptFile.X64npi.updaterettype(Stack.PeekNat64(index + i), type);
                 }
 
             }
@@ -1364,7 +1361,7 @@ namespace Decompiler
                         if (Var.Immediatesize == 1 || Var.Immediatesize == strsize / 4)
                         {
                             Var.DataType = Stack.DataType.String;
-                            Var.Immediatesize = strsize / (_consoleVer ? 4 : 8);
+                            Var.Immediatesize = strsize / 8;
                         }
                     }
                     else
@@ -1373,10 +1370,7 @@ namespace Decompiler
                 }
                 if (Stack.isnat(index + i))
                 {
-                    if (_consoleVer)
-                        ScriptFile.npi.updaterettype(Stack.PeekNat(index + i), Stack.DataType.StringPtr);
-                    else
-                        ScriptFile.X64npi.updaterettype(Stack.PeekNat64(index + i), Stack.DataType.StringPtr);
+                    ScriptFile.X64npi.updaterettype(Stack.PeekNat64(index + i), Stack.DataType.StringPtr);
                 }
             }
         }
@@ -1693,20 +1687,14 @@ namespace Decompiler
                         Stack.Drop();
                         break;
                     case Instruction.Native:
-                        if (_consoleVer)
-                            tempstring = Stack.NativeCallTest(this.Scriptfile.NativeTable.GetNativeHashFromIndex(ins.GetNativeIndex),
-                                this.Scriptfile.NativeTable.GetNativeFromIndex(ins.GetNativeIndex), ins.GetNativeParams, ins.GetNativeReturns);
-                        else
-                            tempstring = Stack.NativeCallTest(this.Scriptfile.X64NativeTable.GetNativeHashFromIndex(ins.GetNativeIndex),
-                                this.Scriptfile.X64NativeTable.GetNativeFromIndex(ins.GetNativeIndex), ins.GetNativeParams, ins.GetNativeReturns);
+                        tempstring = Stack.NativeCallTest(this.Scriptfile.X64NativeTable.GetNativeHashFromIndex(ins.GetNativeIndex),
+                            this.Scriptfile.X64NativeTable.GetNativeFromIndex(ins.GetNativeIndex), ins.GetNativeParams, ins.GetNativeReturns);
                         break;
                     case Instruction.Enter:
                         throw new Exception("Unexpected Function Definition");
                     case Instruction.Return:
                         Stack.PopListForCall(ins.GetOperand(1));
                         break;
-
-
                     case Instruction.pGet:
                         Stack.Op_RefGet();
                         break;

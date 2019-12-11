@@ -86,12 +86,17 @@ namespace Decompiler
                 case ListType.Params: name += "Param"; break;
             }
 
-            if (Program.Shift_Variables) return name + VarRemapper[(int)index].ToString();
+            if (Program.Shift_Variables)
+            {
+                if (VarRemapper.ContainsKey((int)index))
+                    return name + VarRemapper[(int)index].ToString();
+                else
+                    return name + "unknownVar";
+            }
             else
             {
                 return name + (Listtype == ListType.Statics && index >= scriptParamStart ? index - scriptParamStart : index).ToString();
             }
-
         }
 
         public void SetScriptParamCount(int count)
@@ -102,7 +107,7 @@ namespace Decompiler
             }
         }
 
-        public string[] GetDeclaration(bool console)
+        public string[] GetDeclaration()
         {
             List<string> Working = new List<string>();
             string varlocation = "";
@@ -218,14 +223,7 @@ namespace Decompiler
                                 List<byte> data = new List<byte>();
                                 for (int l = 0; l < var.Immediatesize; l++)
                                 {
-                                    if (console)
-                                    {
-                                        data.AddRange(BitConverter.GetBytes((int)Vars[j + 1 + var.Immediatesize * k + l].Value));
-                                    }
-                                    else
-                                    {
-                                        data.AddRange(BitConverter.GetBytes(Vars[j + 1 + var.Immediatesize * k + l].Value));
-                                    }
+                                    data.AddRange(BitConverter.GetBytes(Vars[j + 1 + var.Immediatesize * k + l].Value));
                                 }
                                 value += "\"" + Encoding.ASCII.GetString(data.ToArray()) + "\", ";
                             }
@@ -259,7 +257,7 @@ namespace Decompiler
                 }
                 if (var.DataType == Stack.DataType.String)
                 {
-                    decl += "[" + (var.Immediatesize * (console ? 4 : 8)).ToString() + "]";
+                    decl += "[" + (var.Immediatesize * 8).ToString() + "]";
                 }
                 Working.Add(decl + value + ";");
                 i++;

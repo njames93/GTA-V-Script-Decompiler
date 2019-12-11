@@ -37,62 +37,10 @@ namespace Decompiler
         public string ScriptName { get; set; }
         public bool isRSC7 { get; private set; }
 
-        static ScriptHeader GenerateConsoleHeader(Stream scriptStream)
-        {
-            ScriptHeader header = new ScriptHeader();
-            IO.Reader reader = new IO.Reader(scriptStream, true);
-            scriptStream.Seek(0, SeekOrigin.Begin);
-            header.RSC7Offset = (reader.SReadUInt32() == 0x52534337) ? 0x10 : 0x0;
-            scriptStream.Seek(header.RSC7Offset, SeekOrigin.Begin);
-            header.Magic = reader.SReadInt32(); //0x0
-            header.SubHeader = reader.SReadPointer(); //0x4
-            header.CodeBlocksOffset = reader.SReadPointer(); //0x8
-            header.GlobalsVersion = reader.SReadInt32(); //0x C
-            header.CodeLength = reader.SReadInt32(); //0x10
-            header.ParameterCount = reader.SReadInt32(); //0x14
-            header.StaticsCount = reader.SReadInt32(); //0x18
-            header.GlobalsCount = reader.SReadInt32(); //0x1C
-            header.NativesCount = reader.SReadInt32(); //0x20
-            header.StaticsOffset = reader.SReadPointer(); //0x24
-            header.GlobalsOffset = reader.SReadPointer(); //0x28
-            header.NativesOffset = reader.SReadPointer(); //0x2C
-            header.Null1 = reader.SReadInt32(); //0x30
-            header.Null2 = reader.SReadInt32(); //0x34
-            header.NameHash = reader.SReadInt32();
-            header.Null3 = reader.SReadInt32(); //0x38
-            header.ScriptNameOffset = reader.SReadPointer(); //0x40
-            header.StringsOffset = reader.SReadPointer(); //0x44
-            header.StringsSize = reader.SReadInt32(); //0x48
-            header.Null4 = reader.ReadInt32(); //0x4C
-
-            header.StringBlocks = (header.StringsSize + 0x3FFF) >> 14;
-            header.CodeBlocks = (header.CodeLength + 0x3FFF) >> 14;
-
-            header.StringTableOffsets = new Int32[header.StringBlocks];
-            scriptStream.Seek(header.StringsOffset + header.RSC7Offset, SeekOrigin.Begin);
-            for (int i = 0; i < header.StringBlocks; i++)
-                header.StringTableOffsets[i] = reader.SReadPointer() + header.RSC7Offset;
-
-
-            header.CodeTableOffsets = new Int32[header.CodeBlocks];
-            scriptStream.Seek(header.CodeBlocksOffset + header.RSC7Offset, SeekOrigin.Begin);
-            for (int i = 0; i < header.CodeBlocks; i++)
-                header.CodeTableOffsets[i] = reader.SReadPointer() + header.RSC7Offset;
-            scriptStream.Position = header.ScriptNameOffset + header.RSC7Offset;
-            int data = scriptStream.ReadByte();
-            header.ScriptName = "";
-            while (data != 0 && data != -1)
-            {
-                header.ScriptName += (char)data;
-                data = scriptStream.ReadByte();
-            }
-            return header;
-        }
-
         static ScriptHeader GeneratePcHeader(Stream scriptStream)
         {
             ScriptHeader header = new ScriptHeader();
-            IO.Reader reader = new IO.Reader(scriptStream, false);
+            IO.Reader reader = new IO.Reader(scriptStream);
             scriptStream.Seek(0, SeekOrigin.Begin);
             header.RSC7Offset = (reader.ReadUInt32() == 0x37435352) ? 0x10 : 0x0;
             scriptStream.Seek(header.RSC7Offset, SeekOrigin.Begin);
@@ -159,9 +107,9 @@ namespace Decompiler
             return header;
         }
 
-        public static ScriptHeader Generate(Stream scriptStream, bool consoleVersion)
+        public static ScriptHeader Generate(Stream scriptStream)
         {
-            return consoleVersion ? GenerateConsoleHeader(scriptStream) : GeneratePcHeader(scriptStream);
+            return GeneratePcHeader(scriptStream);
         }
 
         private ScriptHeader() { }

@@ -6,7 +6,6 @@ namespace Decompiler
 {
     static class Program
     {
-        public static NativeFile nativefile;
         public static x64NativeFile x64nativefile;
         internal static Ini.IniFile Config;
         public static Object ThreadLock;
@@ -23,16 +22,7 @@ namespace Decompiler
             Find_Nat_Namespace();
             Find_Upper_Natives();
             //Build NativeFiles from Directory if file exists, if not use the files in the resources
-            string path = Path.Combine(Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location),
-                "natives.dat");
-            if (File.Exists(path))
-                nativefile = new NativeFile(File.OpenRead(path));
-            else
-                nativefile = new NativeFile(new MemoryStream(Properties.Resources.natives));
-
-
-            path = Path.Combine(Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location),
-                "x64natives.dat");
+            string path = Path.Combine(Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location), "x64natives.dat");
             if (File.Exists(path))
                 x64nativefile = new x64NativeFile(File.OpenRead(path));
             else
