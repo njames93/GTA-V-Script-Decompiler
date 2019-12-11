@@ -121,10 +121,4 @@
 	<data name="Entities" type="System.Resources.ResXFileRef, System.Windows.Forms">
 		<value>..\Resources\Entities.dat;System.Byte[], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
 	</data>
-	<data name="native_translation" type="System.Resources.ResXFileRef, System.Windows.Forms">
-		<value>..\Resources\native_translation.dat;System.Byte[], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
-	</data>
-	<data name="x64natives" type="System.Resources.ResXFileRef, System.Windows.Forms">
-		<value>..\Resources\x64natives.dat;System.Byte[], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
-	</data>
 </root>

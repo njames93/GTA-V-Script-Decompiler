@@ -26,9 +26,6 @@ namespace Decompiler
             [Option('o', "out", Default = null, Required = false, HelpText = "Output Directory/File Path")]
             public string OutputPath { get; set; }
 
-            [Option('t', "translation", Default = null, Required = false, HelpText = "Native translation table")]
-            public string Translation { get; set; }
-
             [Option('f', "force", Default = false, Required = false, HelpText = "Allow output file overriding.")]
             public bool Force { get; set; }
 

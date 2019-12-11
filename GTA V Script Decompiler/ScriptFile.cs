@@ -28,7 +28,6 @@ namespace Decompiler
         public string name;
         internal Vars_Info Statics;
         internal bool CheckNative = true;
-        internal static x64BitNativeParamInfo X64npi = new x64BitNativeParamInfo();
 
         public ScriptFile(Stream scriptStream)
         {
