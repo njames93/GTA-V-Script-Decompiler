@@ -161,7 +161,7 @@ namespace Decompiler
 
         public static ScriptHeader Generate(Stream scriptStream)
         {
-            return Program.Bit32 ? GenerateConsoleHeader(scriptStream) : GeneratePcHeader(scriptStream);
+            return Program.IsBit32 ? GenerateConsoleHeader(scriptStream) : GeneratePcHeader(scriptStream);
         }
 
         private ScriptHeader() { }

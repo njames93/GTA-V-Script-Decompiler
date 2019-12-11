@@ -24,7 +24,7 @@ namespace Decompiler
                     {
                         Native native = natives.Value.ToObject<Native>();
                         native.Namespace = ns.Key;
-                        if (Program.Bit32)
+                        if (Program.IsBit32)
                         {
                             uint jhash;
                             if (native.Joaat != "" && uint.TryParse(native.Joaat.Substring(2), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out jhash))
@@ -40,9 +40,12 @@ namespace Decompiler
                             {
                                 native.Hash = hash;
                                 this[hash] = native;
-                                foreach (string s in native.Hashes) {
-                                    if (ulong.TryParse(s.Substring(2), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out hash) && hash != 0 && !ContainsKey(hash))
-                                        Add(hash, native);
+                                if (native.Hashes != null)
+                                {
+                                    foreach (string s in native.Hashes) {
+                                        if (ulong.TryParse(s.Substring(2), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out hash) && hash != 0 && !ContainsKey(hash))
+                                            Add(hash, native);
+                                    }
                                 }
                             }
                         }
@@ -227,6 +230,15 @@ namespace Decompiler
             { "Sphere*", Stack.DataType.IntPtr },
             { "ScrHandle*", Stack.DataType.IntPtr },
             { "int*", Stack.DataType.IntPtr },
+
+            // RDR Extended
+            { "Itemset", Stack.DataType.Int },
+            { "Prompt", Stack.DataType.Int },
+            { "Volume", Stack.DataType.Int },
+            { "AnimScene", Stack.DataType.Int },
+            { "PopZone", Stack.DataType.Int },
+            { "PropSet", Stack.DataType.Int },
+            { "ItemSet", Stack.DataType.Int },
         };
     }
 
@@ -327,7 +339,7 @@ namespace Decompiler
 
         public static string CreateNativeStub(ulong hash) {
             string temps = hash.ToString("X");
-            while (temps.Length < (Program.Bit32 ? 8 : 16))
+            while (temps.Length < (Program.IsBit32 ? 8 : 16))
                 temps = "0" + temps;
             return "0x" + temps;
         }

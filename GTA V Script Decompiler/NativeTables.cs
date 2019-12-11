@@ -6,23 +6,44 @@ namespace Decompiler
 {
     public class X64NativeTable
     {
-        List<string> _natives;
-        List<ulong> _nativehash;
+        List<string> _natives = new List<string>();
+        List<ulong> _nativehash = new List<ulong>();
         public X64NativeTable(Stream scriptFile, int position, int length, int codeSize)
         {
-            IO.Reader reader = new IO.Reader(scriptFile);
+            scriptFile.Position = position;
+
+            Stream stream;
+            if (Program.RDRNativeCipher)
+            {
+                stream = new MemoryStream();
+                byte carry = (byte)codeSize;
+                for (int i = 0; i < length * 8; ++i)
+                {
+                    int b;
+                    if ((b = scriptFile.ReadByte()) == -1)
+                        throw new EndOfStreamException("Invalid Scriptfile!");
+
+                    byte xordeciphed = (byte)(carry ^ (byte) b);
+                    carry = (byte) b;
+                    stream.WriteByte(xordeciphed);
+                }
+                stream.Position = 0;
+            }
+            else
+            {
+                stream = scriptFile;
+            }
+
+            IO.Reader reader = new IO.Reader(stream);
             int count = 0;
-            ulong nat;
-            reader.BaseStream.Position = position;
-            _natives = new List<string>();
-            _nativehash = new List<ulong>();
+            ulong nat;;
             while (count < length)
             {
                 //GTA V PC natives arent stored sequentially in the table. Each native needs a bitwise rotate depending on its position and codetable size
                 //Then the natives needs to go back through translation tables to get to their hash as defined in the vanilla game version
                 //or the earliest game version that native was introduced in.
                 //Just some of the steps Rockstar take to make reverse engineering harder
-                nat = Program.Bit32 ? reader.SReadUInt32() : Utils.RotateLeft(reader.ReadUInt64(), (codeSize + count) & 0x3F);
+                nat = Program.IsBit32 ? reader.CReadUInt32() : Utils.RotateLeft(reader.ReadUInt64(), (codeSize + count) & 0x3F);
 
                 _nativehash.Add(nat);
                 if (Program.X64npi.ContainsKey(nat))
@@ -31,8 +52,8 @@ namespace Decompiler
                     _natives.Add("unk_" + Native.CreateNativeStub(nat));
                 count++;
             }
-
         }
+
         public string[] GetNativeTable()
         {
             List<string> table = new List<string>();

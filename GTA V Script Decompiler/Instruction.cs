@@ -67,11 +67,11 @@ namespace Decompiler
                     case 1:
                         return operands[0];
                     case 2:
-                        return Program.Bit32 ? Utils.SwapEndian(BitConverter.ToInt16(operands, 0)) : BitConverter.ToInt16(operands, 0);
+                        return Program.SwapEndian ? Utils.SwapEndian(BitConverter.ToInt16(operands, 0)) : BitConverter.ToInt16(operands, 0);
                     case 3:
-                        return Program.Bit32 ? (operands[0] << 16 | operands[1] << 8 | operands[2]) : (operands[2] << 16 | operands[1] << 8 | operands[0]);
+                        return Program.SwapEndian ? (operands[0] << 16 | operands[1] << 8 | operands[2]) : (operands[2] << 16 | operands[1] << 8 | operands[0]);
                     case 4:
-                        return Program.Bit32 ? Utils.SwapEndian(BitConverter.ToInt32(operands, 0)) : BitConverter.ToInt32(operands, 0);
+                        return Program.SwapEndian ? Utils.SwapEndian(BitConverter.ToInt32(operands, 0)) : BitConverter.ToInt32(operands, 0);
                     default:
                         throw new Exception("Invalid amount of operands (" + operands.Count().ToString() + ")");
                 }
@@ -92,7 +92,7 @@ namespace Decompiler
             {
                 if (operands.Count() != 4)
                     throw new Exception("Not a Float");
-                return Program.Bit32 ? Utils.SwapEndian(BitConverter.ToSingle(operands, 0)) : BitConverter.ToSingle(operands, 0);
+                return Program.SwapEndian ? Utils.SwapEndian(BitConverter.ToSingle(operands, 0)) : BitConverter.ToSingle(operands, 0);
             }
         }
 
@@ -110,11 +110,11 @@ namespace Decompiler
                     case 1:
                         return operands[0];
                     case 2:
-                        return Program.Bit32 ? (uint) Utils.SwapEndian(BitConverter.ToInt16(operands, 0)) : BitConverter.ToUInt16(operands, 0);
+                        return Program.SwapEndian ? (uint) Utils.SwapEndian(BitConverter.ToInt16(operands, 0)) : BitConverter.ToUInt16(operands, 0);
                     case 3:
-                        return Program.Bit32 ? (uint)(operands[2] << 16 | operands[1] << 8 | operands[0]) : (uint)(operands[2] << 16 | operands[1] << 8 | operands[0]);
+                        return Program.SwapEndian ? (uint)(operands[2] << 16 | operands[1] << 8 | operands[0]) : (uint)(operands[2] << 16 | operands[1] << 8 | operands[0]);
                     case 4:
-                        return Program.Bit32 ? BitConverter.ToUInt32(operands, 0) : BitConverter.ToUInt32(operands, 0);
+                        return Program.SwapEndian ? BitConverter.ToUInt32(operands, 0) : BitConverter.ToUInt32(operands, 0);
                     default:
                         throw new Exception("Invalid amount of operands (" + operands.Count().ToString() + ")");
                 }
@@ -125,9 +125,10 @@ namespace Decompiler
         {
             get
             {
-                if (IsJumpInstruction)
-                    return Program.Bit32 ? Utils.SwapEndian(BitConverter.ToInt16(operands, 0)) + offset + 3 : BitConverter.ToInt16(operands, 0) + offset + 3;
-                throw new Exception("Not A jump");
+                if (!IsJumpInstruction)
+                    throw new Exception("Not A jump");
+                Int16 length = BitConverter.ToInt16(operands, 0);
+                return offset + 3 + (Program.SwapEndian ? Utils.SwapEndian(length) : length);
             }
         }
 
@@ -189,17 +190,31 @@ namespace Decompiler
             {
                 if ((cases = BitConverter.ToUInt16(operands, 0)) <= index)
 					throw new Exception("Out Or Range Script Case");
-				return Program.getIntType == Program.IntType._uint
-					? ScriptFile.hashbank.GetHash(BitConverter.ToUInt32(operands, 2 + index * 6))
-					: ScriptFile.hashbank.GetHash(BitConverter.ToInt32(operands, 2 + index * 6));
+				else if (Program.getIntType == Program.IntType._uint)
+                {
+                    UInt32 hash = BitConverter.ToUInt32(operands, 2 + index * 6);
+                    return ScriptFile.hashbank.GetHash(Program.SwapEndian ? Utils.SwapEndian(hash) : hash);
+                }
+                else
+                {
+                    Int32 hash = BitConverter.ToInt32(operands, 2 + index * 6);
+                    return ScriptFile.hashbank.GetHash(Program.SwapEndian ? Utils.SwapEndian(hash) : hash);
+                }
             }
             else
             {
                 if ((cases = GetOperand(0)) <= index)
                     throw new Exception("Out Or Range Script Case");
-                return Program.getIntType == Program.IntType._uint
-                    ? ScriptFile.hashbank.GetHash(Program.Bit32 ? Utils.SwapEndian(BitConverter.ToUInt32(operands, 1 + index * 6)) : BitConverter.ToUInt32(operands, 1 + index * 6))
-                    : ScriptFile.hashbank.GetHash(Program.Bit32 ? Utils.SwapEndian(BitConverter.ToInt32(operands, 1 + index * 6)) : BitConverter.ToInt32(operands, 1 + index * 6));
+                else if (Program.getIntType == Program.IntType._uint)
+                {
+                    UInt32 hash = BitConverter.ToUInt32(operands, 1 + index * 6);
+                    return ScriptFile.hashbank.GetHash(Program.SwapEndian ? Utils.SwapEndian(hash) : hash);
+                }
+                else
+                {
+                    Int32 hash = BitConverter.ToInt32(operands, 1 + index * 6);
+                    return ScriptFile.hashbank.GetHash(Program.SwapEndian ? Utils.SwapEndian(hash) : hash);
+                }
             }
         }
 
@@ -213,13 +228,15 @@ namespace Decompiler
             {
                 if ((cases = BitConverter.ToUInt16(operands, 0)) <= index)
 					throw new Exception("Out of range script case");
-				return (offset + 8 + 1) + index * 6 + BitConverter.ToInt16(operands, 6 + index * 6);
+				Int16 length = BitConverter.ToInt16(operands, 6 + index * 6);
+                return (offset + 8 + 1) + index*6 + (Program.SwapEndian ? Utils.SwapEndian(length) : length);
             }
             else
             {
                 if ((cases = GetOperand(0)) <= index)
                     throw new Exception("Out Or Range Script Case");
-                return offset + 8 + index * 6 + (Program.Bit32 ? Utils.SwapEndian(BitConverter.ToInt16(operands, 5 + index * 6)) : BitConverter.ToInt16(operands, 5 + index * 6));
+                Int16 length = BitConverter.ToInt16(operands, 5 + index * 6);
+                return offset + 8 + index*6 + (Program.SwapEndian ? Utils.SwapEndian(length) : length);
             }
         }
 
@@ -461,5 +478,172 @@ namespace Decompiler
             for (int j = 0; j < list.Count; ++j) cCodeBlock.Add((int) Map(list[j]));
             return cCodeBlock;
         }
+    }
+
+    /// <summary>
+    /// Unshuffled instruction sets used for console editions.
+    /// </summary>
+    public class RDRConsoleOpcodeSet : OpcodeSet
+    {
+        /// <summary>
+        /// Index of RAGE_last
+        /// </summary>
+        public override int Count => 139;
+        public override Instruction Map(byte v) { return v < Count ? (Instruction) v : Instruction.RAGE_last; }
+    }
+
+    /// <summary>
+    ///
+    /// </summary>
+    public class RDOpcodeSet : OpcodeSet
+    {
+        public override int Count => 139;
+
+        public override Instruction Map(byte v) { return v < Count ? RDOpcodeSet.Remap[v] : Instruction.RAGE_last; }
+
+        public static readonly Dictionary<Instruction, int> ShuffledInstructions = new Dictionary<Instruction, int> {
+            { Instruction.RAGE_NOP, 0 }, // Removed
+		    { Instruction.RAGE_IADD, 0 }, // Removed
+		    { Instruction.RAGE_ISUB, 0 }, // Removed
+		    { Instruction.RAGE_IMUL, 0 }, // Removed
+		    { Instruction.RAGE_IDIV, 0 }, // Removed
+		    { Instruction.RAGE_IMOD, 0 }, // Removed
+		    { Instruction.RAGE_INOT, 0 }, // Removed
+		    { Instruction.RAGE_INEG, 0 }, // Removed
+		    { Instruction.RAGE_IEQ, 0 }, // Removed
+		    { Instruction.RAGE_INE, 0 }, // Removed
+		    { Instruction.RAGE_IGT, 0 }, // Removed
+		    { Instruction.RAGE_IGE, 0 }, // Removed
+		    { Instruction.RAGE_ILT, 0 }, // Removed
+		    { Instruction.RAGE_ILE, 0 }, // Removed
+		    { Instruction.RAGE_FADD, 0 }, // Removed
+		    { Instruction.RAGE_FSUB, 0 }, // Removed
+		    { Instruction.RAGE_FMUL, 0 }, // Removed
+		    { Instruction.RAGE_FDIV, 0 }, // Removed
+		    { Instruction.RAGE_FMOD, 0 }, // Removed
+		    { Instruction.RAGE_FNEG, 0 }, // Removed
+		    { Instruction.RAGE_FEQ, 0 }, // Removed
+		    { Instruction.RAGE_FNE, 0 }, // Removed
+		    { Instruction.RAGE_FGT, 0 }, // Removed
+		    { Instruction.RAGE_FGE, 0 }, // Removed
+		    { Instruction.RAGE_FLT, 0 }, // Removed
+		    { Instruction.RAGE_FLE, 0 }, // Removed
+		    { Instruction.RAGE_VADD, 0 }, // Removed
+		    { Instruction.RAGE_VSUB, 0 }, // Removed
+		    { Instruction.RAGE_VMUL, 0 }, // Removed
+		    { Instruction.RAGE_VDIV, 0 }, // Removed
+		    { Instruction.RAGE_VNEG, 0 }, // Removed
+		    { Instruction.RAGE_IAND, 0 }, // Removed
+		    { Instruction.RAGE_IOR, 0 }, // Removed
+		    { Instruction.RAGE_IXOR, 0 }, // Removed
+		    { Instruction.RAGE_I2F, 0 }, // Removed
+		    { Instruction.RAGE_F2I, 0 }, // Removed
+		    { Instruction.RAGE_F2V, 0 }, // Removed
+		    { Instruction.RAGE_PUSH_CONST_U8, 0 }, // Removed
+		    { Instruction.RAGE_PUSH_CONST_U8_U8, 0 }, // Removed
+		    { Instruction.RAGE_PUSH_CONST_U8_U8_U8, 0 }, // Removed
+		    { Instruction.RAGE_PUSH_CONST_U32, 0 }, // Removed
+		    { Instruction.RAGE_PUSH_CONST_F, 0 }, // Removed
+		    { Instruction.RAGE_DUP, 0 }, // Removed
+		    { Instruction.RAGE_DROP, 0 }, // Removed
+		    { Instruction.RAGE_NATIVE, 0 }, // Removed
+		    { Instruction.RAGE_ENTER, 0 }, // Removed
+		    { Instruction.RAGE_LEAVE, 0 }, // Removed
+		    { Instruction.RAGE_LOAD, 0 }, // Removed
+		    { Instruction.RAGE_STORE, 0 }, // Removed
+		    { Instruction.RAGE_STORE_REV, 0 }, // Removed
+		    { Instruction.RAGE_LOAD_N, 0 }, // Removed
+		    { Instruction.RAGE_STORE_N, 0 }, // Removed
+		    { Instruction.RAGE_ARRAY_U8, 0 }, // Removed
+		    { Instruction.RAGE_ARRAY_U8_LOAD, 0 }, // Removed
+		    { Instruction.RAGE_ARRAY_U8_STORE, 0 }, // Removed
+		    { Instruction.RAGE_LOCAL_U8, 0 }, // Removed
+		    { Instruction.RAGE_LOCAL_U8_LOAD, 0 }, // Removed
+		    { Instruction.RAGE_LOCAL_U8_STORE, 0 }, // Removed
+		    { Instruction.RAGE_STATIC_U8, 0 }, // Removed
+		    { Instruction.RAGE_STATIC_U8_LOAD, 0 }, // Removed
+		    { Instruction.RAGE_STATIC_U8_STORE, 0 }, // Removed
+		    { Instruction.RAGE_IADD_U8, 0 }, // Removed
+		    { Instruction.RAGE_IMUL_U8, 0 }, // Removed
+		    { Instruction.RAGE_IOFFSET, 0 }, // Removed
+		    { Instruction.RAGE_IOFFSET_U8, 0 }, // Removed
+		    { Instruction.RAGE_IOFFSET_U8_LOAD, 0 }, // Removed
+		    { Instruction.RAGE_IOFFSET_U8_STORE, 0 }, // Removed
+		    { Instruction.RAGE_PUSH_CONST_S16, 0 }, // Removed
+		    { Instruction.RAGE_IADD_S16, 0 }, // Removed
+		    { Instruction.RAGE_IMUL_S16, 0 }, // Removed
+		    { Instruction.RAGE_IOFFSET_S16, 0 }, // Removed
+		    { Instruction.RAGE_IOFFSET_S16_LOAD, 0 }, // Removed
+		    { Instruction.RAGE_IOFFSET_S16_STORE, 0 }, // Removed
+		    { Instruction.RAGE_ARRAY_U16, 0 }, // Removed
+		    { Instruction.RAGE_ARRAY_U16_LOAD, 0 }, // Removed
+		    { Instruction.RAGE_ARRAY_U16_STORE, 0 }, // Removed
+		    { Instruction.RAGE_LOCAL_U16, 0 }, // Removed
+		    { Instruction.RAGE_LOCAL_U16_LOAD, 0 }, // Removed
+		    { Instruction.RAGE_LOCAL_U16_STORE, 0 }, // Removed
+		    { Instruction.RAGE_STATIC_U16, 0 }, // Removed
+		    { Instruction.RAGE_STATIC_U16_LOAD, 0 }, // Removed
+		    { Instruction.RAGE_STATIC_U16_STORE, 0 }, // Removed
+		    { Instruction.RAGE_GLOBAL_U16, 0 }, // Removed
+		    { Instruction.RAGE_GLOBAL_U16_LOAD, 0 }, // Removed
+		    { Instruction.RAGE_GLOBAL_U16_STORE, 0 }, // Removed
+		    { Instruction.RAGE_J, 0 }, // Removed
+		    { Instruction.RAGE_JZ, 0 }, // Removed
+		    { Instruction.RAGE_IEQ_JZ, 0 }, // Removed
+		    { Instruction.RAGE_INE_JZ, 0 }, // Removed
+		    { Instruction.RAGE_IGT_JZ, 0 }, // Removed
+		    { Instruction.RAGE_IGE_JZ, 0 }, // Removed
+		    { Instruction.RAGE_ILT_JZ, 0 }, // Removed
+		    { Instruction.RAGE_ILE_JZ, 0 }, // Removed
+		    { Instruction.RAGE_CALL, 0 }, // Removed
+		    { Instruction.RAGE_GLOBAL_U24, 0 }, // Removed
+		    { Instruction.RAGE_GLOBAL_U24_LOAD, 0 }, // Removed
+		    { Instruction.RAGE_GLOBAL_U24_STORE, 0 }, // Removed
+		    { Instruction.RAGE_PUSH_CONST_U24, 0 }, // Removed
+		    { Instruction.RAGE_SWITCH, 0 }, // Removed
+		    { Instruction.RAGE_STRING, 0 }, // Removed
+		    { Instruction.RAGE_STRINGHASH, 0 }, // Removed
+		    { Instruction.RAGE_TEXT_LABEL_ASSIGN_STRING, 0 }, // Removed
+		    { Instruction.RAGE_TEXT_LABEL_ASSIGN_INT, 0 }, // Removed
+		    { Instruction.RAGE_TEXT_LABEL_APPEND_STRING, 0 }, // Removed
+		    { Instruction.RAGE_TEXT_LABEL_APPEND_INT, 0 }, // Removed
+		    { Instruction.RAGE_TEXT_LABEL_COPY, 0 }, // Removed
+		    { Instruction.RAGE_CATCH, 0 }, // Removed
+		    { Instruction.RAGE_THROW, 0 }, // Removed
+		    { Instruction.RAGE_CALLINDIRECT, 0 }, // Removed
+		    { Instruction.RAGE_PUSH_CONST_M1, 0 }, // Removed
+		    { Instruction.RAGE_PUSH_CONST_0, 0 }, // Removed
+		    { Instruction.RAGE_PUSH_CONST_1, 0 }, // Removed
+		    { Instruction.RAGE_PUSH_CONST_2, 0 }, // Removed
+		    { Instruction.RAGE_PUSH_CONST_3, 0 }, // Removed
+		    { Instruction.RAGE_PUSH_CONST_4, 0 }, // Removed
+		    { Instruction.RAGE_PUSH_CONST_5, 0 }, // Removed
+		    { Instruction.RAGE_PUSH_CONST_6, 0 }, // Removed
+		    { Instruction.RAGE_PUSH_CONST_7, 0 }, // Removed
+		    { Instruction.RAGE_PUSH_CONST_FM1, 0 }, // Removed
+		    { Instruction.RAGE_PUSH_CONST_F0, 0 }, // Removed
+		    { Instruction.RAGE_PUSH_CONST_F1, 0 }, // Removed
+		    { Instruction.RAGE_PUSH_CONST_F2, 0 }, // Removed
+		    { Instruction.RAGE_PUSH_CONST_F3, 0 }, // Removed
+		    { Instruction.RAGE_PUSH_CONST_F4, 0 }, // Removed
+		    { Instruction.RAGE_PUSH_CONST_F5, 0 }, // Removed
+		    { Instruction.RAGE_PUSH_CONST_F6, 0 }, // Removed
+		    { Instruction.RAGE_PUSH_CONST_F7, 0 }, // Removed
+		    // Temporary Mapping
+		    { Instruction.RAGE_LOCAL_LOAD_S, 0 }, // Removed
+		    { Instruction.RAGE_LOCAL_STORE_S, 0 }, // Removed
+		    { Instruction.RAGE_LOCAL_STORE_SR, 0 }, // Removed
+		    { Instruction.RAGE_STATIC_LOAD_S, 0 }, // Removed
+		    { Instruction.RAGE_STATIC_STORE_S, 0 }, // Removed
+		    { Instruction.RAGE_STATIC_STORE_SR, 0 }, // Removed
+		    { Instruction.RAGE_LOAD_N_S, 0 }, // Removed
+		    { Instruction.RAGE_STORE_N_S, 0 }, // Removed
+		    { Instruction.RAGE_STORE_N_SR, 0 }, // Removed
+		    { Instruction.RAGE_GLOBAL_LOAD_S, 0 }, // Removed
+		    { Instruction.RAGE_GLOBAL_STORE_S, 0 }, // Removed
+		    { Instruction.RAGE_GLOBAL_STORE_SR, 0 }, // Removed
+        };
+
+        public static readonly Dictionary<int, Instruction> Remap = ShuffledInstructions.ToDictionary((i) => i.Value, (i) => i.Key);
     }
 }

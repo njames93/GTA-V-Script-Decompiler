@@ -474,7 +474,7 @@ namespace Decompiler
                     writeline("Jump @" + Instructions[Offset].GetJumpOffset.ToString() + $"; //curOff = {Instructions[Offset].Offset}");
                     //int JustOffset = InstructionMap[Instructions[Offset].GetJumpOffset];
                     //HLInstruction instruction = Instructions[JustOffset];
-                    System.Diagnostics.Debug.WriteLine(this.Scriptfile.name);
+                    //System.Diagnostics.Debug.WriteLine(this.Scriptfile.name);
                 }
             }
         }
@@ -572,7 +572,8 @@ namespace Decompiler
             bool usedefault;
             HLInstruction temp;
 
-            for (int i = 0; i < Instructions[Offset].GetOperand(0); i++)
+            UInt16 switchCount = Program.RDROpcodes ? Instructions[Offset].GetOperandsAsUInt16 : Instructions[Offset].GetOperand(0);
+            for (int i = 0; i < switchCount; i++)
             {
                 //Check if the case is a known hash
                 case_val = Instructions[Offset].GetSwitchStringCase(i);
@@ -860,9 +861,19 @@ namespace Decompiler
                             AddInstruction(curoff, new HLInstruction(instruct, GetArray(3), curoff));
                             break;
                         case Instruction.RAGE_SWITCH:
-                            int temp = CodeBlock[Offset + 1];
-                            AddInstruction(curoff, new HLInstruction(instruct, GetArray(temp * 6 + 1), curoff));
+                        {
+                            if (Program.RDROpcodes)
+                            {
+                                int length = (CodeBlock[Offset + 2] << 8) | CodeBlock[Offset + 1];
+                                AddInstruction(curoff, new HLInstruction(instruct, GetArray(length * 6 + 2), curoff));
+                            }
+                            else
+                            {
+                                int temp = CodeBlock[Offset + 1];
+                                AddInstruction(curoff, new HLInstruction(instruct, GetArray(temp * 6 + 1), curoff));
+                            }
                             break;
+                        }
                         case Instruction.RAGE_TEXT_LABEL_ASSIGN_STRING:
                         case Instruction.RAGE_TEXT_LABEL_ASSIGN_INT:
                         case Instruction.RAGE_TEXT_LABEL_APPEND_STRING:
@@ -870,7 +881,7 @@ namespace Decompiler
                             AddInstruction(curoff, new HLInstruction(instruct, GetArray(1), curoff));
                             break;
                         default:
-                            if (CodeBlock[Offset] < Scriptfile.CodeSet.Count)
+                            if (instruct != Instruction.RAGE_last)
                                 AddInstruction(curoff, new HLInstruction(instruct, curoff));
                             else throw new Exception("Unexpected Opcode");
                             break;
@@ -1973,7 +1984,7 @@ namespace Decompiler
                         break;
                     }
                     case Instruction.RAGE_SWITCH:
-                        CheckInstruction(0, Stack.DataType.Int);
+                        CheckInstruction(0, Stack.DataType.Int, Program.RDROpcodes ? 2 : 1);
                         break;
                     case Instruction.RAGE_STRING:
                     {

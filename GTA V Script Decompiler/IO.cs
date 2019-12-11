@@ -12,22 +12,22 @@ namespace Decompiler.IO
 
         public void Advance(int size = 4) { base.BaseStream.Position += size; }
 
-        public UInt32 CReadUInt32() { return Program.Bit32 ? SReadUInt32() : ReadUInt32(); }
-        public Int32 CReadInt32() { return Program.Bit32 ? SReadInt32() : ReadInt32(); }
+        public UInt32 CReadUInt32() { return Program.SwapEndian ? SReadUInt32() : ReadUInt32(); }
+        public Int32 CReadInt32() { return Program.SwapEndian ? SReadInt32() : ReadInt32(); }
         public UInt32 SReadUInt32() { return Utils.SwapEndian(ReadUInt32()); }
         public Int32 SReadInt32() { return Utils.SwapEndian(ReadInt32()); }
 
-        public UInt64 CReadUInt64() { return Program.Bit32 ? SReadUInt64() : ReadUInt64(); }
-        public Int64 CReadInt64() { return Program.Bit32 ? SReadInt64() : ReadInt64(); }
+        public UInt64 CReadUInt64() { return Program.SwapEndian ? SReadUInt64() : ReadUInt64(); }
+        public Int64 CReadInt64() { return Program.SwapEndian ? SReadInt64() : ReadInt64(); }
         public UInt64 SReadUInt64() { return Utils.SwapEndian(ReadUInt64()); }
         public Int64 SReadInt64() { return Utils.SwapEndian(ReadInt64()); }
 
-        public UInt16 CReadUInt16() { return Program.Bit32 ? SReadUInt16() : ReadUInt16(); }
-        public Int16 CReadInt16() { return Program.Bit32 ? SReadInt16() : ReadInt16(); }
+        public UInt16 CReadUInt16() { return Program.SwapEndian ? SReadUInt16() : ReadUInt16(); }
+        public Int16 CReadInt16() { return Program.SwapEndian ? SReadInt16() : ReadInt16(); }
         public UInt16 SReadUInt16() { return Utils.SwapEndian(ReadUInt16()); }
         public Int16 SReadInt16() { return Utils.SwapEndian(ReadInt16()); }
 
-        public Int32 CReadPointer() { return Program.Bit32 ? SReadPointer() : ReadPointer(); }
+        public Int32 CReadPointer() { return Program.SwapEndian ? SReadPointer() : ReadPointer(); }
         public Int32 ReadPointer() { return (ReadInt32() & 0xFFFFFF); }
         public Int32 SReadPointer() { return (SReadInt32() & 0xFFFFFF); }
 

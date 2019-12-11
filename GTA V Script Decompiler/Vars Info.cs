@@ -235,7 +235,7 @@ namespace Decompiler
                                 List<byte> data = new List<byte>();
                                 for (int l = 0; l < var.Immediatesize; l++)
                                 {
-                                    if (Program.Bit32)
+                                    if (Program.IsBit32)
                                         data.AddRange(BitConverter.GetBytes((int)Vars[j + 1 + var.Immediatesize * k + l].Value));
                                     else
                                         data.AddRange(BitConverter.GetBytes(Vars[j + 1 + var.Immediatesize * k + l].Value));
@@ -275,7 +275,7 @@ namespace Decompiler
                     if (var.Is_Array)
                         decl += "[" + var.Value.ToString() + "]";
                     if (var.DataType == Stack.DataType.String)
-                        decl += "[" + (var.Immediatesize * (Program.Bit32 ? 4 : 8)).ToString() + "]";
+                        decl += "[" + (var.Immediatesize * (Program.IsBit32 ? 4 : 8)).ToString() + "]";
                 }
                 Working.Add(decl + value + ";");
                 i++;

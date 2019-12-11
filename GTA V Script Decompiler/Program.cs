@@ -18,7 +18,7 @@ namespace Decompiler
 
         class Options
         {
-            [Option('n', "natives", Required = true, HelpText = "native json file")]
+            [Option('n', "natives", Required = false, HelpText = "native json file")]
             public string NativeFile { get; set; }
 
             [Option('i', "in", Default = null, Required = true, HelpText = "Input Directory/File Path.")]
@@ -27,11 +27,11 @@ namespace Decompiler
             [Option('o', "out", Default = null, Required = false, HelpText = "Output Directory/File Path")]
             public string OutputPath { get; set; }
 
+            [Option('c', "opcode", Default = "v", Required = true, HelpText = "Opcode Set (v|vconsole|rdr|rdrconsole)")]
+            public string Opcode { get; set; }
+
             [Option('f', "force", Default = false, Required = false, HelpText = "Allow output file overriding.")]
             public bool Force { get; set; }
-
-            [Option('c', "console", Default = false, Required = false, HelpText = "Use 32Bit console & endianness")]
-            public bool Console { get; set; }
 
             [Option('a', "aggregate", Default = false, Required = false, HelpText = "Compute aggregation statistics of bulk dataset.")]
             public bool Aggregate { get; set; }
@@ -45,7 +45,28 @@ namespace Decompiler
 
         private static void InitializeINIFields(Options o)
         {
-            Program.Codeset = new OpcodeSet();
+            _bit32 = _endian = _rdrOpcodes = _rdrPCCipher = false;
+            switch (o.Opcode.ToLower())
+            {
+                case "v":
+                    Program.Codeset = new OpcodeSet();
+                    break;
+                case "vconsole":
+                    _bit32 = _endian = true;
+                    Program.Codeset = new OpcodeSet();
+                    break;
+                case "rdr":
+                    _rdrOpcodes = _rdrPCCipher = true;
+                    Program.Codeset = new RDOpcodeSet();
+                    break;
+                case "rdrconsole":
+                    _rdrOpcodes = true;
+                    Program.Codeset = new RDRConsoleOpcodeSet();
+                    break;
+                default:
+                    throw new System.ArgumentException("Invalid Opcode Set: " + o.Opcode);
+            }
+
             Program.Find_getINTType();
             Program.Find_Show_Array_Size();
             Program.Find_Reverse_Hashes();
@@ -64,7 +85,6 @@ namespace Decompiler
             Program._AggregateFunctions = o.Aggregate;
             if (o.AggMinHits > 0) Program._agg_min_hits = o.AggMinHits;
             if (o.AggMinLines > 0) Program._agg_min_lines = o.AggMinLines;
-            Program._console = o.Console;
         }
 
         private static void InitializeNativeTable(string nativeFile)
@@ -72,6 +92,8 @@ namespace Decompiler
             Stream nativeJson;
             if (nativeFile != null && File.Exists(nativeFile))
                 nativeJson = File.OpenRead(nativeFile);
+            else if (Program.RDROpcodes)
+                nativeJson = new MemoryStream(Properties.Resources.RDNatives);
             else
                 nativeJson = new MemoryStream(Properties.Resources.Natives);
             X64npi = new x64NativeFile(nativeJson);
@@ -88,7 +110,6 @@ namespace Decompiler
 
             Parser.Default.ParseArguments<Options>(args).WithParsed<Options>(o =>
             {
-                if (!File.Exists(o.NativeFile)) { Console.WriteLine("Invalid Native File"); return; }
                 if (File.Exists(o.InputPath)) // Decompile a single file if given the option.
                 {
                     if (o.OutputPath != null && File.Exists(o.OutputPath) && !o.Force) { Console.WriteLine("Cannot overwrite file, use -f to force."); return; }
@@ -358,10 +379,16 @@ namespace Decompiler
             return _agg_min_hits;
         }
 
-        private static bool _console = false;
-        public static bool Bit32 { get { return _console; } }
+        private static bool _bit32 = false;
+        public static bool IsBit32 { get { return _bit32; } }
+
+        private static bool _endian = false;
+        public static bool SwapEndian { get { return _endian; } }
 
         private static bool _rdrOpcodes = false;
         public static bool RDROpcodes { get { return _rdrOpcodes; } }
+
+        private static bool _rdrPCCipher = false;
+        public static bool RDRNativeCipher { get { return _rdrPCCipher; } }
     }
 }

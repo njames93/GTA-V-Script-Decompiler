@@ -173,7 +173,7 @@ namespace Decompiler
             else name = "func_" + Functions.Count.ToString();
             int pcount = CodeTable[offset + 1];
             int tmp1 = CodeTable[offset + 2], tmp2 = CodeTable[offset + 3];
-            int vcount = ((Program.Bit32) ? (tmp1 << 0x8) | tmp2 : (tmp2 << 0x8) | tmp1);
+            int vcount = ((Program.SwapEndian) ? (tmp1 << 0x8) | tmp2 : (tmp2 << 0x8) | tmp1);
             if (vcount < 0)
             {
                 throw new Exception("Well this shouldnt have happened");
@@ -241,10 +241,10 @@ namespace Decompiler
                         if (Program.RDROpcodes)
                         {
                             int length = (CodeTable[temp + 2] << 8) | CodeTable[temp + 1];
-                            temp += 2 + length * 6;
+                            temp += 2 + 6 * (Program.SwapEndian ? Utils.SwapEndian(length) : length);
                         }
                         else
-                            temp += 1 + CodeTable[temp + 1] * 6;
+                            temp += 1 + 6 * CodeTable[temp + 1];
                         break;
                     }
                     case Instruction.RAGE_TEXT_LABEL_ASSIGN_STRING:
@@ -345,10 +345,10 @@ namespace Decompiler
                         if (Program.RDROpcodes)
                         {
                             int length = (CodeTable[offset + 2] << 8) | CodeTable[offset + 1];
-                            advpos(2 + length * 6);
+                            advpos(2 + 6 * (Program.SwapEndian ? Utils.SwapEndian(length) : length));
                         }
                         else
-                            advpos(1 + CodeTable[offset + 1] * 6);
+                            advpos(1 + 6 * CodeTable[offset + 1]);
                         break;
                     }
                     case Instruction.RAGE_TEXT_LABEL_ASSIGN_STRING:
@@ -370,7 +370,7 @@ namespace Decompiler
             reader.BaseStream.Position = Header.StaticsOffset + Header.RSC7Offset;
             for (int count = 0; count < Header.StaticsCount; count++)
             {
-                Statics.AddVar(Program.Bit32 ? reader.SReadInt32() : reader.ReadInt64());
+                Statics.AddVar(Program.IsBit32 ? reader.CReadInt32() : reader.ReadInt64());
             }
         }
 
