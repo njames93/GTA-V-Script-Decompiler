@@ -6,8 +6,6 @@ namespace Decompiler
 {
     internal class HLInstruction
     {
-        public static readonly int INST_COUNT = 126;
-
         int offset;
         Instruction instruction;
         byte[] operands;
@@ -47,7 +45,7 @@ namespace Decompiler
 
         public void NopInstruction()
         {
-            instruction = Instruction.Nop;
+            instruction = Instruction.RAGE_NOP;
         }
 
         public int Offset
@@ -129,7 +127,7 @@ namespace Decompiler
         {
             get
             {
-                if (instruction == Instruction.Native)
+                if (instruction == Instruction.RAGE_NATIVE)
                 {
                     return (byte)(operands[0] >> 2);
                 }
@@ -141,7 +139,7 @@ namespace Decompiler
         {
             get
             {
-                if (instruction == Instruction.Native)
+                if (instruction == Instruction.RAGE_NATIVE)
                 {
                     return (byte)(operands[0] & 0x3);
                 }
@@ -153,7 +151,7 @@ namespace Decompiler
         {
             get
             {
-                if (instruction == Instruction.Native)
+                if (instruction == Instruction.RAGE_NATIVE)
                 {
                     return Utils.SwapEndian(BitConverter.ToUInt16(operands, 1));
                 }
@@ -175,7 +173,7 @@ namespace Decompiler
 
         public string GetSwitchStringCase(int index)
         {
-            if (instruction == Instruction.Switch)
+            if (instruction == Instruction.RAGE_SWITCH)
             {
                 int cases = GetOperand(0);
                 if (index >= cases)
@@ -189,7 +187,7 @@ namespace Decompiler
 
         public int GetSwitchOffset(int index)
         {
-            if (instruction == Instruction.Switch)
+            if (instruction == Instruction.RAGE_SWITCH)
             {
                 int cases = GetOperand(0);
                 if (index >= cases)
@@ -204,8 +202,8 @@ namespace Decompiler
             get
             {
                 int _instruction = (int)Instruction;
-                if (_instruction >= (int) Instruction.iPush_n1 && _instruction <= (int) Instruction.iPush_7)
-                    return _instruction - (int) Instruction.iPush_0;
+                if (_instruction >= (int) Instruction.RAGE_PUSH_CONST_M1 && _instruction <= (int) Instruction.RAGE_PUSH_CONST_7)
+                    return _instruction - (int) Instruction.RAGE_PUSH_CONST_0;
                 throw new Exception("Not An Immediate Int Push");
             }
         }
@@ -215,27 +213,27 @@ namespace Decompiler
             get
             {
                 int _instruction = (int)Instruction;
-                if (_instruction >= (int) Instruction.fPush_n1 && _instruction <= (int) Instruction.fPush_7)
-                    return (float)(_instruction - (int) Instruction.fPush_0);
+                if (_instruction >= (int) Instruction.RAGE_PUSH_CONST_FM1 && _instruction <= (int) Instruction.RAGE_PUSH_CONST_F7)
+                    return (float)(_instruction - (int) Instruction.RAGE_PUSH_CONST_F0);
                 throw new Exception("Not An Immediate Float Push");
             }
         }
 
         public bool IsJumpInstruction
         {
-            get { return (int)instruction > (int) Instruction.GlobalSet2 && (int)instruction < (int) Instruction.Call; }
+            get { return (int)instruction > (int) Instruction.RAGE_GLOBAL_U16_STORE && (int)instruction < (int) Instruction.RAGE_CALL; }
         }
 
         public bool IsConditionJump
         {
-            get { return (int)instruction > (int) Instruction.Jump && (int)instruction < (int) Instruction.Call; }
+            get { return (int)instruction > (int) Instruction.RAGE_J && (int)instruction < (int) Instruction.RAGE_CALL; }
         }
 
         public bool IsWhileJump
         {
             get
             {
-                if (instruction == Instruction.Jump)
+                if (instruction == Instruction.RAGE_J)
                 {
                     if (GetJumpOffset <= 0) return false;
                     return (GetOperandsAsInt < 0);
@@ -248,14 +246,14 @@ namespace Decompiler
         {
             switch (instruction)
             {
-                case Instruction.pGlobal2:
-                case Instruction.GlobalGet2:
-                case Instruction.GlobalSet2:
+                case Instruction.RAGE_GLOBAL_U16:
+                case Instruction.RAGE_GLOBAL_U16_LOAD:
+                case Instruction.RAGE_GLOBAL_U16_STORE:
                     if (aggregateName) return "Global";
                     return "Global_" + (Program.Hex_Index ? GetOperandsAsUInt.ToString("X") : GetOperandsAsUInt.ToString());
-                case Instruction.pGlobal3:
-                case Instruction.GlobalGet3:
-                case Instruction.GlobalSet3:
+                case Instruction.RAGE_GLOBAL_U24:
+                case Instruction.RAGE_GLOBAL_U24_LOAD:
+                case Instruction.RAGE_GLOBAL_U24_STORE:
                     if (aggregateName) return "Global";
                     return "Global_" + (Program.Hex_Index ? GetOperandsAsUInt.ToString("X") : GetOperandsAsUInt.ToString());
             }
@@ -265,132 +263,133 @@ namespace Decompiler
 
     internal enum Instruction //opcodes reversed from gta v default.xex
     {
-        Nop = 0,
-        iAdd, //1
-        iSub, //2
-        iMult, //3
-        iDiv, //4
-        iMod, //5
-        iNot, //6
-        iNeg, //7
-        iCmpEq, //8
-        iCmpNe, //9
-        iCmpGt, //10
-        iCmpGe, //11
-        iCmpLt, //12
-        iCmpLe, //13
-        fAdd, //14
-        fSub, //15
-        fMult, //16
-        fDiv, //17
-        fMod, //18
-        fNeg, //19
-        fCmpEq, //20
-        fCmpNe, //21
-        fCmpGt, //22
-        fCmpGe, //23
-        fCmpLt, //24
-        fCmpLe, //25
-        vAdd, //26
-        vSub, //27
-        vMult, //28
-        vDiv, //29
-        vNeg, //30
-        And, //31
-        Or, //32
-        Xor, //33
-        ItoF, //34
-        FtoI, //35
-        FtoV, //36
-        iPushByte1, //37
-        iPushByte2, //38
-        iPushByte3, //39
-        iPushInt, //40
-        fPush, //41
-        dup, //42
-        pop, //43
-        Native, //44
-        Enter, //45
-        Return, //46
-        pGet, //47
-        pSet, //48
-        pPeekSet, //49
-        ToStack, //50
-        FromStack, //51
-        pArray1, //52
-        ArrayGet1, //53
-        ArraySet1, //54
-        pFrame1, //55
-        GetFrame1, //56
-        SetFrame1, //57
-        pStatic1, //58
-        StaticGet1, //59
-        StaticSet1, //60
-        Add1, //61
-        Mult1, //62
-        pStructStack, //63
-        pStruct1, //64
-        GetStruct1, //65
-        SetStruct1, //66
-        iPushShort, //67
-        Add2, //68
-        Mult2, //69
-        pStruct2, //70
-        GetStruct2, //71
-        SetStruct2, //72
-        pArray2, //73
-        ArrayGet2, //74
-        ArraySet2, //75
-        pFrame2, //76
-        GetFrame2, //77
-        SetFrame2, //78
-        pStatic2, //79
-        StaticGet2, //80
-        StaticSet2, //81
-        pGlobal2, //82
-        GlobalGet2, //83
-        GlobalSet2, //84
-        Jump, //85
-        JumpFalse, //86
-        JumpNe, //87
-        JumpEq, //88
-        JumpLe, //89
-        JumpLt, //90
-        JumpGe, //91
-        JumpGt, //92
-        Call, //93
-        pGlobal3, //94
-        GlobalGet3, //95
-        GlobalSet3, //96
-        iPushI24, //97
-        Switch, //98
-        PushString, //99
-        GetHash, //100
-        StrCopy, //101
-        ItoS, //102
-        StrConCat, //103
-        StrConCatInt, //104
-        MemCopy, //105
-        Catch, //106	 //No handling of these as Im unsure exactly how they work
-        Throw, //107 //No script files in the game use these opcodes
-        pCall, //108
-        iPush_n1, //109
-        iPush_0, //110
-        iPush_1, //111
-        iPush_2, //112
-        iPush_3, //113
-        iPush_4, //114
-        iPush_5, //115
-        iPush_6, //116
-        iPush_7, //117
-        fPush_n1, //118
-        fPush_0, //119
-        fPush_1, //120
-        fPush_2, //121
-        fPush_3, //122
-        fPush_4, //123
-        fPush_5, //124
-        fPush_6, //125
-        fPush_7 //126
+        RAGE_NOP = 0,
+        RAGE_IADD, //1
+        RAGE_ISUB, //2
+        RAGE_IMUL, //3
+        RAGE_IDIV, //4
+        RAGE_IMOD, //5
+        RAGE_INOT, //6
+        RAGE_INEG, //7
+        RAGE_IEQ, //8
+        RAGE_INE, //9
+        RAGE_IGT, //10
+        RAGE_IGE, //11
+        RAGE_ILT, //12
+        RAGE_ILE, //13
+        RAGE_FADD, //14
+        RAGE_FSUB, //15
+        RAGE_FMUL, //16
+        RAGE_FDIV, //17
+        RAGE_FMOD, //18
+        RAGE_FNEG, //19
+        RAGE_FEQ, //20
+        RAGE_FNE, //21
+        RAGE_FGT, //22
+        RAGE_FGE, //23
+        RAGE_FLT, //24
+        RAGE_FLE, //25
+        RAGE_VADD, //26
+        RAGE_VSUB, //27
+        RAGE_VMUL, //28
+        RAGE_VDIV, //29
+        RAGE_VNEG, //30
+        RAGE_IAND, //31
+        RAGE_IOR, //32
+        RAGE_IXOR, //33
+        RAGE_I2F, //34
+        RAGE_F2I, //35
+        RAGE_F2V, //36
+        RAGE_PUSH_CONST_U8, //37
+        RAGE_PUSH_CONST_U8_U8, //38
+        RAGE_PUSH_CONST_U8_U8_U8, //39
+        RAGE_PUSH_CONST_U32, //40
+        RAGE_PUSH_CONST_F, //41
+        RAGE_DUP, //42
+        RAGE_DROP, //43
+        RAGE_NATIVE, //44
+        RAGE_ENTER, //45
+        RAGE_LEAVE, //46
+        RAGE_LOAD, //47
+        RAGE_STORE, //48
+        RAGE_STORE_REV, //49
+        RAGE_LOAD_N, //50
+        RAGE_STORE_N, //51
+        RAGE_ARRAY_U8, //52
+        RAGE_ARRAY_U8_LOAD, //53
+        RAGE_ARRAY_U8_STORE, //54
+        RAGE_LOCAL_U8, //55
+        RAGE_LOCAL_U8_LOAD, //56
+        RAGE_LOCAL_U8_STORE, //57
+        RAGE_STATIC_U8, //58
+        RAGE_STATIC_U8_LOAD, //59
+        RAGE_STATIC_U8_STORE, //60
+        RAGE_IADD_U8, //61
+        RAGE_IMUL_U8, //62
+        RAGE_IOFFSET, //63
+        RAGE_IOFFSET_U8, //64
+        RAGE_IOFFSET_U8_LOAD, //65
+        RAGE_IOFFSET_U8_STORE, //66
+        RAGE_PUSH_CONST_S16, //67
+        RAGE_IADD_S16, //68
+        RAGE_IMUL_S16, //69
+        RAGE_IOFFSET_S16, //70
+        RAGE_IOFFSET_S16_LOAD, //71
+        RAGE_IOFFSET_S16_STORE, //72
+        RAGE_ARRAY_U16, //73
+        RAGE_ARRAY_U16_LOAD, //74
+        RAGE_ARRAY_U16_STORE, //75
+        RAGE_LOCAL_U16, //76
+        RAGE_LOCAL_U16_LOAD, //77
+        RAGE_LOCAL_U16_STORE, //78
+        RAGE_STATIC_U16, //79
+        RAGE_STATIC_U16_LOAD, //80
+        RAGE_STATIC_U16_STORE, //81
+        RAGE_GLOBAL_U16, //82
+        RAGE_GLOBAL_U16_LOAD, //83
+        RAGE_GLOBAL_U16_STORE, //84
+        RAGE_J, //85
+        RAGE_JZ, //86
+        RAGE_IEQ_JZ, //87
+        RAGE_INE_JZ, //88
+        RAGE_IGT_JZ, //89
+        RAGE_IGE_JZ, //90
+        RAGE_ILT_JZ, //91
+        RAGE_ILE_JZ, //92
+        RAGE_CALL, //93
+        RAGE_GLOBAL_U24, //94
+        RAGE_GLOBAL_U24_LOAD, //95
+        RAGE_GLOBAL_U24_STORE, //96
+        RAGE_PUSH_CONST_U24, //97
+        RAGE_SWITCH, //98
+        RAGE_STRING, //99
+        RAGE_STRINGHASH, //100
+        RAGE_TEXT_LABEL_ASSIGN_STRING, //101
+        RAGE_TEXT_LABEL_ASSIGN_INT, //102
+        RAGE_TEXT_LABEL_APPEND_STRING, //103
+        RAGE_TEXT_LABEL_APPEND_INT, //104
+        RAGE_TEXT_LABEL_COPY, //105
+        RAGE_CATCH, //106, No handling of these as Im unsure exactly how they work
+        RAGE_THROW, //107, No script files in the game use these opcodes
+        RAGE_CALLINDIRECT, //108
+        RAGE_PUSH_CONST_M1, //109
+        RAGE_PUSH_CONST_0, //110
+        RAGE_PUSH_CONST_1, //111
+        RAGE_PUSH_CONST_2, //112
+        RAGE_PUSH_CONST_3, //113
+        RAGE_PUSH_CONST_4, //114
+        RAGE_PUSH_CONST_5, //115
+        RAGE_PUSH_CONST_6, //116
+        RAGE_PUSH_CONST_7, //117
+        RAGE_PUSH_CONST_FM1, //118
+        RAGE_PUSH_CONST_F0, //119
+        RAGE_PUSH_CONST_F1, //120
+        RAGE_PUSH_CONST_F2, //121
+        RAGE_PUSH_CONST_F3, //122
+        RAGE_PUSH_CONST_F4, //123
+        RAGE_PUSH_CONST_F5, //124
+        RAGE_PUSH_CONST_F6, //125
+        RAGE_PUSH_CONST_F7, //126
+        RAGE_last, // 127
     }
 }
