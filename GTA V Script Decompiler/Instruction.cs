@@ -6,6 +6,8 @@ namespace Decompiler
 {
     internal class HLInstruction
     {
+        public static readonly int INST_COUNT = 126;
+
         int offset;
         Instruction instruction;
         byte[] operands;
@@ -203,10 +205,8 @@ namespace Decompiler
             get
             {
                 int _instruction = (int)Instruction;
-                if (_instruction >= 109 && _instruction <= 117)
-                {
-                    return _instruction - 110;
-                }
+                if (_instruction >= (int) Instruction.iPush_n1 && _instruction <= (int) Instruction.iPush_7)
+                    return _instruction - (int) Instruction.iPush_0;
                 throw new Exception("Not An Immediate Int Push");
             }
         }
@@ -216,22 +216,20 @@ namespace Decompiler
             get
             {
                 int _instruction = (int)Instruction;
-                if (_instruction >= 118 && _instruction <= 126)
-                {
-                    return (float)(_instruction - 119);
-                }
+                if (_instruction >= (int) Instruction.fPush_n1 && _instruction <= (int) Instruction.fPush_7)
+                    return (float)(_instruction - (int) Instruction.fPush_0);
                 throw new Exception("Not An Immediate Float Push");
             }
         }
 
         public bool IsJumpInstruction
         {
-            get { return (int)instruction > 84 && (int)instruction < 93; }
+            get { return (int)instruction > (int) Instruction.GlobalSet2 && (int)instruction < (int) Instruction.Call; }
         }
 
         public bool IsConditionJump
         {
-            get { return (int)instruction > 85 && (int)instruction < 93; }
+            get { return (int)instruction > (int) Instruction.Jump && (int)instruction < (int) Instruction.Call; }
         }
 
         public bool IsWhileJump

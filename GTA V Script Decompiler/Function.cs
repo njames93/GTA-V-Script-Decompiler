@@ -354,14 +354,14 @@ namespace Decompiler
             int off = 0;
         Start:
             off += 1;
-            if (CodeBlock[Offset + off] == 0)
+            if (CodeBlock[Offset + off] == (int) Instruction.Nop)
                 goto Start;
-            if (CodeBlock[Offset + off] == 86)
+            if (CodeBlock[Offset + off] == (int) Instruction.JumpFalse)
             {
                 Offset = Offset + off + 2;
                 return;
             }
-            if (CodeBlock[Offset + off] == 6)
+            if (CodeBlock[Offset + off] == (int) Instruction.iNot)
             {
                 goto Start;
             }
@@ -760,98 +760,100 @@ namespace Decompiler
                     switch (CodeBlock[Offset])
                     {
                         //		case 0: if (addnop) AddInstruction(curoff, new HLInstruction((byte)0, curoff)); break;
-                        case 37:
+                        case (int) Instruction.iPushByte1:
                             AddInstruction(curoff, new HLInstruction(CodeBlock[Offset], GetArray(1), curoff));
                             break;
-                        case 38:
+                        case (int) Instruction.iPushByte2:
                             AddInstruction(curoff, new HLInstruction(CodeBlock[Offset], GetArray(2), curoff));
                             break;
-                        case 39:
+                        case (int) Instruction.iPushByte3:
                             AddInstruction(curoff, new HLInstruction(CodeBlock[Offset], GetArray(3), curoff));
                             break;
-                        case 40:
-                        case 41:
+                        case (int) Instruction.iPushInt:
+                        case (int) Instruction.fPush:
                             AddInstruction(curoff, new HLInstruction(CodeBlock[Offset], GetArray(4), curoff));
                             break;
-                        case 42: //Because of how rockstar codes and/or conditionals, its neater to detect dups
-                                 //and only add them if they are not used for conditionals
+                        case (int) Instruction.dup:
+                            // Because of how rockstar codes and/or conditionals, its neater to detect dups
+                            // and only add them if they are not used for conditionals
                             checkdupforinstruction();
                             break;
-                        case 44:
+                        case (int) Instruction.Native:
                             AddInstruction(curoff, new HLInstruction(CodeBlock[Offset], GetArray(3), curoff));
                             break;
-                        case 45:
+                        case (int) Instruction.Enter:
                             throw new Exception("Function not exptected");
-                        case 46:
+                        case (int) Instruction.Return:
                             AddInstruction(curoff, new HLInstruction(CodeBlock[Offset], GetArray(2), curoff));
                             break;
-                        case 52:
-                        case 53:
-                        case 54:
-                        case 55:
-                        case 56:
-                        case 57:
-                        case 58:
-                        case 59:
-                        case 60:
-                        case 61:
-                        case 62:
-                        case 64:
-                        case 65:
-                        case 66:
+                        case (int) Instruction.pArray1:
+                        case (int) Instruction.ArrayGet1:
+                        case (int) Instruction.ArraySet1:
+                        case (int) Instruction.pFrame1:
+                        case (int) Instruction.GetFrame1:
+                        case (int) Instruction.SetFrame1:
+                        case (int) Instruction.pStatic1:
+                        case (int) Instruction.StaticGet1:
+                        case (int) Instruction.StaticSet1:
+                        case (int) Instruction.Add1:
+                        case (int) Instruction.Mult1:
+                        case (int) Instruction.pStruct1:
+                        case (int) Instruction.GetStruct1:
+                        case (int) Instruction.SetStruct1:
                             AddInstruction(curoff, new HLInstruction(CodeBlock[Offset], GetArray(1), curoff));
                             break;
-                        case 67:
-                        case 68:
-                        case 69:
-                        case 70:
-                        case 71:
-                        case 72:
-                        case 73:
-                        case 74:
-                        case 75:
-                        case 76:
-                        case 77:
-                        case 78:
-                        case 79:
-                        case 80:
-                        case 81:
-                        case 82:
-                        case 83:
-                        case 84:
+                        case (int) Instruction.iPushShort:
+                        case (int) Instruction.Add2:
+                        case (int) Instruction.Mult2:
+                        case (int) Instruction.pStruct2:
+                        case (int) Instruction.GetStruct2:
+                        case (int) Instruction.SetStruct2:
+                        case (int) Instruction.pArray2:
+                        case (int) Instruction.ArrayGet2:
+                        case (int) Instruction.ArraySet2:
+                        case (int) Instruction.pFrame2:
+                        case (int) Instruction.GetFrame2:
+                        case (int) Instruction.SetFrame2:
+                        case (int) Instruction.pStatic2:
+                        case (int) Instruction.StaticGet2:
+                        case (int) Instruction.StaticSet2:
+                        case (int) Instruction.pGlobal2:
+                        case (int) Instruction.GlobalGet2:
+                        case (int) Instruction.GlobalSet2:
                             AddInstruction(curoff, new HLInstruction(CodeBlock[Offset], GetArray(2), curoff));
                             break;
-                        case 85:
+                        case (int) Instruction.Jump:
                             checkjumpcodepath();
                             break;
-                        case 86:
-                        case 87:
-                        case 88:
-                        case 89:
-                        case 90:
-                        case 91:
-                        case 92:
+                        case (int) Instruction.JumpFalse:
+                        case (int) Instruction.JumpNe:
+                        case (int) Instruction.JumpEq:
+                        case (int) Instruction.JumpLe:
+                        case (int) Instruction.JumpLt:
+                        case (int) Instruction.JumpGe:
+                        case (int) Instruction.JumpGt:
                             AddInstruction(curoff, new HLInstruction(CodeBlock[Offset], GetArray(2), curoff));
                             break;
-                        case 93:
-                        case 94:
-                        case 95:
-                        case 96:
-                        case 97:
+                        case (int) Instruction.Call:
+                        case (int) Instruction.pGlobal3:
+                        case (int) Instruction.GlobalGet3:
+                        case (int) Instruction.GlobalSet3:
+                        case (int) Instruction.iPushI24:
                             AddInstruction(curoff, new HLInstruction(CodeBlock[Offset], GetArray(3), curoff));
                             break;
-                        case 98:
+                        case (int) Instruction.Switch:
                             int temp = CodeBlock[Offset + 1];
                             AddInstruction(curoff, new HLInstruction(CodeBlock[Offset], GetArray(temp * 6 + 1), curoff));
                             break;
-                        case 101:
-                        case 102:
-                        case 103:
-                        case 104:
+                        case (int) Instruction.StrCopy:
+                        case (int) Instruction.ItoS:
+                        case (int) Instruction.StrConCat:
+                        case (int) Instruction.StrConCatInt:
                             AddInstruction(curoff, new HLInstruction(CodeBlock[Offset], GetArray(1), curoff));
                             break;
                         default:
-                            if (CodeBlock[Offset] <= 126) AddInstruction(curoff, new HLInstruction(CodeBlock[Offset], curoff));
+                            if (CodeBlock[Offset] <= HLInstruction.INST_COUNT)
+                                AddInstruction(curoff, new HLInstruction(CodeBlock[Offset], curoff));
                             else throw new Exception("Unexpected Opcode");
                             break;
                     }
