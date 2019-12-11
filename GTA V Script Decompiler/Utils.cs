@@ -137,5 +137,21 @@ namespace Decompiler
         {
             return (((x) << (n)) | ((x) >> (64 - (n))));
         }
+
+        public static string GetAbsolutePath(string path, string basePath = null)
+        {
+            if (path == null) return null;
+            basePath = (basePath == null) ? Path.GetFullPath(".") : GetAbsolutePath(null, basePath);
+
+            String finalPath = path;
+            if (!Path.IsPathRooted(path) || "\\".Equals(Path.GetPathRoot(path)))
+            {
+                if (path.StartsWith(Path.DirectorySeparatorChar.ToString()))
+                    finalPath = Path.Combine(Path.GetPathRoot(basePath), path.TrimStart(Path.DirectorySeparatorChar));
+                else
+                    finalPath = Path.Combine(basePath, path);
+            }
+            return Path.GetFullPath(finalPath);
+        }
     }
 }

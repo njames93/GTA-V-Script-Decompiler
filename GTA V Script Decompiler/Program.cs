@@ -81,7 +81,6 @@ namespace Decompiler
             Program.Find_Aggregate_MinHits();
             Program.Find_Aggregate_MinLines();
 
-            Program.SaveDirectory = o.OutputPath;
             Program._AggregateFunctions = o.Aggregate;
             if (o.AggMinHits > 0) Program._agg_min_hits = o.AggMinHits;
             if (o.AggMinLines > 0) Program._agg_min_lines = o.AggMinLines;
@@ -110,35 +109,38 @@ namespace Decompiler
 
             Parser.Default.ParseArguments<Options>(args).WithParsed<Options>(o =>
             {
-                if (File.Exists(o.InputPath)) // Decompile a single file if given the option.
+                string inputPath = Utils.GetAbsolutePath(o.InputPath);
+                string outputPath = o.OutputPath != null ? Utils.GetAbsolutePath(o.OutputPath) : null;
+                string nativeFile = o.NativeFile != null ? Utils.GetAbsolutePath(o.NativeFile) : null;
+                if (File.Exists(inputPath)) // Decompile a single file if given the option.
                 {
-                    if (o.OutputPath != null && File.Exists(o.OutputPath) && !o.Force) { Console.WriteLine("Cannot overwrite file, use -f to force."); return; }
+                    if (outputPath != null && File.Exists(outputPath) && !o.Force) { Console.WriteLine("Cannot overwrite file, use -f to force."); return; }
 
                     InitializeINIFields(o); Program._AggregateFunctions = false;
-                    InitializeNativeTable(o.NativeFile);
-                    using (Stream fs = File.OpenRead(o.InputPath))
+                    InitializeNativeTable(nativeFile);
+                    using (Stream fs = File.OpenRead(inputPath))
                     {
                         MemoryStream buffer = new MemoryStream(); fs.CopyTo(buffer);
                         ScriptFile scriptFile = new ScriptFile(buffer, Program.Codeset);
-
-                        if (o.OutputPath != null)
-                            scriptFile.Save(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, o.OutputPath));
+                        if (outputPath != null)
+                            scriptFile.Save(outputPath);
                         else
                             scriptFile.Save(Console.OpenStandardOutput(), false);
                         scriptFile.Close();
                     }
                 }
-                else if (Directory.Exists(o.InputPath)) // Decompile directory
+                else if (Directory.Exists(inputPath)) // Decompile directory
                 {
-                    if (o.OutputPath == null || !Directory.Exists(o.OutputPath)) { Console.WriteLine("Invalid Output Directory"); return; }
+                    if (outputPath == null || !Directory.Exists(outputPath)) { Console.WriteLine("Invalid Output Directory"); return; }
 
                     InitializeINIFields(o);
-                    InitializeNativeTable(o.NativeFile);
-                    foreach (string file in Directory.GetFiles(o.InputPath, "*.ysc"))
+                    InitializeNativeTable(nativeFile);
+                    foreach (string file in Directory.GetFiles(inputPath, "*.ysc"))
                         CompileList.Enqueue(file);
-                    foreach (string file in Directory.GetFiles(o.InputPath, "*.ysc.full"))
+                    foreach (string file in Directory.GetFiles(inputPath, "*.ysc.full"))
                         CompileList.Enqueue(file);
 
+                    SaveDirectory = outputPath;
                     if (Program.Use_MultiThreading)
                     {
                         for (int i = 0; i < Environment.ProcessorCount - 1; i++)
@@ -160,8 +162,8 @@ namespace Decompiler
 
                     if (Program.AggregateFunctions)
                     {
-                        Agg.Instance.SaveAggregate(SaveDirectory);
-                        Agg.Instance.SaveFrequency(SaveDirectory);
+                        Agg.Instance.SaveAggregate(outputPath);
+                        Agg.Instance.SaveFrequency(outputPath);
                     }
                 }
                 else
@@ -186,7 +188,8 @@ namespace Decompiler
                 try
                 {
                     string output = Path.Combine(SaveDirectory, Path.GetFileNameWithoutExtension(scriptToDecode) + ".c");
-                    using (Stream fs = File.OpenRead(scriptToDecode)) {
+                    using (Stream fs = File.OpenRead(scriptToDecode))
+                    {
                         MemoryStream buffer = new MemoryStream(); fs.CopyTo(buffer);
 
                         Console.WriteLine("Decompiling: " + scriptToDecode + " > " + output);
