@@ -23,8 +23,8 @@ namespace Decompiler
                     if ((b = scriptFile.ReadByte()) == -1)
                         throw new EndOfStreamException("Invalid Scriptfile!");
 
-                    byte xordeciphed = (byte)(carry ^ (byte) b);
-                    carry = (byte) b;
+                    byte xordeciphed = (byte)(carry ^ (byte)b);
+                    carry = (byte)b;
                     stream.WriteByte(xordeciphed);
                 }
                 stream.Position = 0;
@@ -36,7 +36,7 @@ namespace Decompiler
 
             IO.Reader reader = new IO.Reader(stream);
             int count = 0;
-            ulong nat;;
+            ulong nat;
             while (count < length)
             {
                 //GTA V PC natives arent stored sequentially in the table. Each native needs a bitwise rotate depending on its position and codetable size

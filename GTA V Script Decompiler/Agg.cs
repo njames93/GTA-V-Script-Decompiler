@@ -27,7 +27,7 @@ namespace Decompiler
             AggregateString = function.ToString();
 
             ScriptName = function.Scriptfile.name;
-            FunctionName =  function.Scriptfile.name + "." + function.Name;
+            FunctionName = function.Scriptfile.name + "." + function.Name;
             FunctionString = function.BaseFunction.ToString();
         }
 
@@ -133,7 +133,8 @@ namespace Decompiler
             {
                 StreamWriter savestream = new StreamWriter(stream);
                 List<KeyValuePair<string, AggregateData>> list = FunctionLoc.ToList();
-                list.Sort(delegate (KeyValuePair<string, AggregateData> pair1, KeyValuePair<string, AggregateData> pair2) {
+                list.Sort(delegate (KeyValuePair<string, AggregateData> pair1, KeyValuePair<string, AggregateData> pair2)
+                {
                     if (pair2.Value.Hits.Count == pair1.Value.Hits.Count)
                         return pair1.Value.AggregateName.CompareTo(pair2.Value.AggregateName);
                     return pair2.Value.Hits.Count.CompareTo(pair1.Value.Hits.Count);
@@ -162,7 +163,8 @@ namespace Decompiler
                 using (StreamWriter savestream = new StreamWriter(stream))
                 {
                     List<KeyValuePair<string, ulong>> list = nativeRefCount.ToList();
-                    list.Sort(delegate (KeyValuePair<string, ulong> pair1, KeyValuePair<string, ulong> pair2) {
+                    list.Sort(delegate (KeyValuePair<string, ulong> pair1, KeyValuePair<string, ulong> pair2)
+                    {
                         int comp = pair2.Value.CompareTo(pair1.Value);
                         return comp == 0 ? string.Compare(pair1.Key, pair2.Key) : comp;
                     });
@@ -179,7 +181,8 @@ namespace Decompiler
             {
                 StreamWriter savestream = new StreamWriter(stream);
                 List<KeyValuePair<string, AggregateData>> list = FunctionLoc.ToList();
-                list.Sort(delegate (KeyValuePair<string, AggregateData> pair1, KeyValuePair<string, AggregateData> pair2) {
+                list.Sort(delegate (KeyValuePair<string, AggregateData> pair1, KeyValuePair<string, AggregateData> pair2)
+                {
                     if (pair2.Value.Hits.Count == pair1.Value.Hits.Count)
                         return pair1.Value.AggregateName.CompareTo(pair2.Value.AggregateName);
                     return pair2.Value.Hits.Count.CompareTo(pair1.Value.Hits.Count);

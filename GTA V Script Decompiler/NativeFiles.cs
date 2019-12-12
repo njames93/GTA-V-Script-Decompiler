@@ -17,10 +17,10 @@ namespace Decompiler
         {
             using (StreamReader sr = new StreamReader(Nativefile))
             {
-                RootObject o = (RootObject) new JsonSerializer().Deserialize(sr, typeof(RootObject));
-                foreach(KeyValuePair<string, JToken> ns in o.Values)
+                RootObject o = (RootObject)new JsonSerializer().Deserialize(sr, typeof(RootObject));
+                foreach (KeyValuePair<string, JToken> ns in o.Values)
                 {
-                    foreach(KeyValuePair<string, JToken> natives in ns.Value.ToObject<RootObject>().Values)
+                    foreach (KeyValuePair<string, JToken> natives in ns.Value.ToObject<RootObject>().Values)
                     {
                         Native native = natives.Value.ToObject<Native>();
                         native.Namespace = ns.Key;
@@ -42,7 +42,8 @@ namespace Decompiler
                                 this[hash] = native;
                                 if (native.Hashes != null)
                                 {
-                                    foreach (string s in native.Hashes) {
+                                    foreach (string s in native.Hashes)
+                                    {
                                         if (ulong.TryParse(s.Substring(2), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out hash) && hash != 0 && !ContainsKey(hash))
                                             Add(hash, native);
                                     }
@@ -293,7 +294,8 @@ namespace Decompiler
         public IList<Param> Params
         {
             get => _params;
-            set {
+            set
+            {
                 _params = value;
                 _vardiac = false; // Update vardiac condition
                 foreach (Param p in _params) _vardiac = _vardiac | p.Vardiac;
@@ -324,7 +326,7 @@ namespace Decompiler
          * Cached Fields
          */
         public bool Vardiac => _vardiac;
-        public string Display { get { UpdateDirty() ; return _displayName; } }
+        public string Display { get { UpdateDirty(); return _displayName; } }
 
         private void UpdateDirty()
         {

@@ -110,7 +110,7 @@ namespace Decompiler
         public override bool AllEscaped()
         {
             bool escaped = base.AllEscaped();
-            foreach(KeyValuePair<int, bool> entry in EscapedCases)
+            foreach (KeyValuePair<int, bool> entry in EscapedCases)
                 escaped &= entry.Value;
             return escaped;
         }

@@ -107,10 +107,10 @@ namespace Decompiler
 
                 try
                 {
-                    if (ReturnType  == Stack.DataType.Bool)
-				        strCache = FirstLine() + "\r\n" + sb.ToString().Replace("return 0;", "return false;").Replace("return 1;", "return true;");
-			        else
-				        strCache = FirstLine() + "\r\n" + sb.ToString();
+                    if (ReturnType == Stack.DataType.Bool)
+                        strCache = FirstLine() + "\r\n" + sb.ToString().Replace("return 0;", "return false;").Replace("return 1;", "return true;");
+                    else
+                        strCache = FirstLine() + "\r\n" + sb.ToString();
                 }
                 finally
                 {
@@ -1075,7 +1075,7 @@ namespace Decompiler
                 {
                     if (Outerpath.IsSwitch)
                     {
-                        SwitchPath switchPath = (SwitchPath) Outerpath;
+                        SwitchPath switchPath = (SwitchPath)Outerpath;
                         switchPath.EscapedCases[switchPath.ActiveOffset] = true;
                     }
 
@@ -1085,7 +1085,7 @@ namespace Decompiler
                     {
                         case 0:
                         {
-                           if (Offset < Instructions.Count - 1)
+                            if (Offset < Instructions.Count - 1)
                                 writeline("return;");
                             break;
                         }
