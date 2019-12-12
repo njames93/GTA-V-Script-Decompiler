@@ -21,7 +21,9 @@ A **command-line tool** that will decompile the script resources (xsc,csc,ysc,os
   -f, --force        Allow output file overriding. (Default: false)
   -a, --aggregate    Compute aggregation statistics of bulk dataset. (Default: false)
   --minlines         Minimum function line count for aggregation (Default: -1)
-  --minhits          Minimum number of occurrences for aggregation. (Default: -1)
+  --minhits          Minimum number of occurrences for aggregation. (Default: -1)  
+  --gzin             Compressed Input (GZIP) (Default: false)
+  --gzout            Compress Output (GZIP) (Default: false)
 ```
 
 ## Examples ## 

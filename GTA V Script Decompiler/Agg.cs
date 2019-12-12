@@ -130,10 +130,10 @@ namespace Decompiler
 
         public void SaveAggregate(string SaveDirectory)
         {
-            string suffix = ".c" + (Program.Compress ? ".gz" : "");
+            string suffix = ".c" + (Program.CompressedOutput ? ".gz" : "");
             using (Stream fileStream = File.Create(Path.Combine(SaveDirectory, "aggregate" + suffix)))
             {
-                StreamWriter savestream = new StreamWriter(Program.Compress ? new GZipStream(fileStream, CompressionMode.Compress) : fileStream);
+                StreamWriter savestream = new StreamWriter(Program.CompressedOutput ? new GZipStream(fileStream, CompressionMode.Compress) : fileStream);
                 List<KeyValuePair<string, AggregateData>> list = FunctionLoc.ToList();
                 list.Sort(delegate (KeyValuePair<string, AggregateData> pair1, KeyValuePair<string, AggregateData> pair2)
                 {

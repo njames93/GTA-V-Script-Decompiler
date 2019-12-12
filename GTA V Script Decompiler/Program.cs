@@ -27,8 +27,11 @@ namespace Decompiler
             [Option('o', "out", Default = null, Required = false, HelpText = "Output Directory/File Path")]
             public string OutputPath { get; set; }
 
-            [Option('z', "compress", Default = false, Required = false, HelpText = "Compress Output (GZIP)")]
-            public bool Compress { get; set; }
+            [Option("gzin", Default = false, Required = false, HelpText = "Compressed Input (GZIP)")]
+            public bool CompressedInput { get; set; }
+
+            [Option("gzout", Default = false, Required = false, HelpText = "Compress Output (GZIP)")]
+            public bool CompressOutput { get; set; }
 
             [Option('c', "opcode", Default = "v", Required = true, HelpText = "Opcode Set (v|vconsole|rdr|rdrconsole)")]
             public string Opcode { get; set; }
@@ -84,7 +87,8 @@ namespace Decompiler
             Program.Find_Aggregate_MinHits();
             Program.Find_Aggregate_MinLines();
 
-            Program._compress = o.Compress;
+            Program._compressin = o.CompressedInput;
+            Program._compressout = o.CompressOutput;
             Program._AggregateFunctions = o.Aggregate;
             if (o.AggMinHits > 0) Program._agg_min_hits = o.AggMinHits;
             if (o.AggMinLines > 0) Program._agg_min_lines = o.AggMinLines;
@@ -100,6 +104,39 @@ namespace Decompiler
             else
                 nativeJson = new MemoryStream(Properties.Resources.Natives);
             X64npi = new x64NativeFile(nativeJson);
+        }
+
+        /// <summary>
+        ///
+        /// </summary>
+        /// <param name="inputPath"></param>
+        /// <param name="outputPath"></param>
+        /// <returns></returns>
+        private static ScriptFile ProcessScriptfile(string inputPath, string outputPath)
+        {
+            /* A ScriptFile tends to skip around the offset table */
+            MemoryStream buffer = new MemoryStream();
+
+            Console.WriteLine(inputPath);
+            using (Stream fs = File.OpenRead(inputPath))
+            {
+                if (Program.CompressedInput)
+                    (Program.CompressedInput ? new GZipStream(fs, CompressionMode.Decompress) : fs).CopyTo(buffer);
+                else
+                    fs.CopyTo(buffer);
+            }
+
+            ScriptFile scriptFile = new ScriptFile(buffer, Program.Codeset);
+            if (outputPath != null)
+            {
+                using (Stream stream = File.Create(outputPath))
+                    scriptFile.Save(Program.CompressedOutput ? new GZipStream(stream, CompressionMode.Compress) : stream, true);
+            }
+            else
+                scriptFile.Save(Console.OpenStandardOutput(), false);
+
+            buffer.Close();
+            return scriptFile;
         }
 
         /// <summary>
@@ -122,20 +159,7 @@ namespace Decompiler
 
                     InitializeINIFields(o); Program._AggregateFunctions = false;
                     InitializeNativeTable(nativeFile);
-                    using (Stream fs = File.OpenRead(inputPath))
-                    {
-                        /* A ScriptFile tends to skip around the offset table */
-                        MemoryStream buffer = new MemoryStream(); fs.CopyTo(buffer);
-                        ScriptFile scriptFile = new ScriptFile(buffer, Program.Codeset);
-                        if (outputPath != null)
-                        {
-                            using (Stream stream = File.Create(outputPath))
-                                scriptFile.Save(Program.Compress ? new GZipStream(stream, CompressionMode.Compress) : stream, true);
-                        }
-                        else
-                            scriptFile.Save(Console.OpenStandardOutput(), false);
-                        scriptFile.Close();
-                    }
+                    ProcessScriptfile(inputPath, outputPath).Close();
                 }
                 else if (Directory.Exists(inputPath)) // Decompile directory
                 {
@@ -143,9 +167,9 @@ namespace Decompiler
 
                     InitializeINIFields(o);
                     InitializeNativeTable(nativeFile);
-                    foreach (string file in Directory.GetFiles(inputPath, "*.ysc"))
+                    foreach (string file in Directory.GetFiles(inputPath, "*.ysc*"))
                         CompileList.Enqueue(file);
-                    foreach (string file in Directory.GetFiles(inputPath, "*.ysc.full"))
+                    foreach (string file in Directory.GetFiles(inputPath, "*.ysc.full*"))
                         CompileList.Enqueue(file);
 
                     SaveDirectory = outputPath;
@@ -195,28 +219,16 @@ namespace Decompiler
                 }
                 try
                 {
-                    string suffix = ".c" + (Program.Compress ? ".gz" : "");
+                    string suffix = ".c" + (Program.CompressedOutput ? ".gz" : "");
                     string output = Path.Combine(SaveDirectory, Path.GetFileNameWithoutExtension(scriptToDecode) + suffix);
-                    using (Stream fs = File.OpenRead(scriptToDecode))
-                    {
-                        Console.WriteLine("Decompiling: " + scriptToDecode + " > " + output);
 
-                        /* A ScriptFile tends to skip around the offset table */
-                        MemoryStream buffer = new MemoryStream(); fs.CopyTo(buffer);
-                        ScriptFile scriptFile = new ScriptFile(buffer, Program.Codeset);
+                    ScriptFile scriptFile = ProcessScriptfile(scriptToDecode, output);
+                    if (Program.AggregateFunctions) /* Compile aggregation statistics for each function. */
+                        scriptFile.CompileAggregate();
 
-                        using (Stream stream = File.Create(output))
-                            scriptFile.Save(Program.Compress ? new GZipStream(stream, CompressionMode.Compress) : stream, true);
-
-                        /* Compile aggregation statistics for each function. */
-                        if (Program.AggregateFunctions)
-                            scriptFile.CompileAggregate();
-
-                        scriptFile.Close();
-                        buffer.Close();
-                        if ((_gcCount.Value++) % 25 == 0)
-                            GC.Collect();
-                    }
+                    scriptFile.Close();
+                    if ((_gcCount.Value++) % 25 == 0)
+                        GC.Collect();
                 }
                 catch (Exception ex)
                 {
@@ -355,8 +367,11 @@ namespace Decompiler
             return _agg_min_hits;
         }
 
-        private static bool _compress = false;
-        public static bool Compress { get => _compress; }
+        private static bool _compressin = false;
+        public static bool CompressedInput { get => _compressin; }
+
+        private static bool _compressout = false;
+        public static bool CompressedOutput { get => _compressout; }
 
         private static bool _bit32 = false;
         public static bool IsBit32 { get => _bit32; }
