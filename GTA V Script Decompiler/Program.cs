@@ -352,10 +352,8 @@ namespace Decompiler
         }
 
         private static bool _upper_Natives = false;
-        public static bool Upper_Natives
-        {
-            get { return _upper_Natives; }
-        }
+        public static bool Upper_Natives { get { return _upper_Natives; } }
+        public static string NativeName(string s) => Program.Upper_Natives ? s.ToUpper() : s.ToLower();
 
         private static bool _AggregateFunctions = false;
         public static bool AggregateFunctions { get { return _AggregateFunctions; } }

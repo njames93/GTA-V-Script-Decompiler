@@ -49,7 +49,7 @@ namespace Decompiler
                 if (Program.X64npi.ContainsKey(nat))
                     _natives.Add(Program.X64npi[nat].Display);
                 else
-                    _natives.Add("unk_" + Native.CreateNativeStub(nat));
+                    _natives.Add(Program.NativeName(Native.UnkPrefix) + Native.CreateNativeHash(nat));
                 count++;
             }
         }

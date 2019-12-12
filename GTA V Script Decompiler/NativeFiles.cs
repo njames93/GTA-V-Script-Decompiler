@@ -54,18 +54,13 @@ namespace Decompiler
             }
         }
 
-        public string DisplayTextFromHash(ulong hash)
-        {
-            return ContainsKey(hash) ? this[hash].Display : "unk_" + Native.CreateNativeStub(hash);
-        }
-
         public string GetNativeInfo(ulong hash)
         {
             Native native;
             if (!TryGetValue(hash, out native))
                 throw new Exception("Native not found");
 
-            string dec = native.ReturnParam.StackType.ReturnType() + Program.X64npi.DisplayTextFromHash(hash) + "(";
+            string dec = native.ReturnParam.StackType.ReturnType() + native.Display + "(";
             if (native.Params.Count == 0)
                 return dec + ");";
             for (int i = 0; i < native.Params.Count; i++)
@@ -123,7 +118,7 @@ namespace Decompiler
                     */
                     if (native.Params.Count != pcount && !native.Vardiac)
                     {
-                        Console.WriteLine("Native Argument Mismatch: " + native.HashString + " " + pcount + "/" + native.Params.Count);
+                        Console.WriteLine("Native Argument Mismatch: " + name + " " + pcount + "/" + native.Params.Count);
                         native.Params.Clear();
                         for (int i = 0; i < pcount; ++i)
                             native.Params.Add(new Param("Any", "Param" + i.ToString()));
@@ -133,11 +128,11 @@ namespace Decompiler
                 {
                     native = new Native();
                     native.Hash = hash;
-                    native.Name = Native.CreateNativeStub(hash);
+                    native.Name = name;
                     native.Joaat = "";
                     native.Comment = "";
-                    native.Build = "1737";
-                    native.Namespace = "UNK";
+                    native.Build = "";
+                    native.Namespace = "";
 
                     native.Return = "Any";
                     native.Params = new List<Param>();
@@ -261,13 +256,13 @@ namespace Decompiler
     public class Native
     {
         public static readonly Param VardiacParam = new Param("const char*", "Parameter");
+        public static readonly string UnkPrefix = "unk_";
 
         private bool _dirty = false;
         private bool _vardiac = false;
         private string _return;
         private string _name;
         private string _namespace;
-        private string _hashStr;
         private string _displayName;
         private IList<Param> _params;
 
@@ -329,44 +324,28 @@ namespace Decompiler
          * Cached Fields
          */
         public bool Vardiac => _vardiac;
-        public string HashString { get { UpdateDirty() ; return _hashStr; } }
         public string Display { get { UpdateDirty() ; return _displayName; } }
 
         private void UpdateDirty()
         {
             if (!_dirty) return;
 
-            string hashStr = Hash.ToString("X");
-            while (hashStr.Length < 16) hashStr = "0" + hashStr;
-            hashStr = "0x" + hashStr;
-
-            string dispStr = (Program.Show_Nat_Namespace ? (Namespace + "::") : "");
-            if (Program.Upper_Natives)
-            {
-                dispStr = dispStr.ToUpper();
-                if (Name.StartsWith("_0x"))
-                    dispStr += Name.Remove(3) + Name.Substring(3).ToUpper();
-                else
-                    dispStr += Name.ToUpper();
-            }
+            string dispStr = Program.NativeName((Program.Show_Nat_Namespace && Namespace != "") ? (Namespace + "::") : "");
+            if (Name.StartsWith("_0x"))
+                dispStr += Name.Remove(3) + Program.NativeName(Name.Substring(3));
+            else if (Name.StartsWith(Program.NativeName(Native.UnkPrefix)))
+                dispStr += Name;
             else
-            {
-                dispStr = dispStr.ToLower();
-                if (Name.StartsWith("_0x"))
-                    dispStr += Name.Remove(3) + Name.Substring(3).ToUpper();
-                else
-                    dispStr += Name.ToLower();
-            }
-
-            _hashStr = hashStr;
+                dispStr += Program.NativeName(Name);
             _displayName = dispStr;
         }
 
-        public static string CreateNativeStub(ulong hash) {
-            string temps = hash.ToString("X");
-            while (temps.Length < (Program.IsBit32 ? 8 : 16))
-                temps = "0" + temps;
-            return "0x" + temps;
+        public static string CreateNativeHash(ulong hash)
+        {
+            string hashStr = hash.ToString("X");
+            while (hashStr.Length < (Program.IsBit32 ? 8 : 16))
+                hashStr = "0" + hashStr;
+            return "0x" + Program.NativeName(hashStr);
         }
     }
 
