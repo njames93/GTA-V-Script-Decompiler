@@ -375,7 +375,7 @@ namespace Decompiler
         }
 
         /* Aggregate Function */
-        public void TryAgg()
+        public void CompileAggregate()
         {
             foreach (Function f in AggFunctions)
             {

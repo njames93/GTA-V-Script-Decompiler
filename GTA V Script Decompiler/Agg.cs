@@ -5,6 +5,7 @@ using System.IO;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
+using System.IO.Compression;
 
 namespace Decompiler
 {
@@ -129,9 +130,10 @@ namespace Decompiler
 
         public void SaveAggregate(string SaveDirectory)
         {
-            using (Stream stream = File.Create(Path.Combine(SaveDirectory, "aggregate.c")))
+            string suffix = ".c" + (Program.Compress ? ".gz" : "");
+            using (Stream fileStream = File.Create(Path.Combine(SaveDirectory, "aggregate" + suffix)))
             {
-                StreamWriter savestream = new StreamWriter(stream);
+                StreamWriter savestream = new StreamWriter(Program.Compress ? new GZipStream(fileStream, CompressionMode.Compress) : fileStream);
                 List<KeyValuePair<string, AggregateData>> list = FunctionLoc.ToList();
                 list.Sort(delegate (KeyValuePair<string, AggregateData> pair1, KeyValuePair<string, AggregateData> pair2)
                 {

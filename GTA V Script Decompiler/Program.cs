@@ -27,6 +27,9 @@ namespace Decompiler
             [Option('o', "out", Default = null, Required = false, HelpText = "Output Directory/File Path")]
             public string OutputPath { get; set; }
 
+            [Option('z', "compress", Default = false, Required = false, HelpText = "Compress Output (GZIP)")]
+            public bool Compress { get; set; }
+
             [Option('c', "opcode", Default = "v", Required = true, HelpText = "Opcode Set (v|vconsole|rdr|rdrconsole)")]
             public string Opcode { get; set; }
 
@@ -81,6 +84,7 @@ namespace Decompiler
             Program.Find_Aggregate_MinHits();
             Program.Find_Aggregate_MinLines();
 
+            Program._compress = o.Compress;
             Program._AggregateFunctions = o.Aggregate;
             if (o.AggMinHits > 0) Program._agg_min_hits = o.AggMinHits;
             if (o.AggMinLines > 0) Program._agg_min_lines = o.AggMinLines;
@@ -120,10 +124,14 @@ namespace Decompiler
                     InitializeNativeTable(nativeFile);
                     using (Stream fs = File.OpenRead(inputPath))
                     {
+                        /* A ScriptFile tends to skip around the offset table */
                         MemoryStream buffer = new MemoryStream(); fs.CopyTo(buffer);
                         ScriptFile scriptFile = new ScriptFile(buffer, Program.Codeset);
                         if (outputPath != null)
-                            scriptFile.Save(outputPath);
+                        {
+                            using (Stream stream = File.Create(outputPath))
+                                scriptFile.Save(Program.Compress ? new GZipStream(stream, CompressionMode.Compress) : stream, true);
+                        }
                         else
                             scriptFile.Save(Console.OpenStandardOutput(), false);
                         scriptFile.Close();
@@ -187,18 +195,25 @@ namespace Decompiler
                 }
                 try
                 {
-                    string output = Path.Combine(SaveDirectory, Path.GetFileNameWithoutExtension(scriptToDecode) + ".c");
+                    string suffix = ".c" + (Program.Compress ? ".gz" : "");
+                    string output = Path.Combine(SaveDirectory, Path.GetFileNameWithoutExtension(scriptToDecode) + suffix);
                     using (Stream fs = File.OpenRead(scriptToDecode))
                     {
-                        MemoryStream buffer = new MemoryStream(); fs.CopyTo(buffer);
-
                         Console.WriteLine("Decompiling: " + scriptToDecode + " > " + output);
+
+                        /* A ScriptFile tends to skip around the offset table */
+                        MemoryStream buffer = new MemoryStream(); fs.CopyTo(buffer);
                         ScriptFile scriptFile = new ScriptFile(buffer, Program.Codeset);
-                        scriptFile.Save(output);
-                        if (Program.AggregateFunctions) scriptFile.TryAgg();
+
+                        using (Stream stream = File.Create(output))
+                            scriptFile.Save(Program.Compress ? new GZipStream(stream, CompressionMode.Compress) : stream, true);
+
+                        /* Compile aggregation statistics for each function. */
+                        if (Program.AggregateFunctions)
+                            scriptFile.CompileAggregate();
+
                         scriptFile.Close();
                         buffer.Close();
-
                         if ((_gcCount.Value++) % 25 == 0)
                             GC.Collect();
                     }
@@ -232,11 +247,7 @@ namespace Decompiler
         }
 
         private static IntType _getINTType = IntType._int;
-
-        public static IntType getIntType
-        {
-            get { return _getINTType; }
-        }
+        public static IntType getIntType { get => _getINTType; }
 
         public static bool Find_Show_Array_Size()
         {
@@ -244,6 +255,7 @@ namespace Decompiler
         }
 
         private static bool _Show_Array_Size = false;
+        public static bool Show_Array_Size { get => _Show_Array_Size; }
 
         public static bool Find_Reverse_Hashes()
         {
@@ -251,16 +263,7 @@ namespace Decompiler
         }
 
         private static bool _Reverse_Hashes = false;
-
-        public static bool Reverse_Hashes
-        {
-            get { return _Reverse_Hashes; }
-        }
-
-        public static bool Show_Array_Size
-        {
-            get { return _Show_Array_Size; }
-        }
+        public static bool Reverse_Hashes { get => _Reverse_Hashes; }
 
         public static bool Find_Declare_Variables()
         {
@@ -268,11 +271,7 @@ namespace Decompiler
         }
 
         private static bool _Declare_Variables = false;
-
-        public static bool Declare_Variables
-        {
-            get { return _Declare_Variables; }
-        }
+        public static bool Declare_Variables { get => _Declare_Variables; }
 
         public static bool Find_Shift_Variables()
         {
@@ -280,11 +279,7 @@ namespace Decompiler
         }
 
         private static bool _Shift_Variables = false;
-
-        public static bool Shift_Variables
-        {
-            get { return _Shift_Variables; }
-        }
+        public static bool Shift_Variables { get => _Shift_Variables; }
 
         public static bool Find_Use_MultiThreading()
         {
@@ -292,11 +287,7 @@ namespace Decompiler
         }
 
         private static bool _Use_MultiThreading = false;
-
-        public static bool Use_MultiThreading
-        {
-            get { return _Use_MultiThreading; }
-        }
+        public static bool Use_MultiThreading { get => _Use_MultiThreading; }
 
         public static bool Find_IncFuncPos()
         {
@@ -304,11 +295,7 @@ namespace Decompiler
         }
 
         private static bool _IncFuncPos = false;
-
-        public static bool IncFuncPos
-        {
-            get { return _IncFuncPos; }
-        }
+        public static bool IncFuncPos { get => _IncFuncPos; }
 
         public static bool Find_Show_Func_Pointer()
         {
@@ -316,11 +303,7 @@ namespace Decompiler
         }
 
         private static bool _Show_Func_Pointer = false;
-
-        public static bool Show_Func_Pointer
-        {
-            get { return _Show_Func_Pointer; }
-        }
+        public static bool Show_Func_Pointer { get => _Show_Func_Pointer; }
 
         public static bool Find_Nat_Namespace()
         {
@@ -328,11 +311,7 @@ namespace Decompiler
         }
 
         private static bool _Show_Nat_Namespace = false;
-
-        public static bool Show_Nat_Namespace
-        {
-            get { return _Show_Nat_Namespace; }
-        }
+        public static bool Show_Nat_Namespace { get => _Show_Nat_Namespace; }
 
         public static bool Find_Hex_Index()
         {
@@ -340,11 +319,7 @@ namespace Decompiler
         }
 
         private static bool _Hex_Index = false;
-
-        public static bool Hex_Index
-        {
-            get { return _Hex_Index; }
-        }
+        public static bool Hex_Index { get => _Hex_Index; }
 
         public static bool Find_Upper_Natives()
         {
@@ -352,17 +327,17 @@ namespace Decompiler
         }
 
         private static bool _upper_Natives = false;
-        public static bool Upper_Natives { get { return _upper_Natives; } }
+        public static bool Upper_Natives { get => _upper_Natives; }
         public static string NativeName(string s) => Program.Upper_Natives ? s.ToUpper() : s.ToLower();
 
         private static bool _AggregateFunctions = false;
-        public static bool AggregateFunctions { get { return _AggregateFunctions; } }
+        public static bool AggregateFunctions { get => _AggregateFunctions; }
 
         private static int _agg_min_lines = 7;
-        public static int AggregateMinLines { get { return _agg_min_lines; } }
+        public static int AggregateMinLines { get => _agg_min_lines; }
 
         private static int _agg_min_hits = 3;
-        public static int AggregateMinHits { get { return _agg_min_hits; } }
+        public static int AggregateMinHits { get => _agg_min_hits; }
 
         public static int Find_Aggregate_MinLines()
         {
@@ -380,16 +355,19 @@ namespace Decompiler
             return _agg_min_hits;
         }
 
+        private static bool _compress = false;
+        public static bool Compress { get => _compress; }
+
         private static bool _bit32 = false;
-        public static bool IsBit32 { get { return _bit32; } }
+        public static bool IsBit32 { get => _bit32; }
 
         private static bool _endian = false;
-        public static bool SwapEndian { get { return _endian; } }
+        public static bool SwapEndian { get => _endian; }
 
         private static bool _rdrOpcodes = false;
-        public static bool RDROpcodes { get { return _rdrOpcodes; } }
+        public static bool RDROpcodes { get => _rdrOpcodes; }
 
         private static bool _rdrPCCipher = false;
-        public static bool RDRNativeCipher { get { return _rdrPCCipher; } }
+        public static bool RDRNativeCipher { get => _rdrPCCipher; }
     }
 }
