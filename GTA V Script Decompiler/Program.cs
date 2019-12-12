@@ -118,10 +118,7 @@ namespace Decompiler
             MemoryStream buffer = new MemoryStream();
             using (Stream fs = File.OpenRead(inputPath))
             {
-                if (Program.CompressedInput)
-                    (Program.CompressedInput ? new GZipStream(fs, CompressionMode.Decompress) : fs).CopyTo(buffer);
-                else
-                    fs.CopyTo(buffer);
+                (Program.CompressedInput ? new GZipStream(fs, CompressionMode.Decompress) : fs).CopyTo(buffer);
             }
 
             ScriptFile scriptFile = new ScriptFile(buffer, Program.Codeset);
