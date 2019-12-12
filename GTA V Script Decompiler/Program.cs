@@ -215,7 +215,11 @@ namespace Decompiler
                 try
                 {
                     string suffix = ".c" + (Program.CompressedOutput ? ".gz" : "");
-                    string output = Path.Combine(SaveDirectory, Path.GetFileNameWithoutExtension(scriptToDecode) + suffix);
+                    string outname = Path.GetFileNameWithoutExtension(scriptToDecode);
+                    if (Path.GetExtension(outname) == ".full")
+                        outname = Path.GetFileNameWithoutExtension(outname);
+
+                    string output = Path.Combine(SaveDirectory, outname + suffix);
                     Console.WriteLine("Decompiling: " + scriptToDecode + " > " + output);
 
                     ScriptFile scriptFile = ProcessScriptfile(scriptToDecode, output);
