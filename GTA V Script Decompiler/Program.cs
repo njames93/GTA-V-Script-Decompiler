@@ -116,8 +116,6 @@ namespace Decompiler
         {
             /* A ScriptFile tends to skip around the offset table */
             MemoryStream buffer = new MemoryStream();
-
-            Console.WriteLine(inputPath);
             using (Stream fs = File.OpenRead(inputPath))
             {
                 if (Program.CompressedInput)
@@ -221,6 +219,7 @@ namespace Decompiler
                 {
                     string suffix = ".c" + (Program.CompressedOutput ? ".gz" : "");
                     string output = Path.Combine(SaveDirectory, Path.GetFileNameWithoutExtension(scriptToDecode) + suffix);
+                    Console.WriteLine("Decompiling: " + scriptToDecode + " > " + output);
 
                     ScriptFile scriptFile = ProcessScriptfile(scriptToDecode, output);
                     if (Program.AggregateFunctions) /* Compile aggregation statistics for each function. */
