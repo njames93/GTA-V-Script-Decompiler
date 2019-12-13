@@ -551,7 +551,6 @@ namespace Decompiler
 
                         //more cases left in switch
                         //so write the next switch case
-                        writeline("");
                         for (int i = 0; i < (OuterSwitch.Cases[OuterSwitch.Offsets[0]]).Count; i++)
                         {
                             string temp = OuterSwitch.Cases[OuterSwitch.Offsets[0]][i];
