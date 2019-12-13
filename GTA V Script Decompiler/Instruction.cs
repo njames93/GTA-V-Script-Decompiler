@@ -502,146 +502,147 @@ namespace Decompiler
         public override Instruction Map(byte v) { return v < Count ? RDROpcodeSet.Remap[v] : Instruction.RAGE_last; }
 
         public static readonly Dictionary<Instruction, int> ShuffledInstructions = new Dictionary<Instruction, int> {
-            { Instruction.RAGE_NOP, 0 }, // Removed
-            { Instruction.RAGE_IADD, 0 }, // Removed
-            { Instruction.RAGE_ISUB, 0 }, // Removed
-            { Instruction.RAGE_IMUL, 0 }, // Removed
-            { Instruction.RAGE_IDIV, 0 }, // Removed
-            { Instruction.RAGE_IMOD, 0 }, // Removed
-            { Instruction.RAGE_INOT, 0 }, // Removed
-            { Instruction.RAGE_INEG, 0 }, // Removed
-            { Instruction.RAGE_IEQ, 0 }, // Removed
-            { Instruction.RAGE_INE, 0 }, // Removed
-            { Instruction.RAGE_IGT, 0 }, // Removed
-            { Instruction.RAGE_IGE, 0 }, // Removed
-            { Instruction.RAGE_ILT, 0 }, // Removed
-            { Instruction.RAGE_ILE, 0 }, // Removed
-            { Instruction.RAGE_FADD, 0 }, // Removed
-            { Instruction.RAGE_FSUB, 0 }, // Removed
-            { Instruction.RAGE_FMUL, 0 }, // Removed
-            { Instruction.RAGE_FDIV, 0 }, // Removed
-            { Instruction.RAGE_FMOD, 0 }, // Removed
-            { Instruction.RAGE_FNEG, 0 }, // Removed
-            { Instruction.RAGE_FEQ, 0 }, // Removed
-            { Instruction.RAGE_FNE, 0 }, // Removed
-            { Instruction.RAGE_FGT, 0 }, // Removed
-            { Instruction.RAGE_FGE, 0 }, // Removed
-            { Instruction.RAGE_FLT, 0 }, // Removed
-            { Instruction.RAGE_FLE, 0 }, // Removed
-            { Instruction.RAGE_VADD, 0 }, // Removed
-            { Instruction.RAGE_VSUB, 0 }, // Removed
-            { Instruction.RAGE_VMUL, 0 }, // Removed
-            { Instruction.RAGE_VDIV, 0 }, // Removed
-            { Instruction.RAGE_VNEG, 0 }, // Removed
-            { Instruction.RAGE_IAND, 0 }, // Removed
-            { Instruction.RAGE_IOR, 0 }, // Removed
-            { Instruction.RAGE_IXOR, 0 }, // Removed
-            { Instruction.RAGE_I2F, 0 }, // Removed
-            { Instruction.RAGE_F2I, 0 }, // Removed
-            { Instruction.RAGE_F2V, 0 }, // Removed
-            { Instruction.RAGE_PUSH_CONST_U8, 0 }, // Removed
-            { Instruction.RAGE_PUSH_CONST_U8_U8, 0 }, // Removed
-            { Instruction.RAGE_PUSH_CONST_U8_U8_U8, 0 }, // Removed
-            { Instruction.RAGE_PUSH_CONST_U32, 0 }, // Removed
-            { Instruction.RAGE_PUSH_CONST_F, 0 }, // Removed
-            { Instruction.RAGE_DUP, 0 }, // Removed
-            { Instruction.RAGE_DROP, 0 }, // Removed
-            { Instruction.RAGE_NATIVE, 0 }, // Removed
-            { Instruction.RAGE_ENTER, 0 }, // Removed
-            { Instruction.RAGE_LEAVE, 0 }, // Removed
-            { Instruction.RAGE_LOAD, 0 }, // Removed
-            { Instruction.RAGE_STORE, 0 }, // Removed
-            { Instruction.RAGE_STORE_REV, 0 }, // Removed
-            { Instruction.RAGE_LOAD_N, 0 }, // Removed
-            { Instruction.RAGE_STORE_N, 0 }, // Removed
-            { Instruction.RAGE_ARRAY_U8, 0 }, // Removed
-            { Instruction.RAGE_ARRAY_U8_LOAD, 0 }, // Removed
-            { Instruction.RAGE_ARRAY_U8_STORE, 0 }, // Removed
-            { Instruction.RAGE_LOCAL_U8, 0 }, // Removed
-            { Instruction.RAGE_LOCAL_U8_LOAD, 0 }, // Removed
-            { Instruction.RAGE_LOCAL_U8_STORE, 0 }, // Removed
-            { Instruction.RAGE_STATIC_U8, 0 }, // Removed
-            { Instruction.RAGE_STATIC_U8_LOAD, 0 }, // Removed
-            { Instruction.RAGE_STATIC_U8_STORE, 0 }, // Removed
-            { Instruction.RAGE_IADD_U8, 0 }, // Removed
-            { Instruction.RAGE_IMUL_U8, 0 }, // Removed
-            { Instruction.RAGE_IOFFSET, 0 }, // Removed
-            { Instruction.RAGE_IOFFSET_U8, 0 }, // Removed
-            { Instruction.RAGE_IOFFSET_U8_LOAD, 0 }, // Removed
-            { Instruction.RAGE_IOFFSET_U8_STORE, 0 }, // Removed
-            { Instruction.RAGE_PUSH_CONST_S16, 0 }, // Removed
-            { Instruction.RAGE_IADD_S16, 0 }, // Removed
-            { Instruction.RAGE_IMUL_S16, 0 }, // Removed
-            { Instruction.RAGE_IOFFSET_S16, 0 }, // Removed
-            { Instruction.RAGE_IOFFSET_S16_LOAD, 0 }, // Removed
-            { Instruction.RAGE_IOFFSET_S16_STORE, 0 }, // Removed
-            { Instruction.RAGE_ARRAY_U16, 0 }, // Removed
-            { Instruction.RAGE_ARRAY_U16_LOAD, 0 }, // Removed
-            { Instruction.RAGE_ARRAY_U16_STORE, 0 }, // Removed
-            { Instruction.RAGE_LOCAL_U16, 0 }, // Removed
-            { Instruction.RAGE_LOCAL_U16_LOAD, 0 }, // Removed
-            { Instruction.RAGE_LOCAL_U16_STORE, 0 }, // Removed
-            { Instruction.RAGE_STATIC_U16, 0 }, // Removed
-            { Instruction.RAGE_STATIC_U16_LOAD, 0 }, // Removed
-            { Instruction.RAGE_STATIC_U16_STORE, 0 }, // Removed
-            { Instruction.RAGE_GLOBAL_U16, 0 }, // Removed
-            { Instruction.RAGE_GLOBAL_U16_LOAD, 0 }, // Removed
-            { Instruction.RAGE_GLOBAL_U16_STORE, 0 }, // Removed
-            { Instruction.RAGE_J, 0 }, // Removed
-            { Instruction.RAGE_JZ, 0 }, // Removed
-            { Instruction.RAGE_IEQ_JZ, 0 }, // Removed
-            { Instruction.RAGE_INE_JZ, 0 }, // Removed
-            { Instruction.RAGE_IGT_JZ, 0 }, // Removed
-            { Instruction.RAGE_IGE_JZ, 0 }, // Removed
-            { Instruction.RAGE_ILT_JZ, 0 }, // Removed
-            { Instruction.RAGE_ILE_JZ, 0 }, // Removed
-            { Instruction.RAGE_CALL, 0 }, // Removed
-            { Instruction.RAGE_GLOBAL_U24, 0 }, // Removed
-            { Instruction.RAGE_GLOBAL_U24_LOAD, 0 }, // Removed
-            { Instruction.RAGE_GLOBAL_U24_STORE, 0 }, // Removed
-            { Instruction.RAGE_PUSH_CONST_U24, 0 }, // Removed
-            { Instruction.RAGE_SWITCH, 0 }, // Removed
-            { Instruction.RAGE_STRING, 0 }, // Removed
-            { Instruction.RAGE_STRINGHASH, 0 }, // Removed
-            { Instruction.RAGE_TEXT_LABEL_ASSIGN_STRING, 0 }, // Removed
-            { Instruction.RAGE_TEXT_LABEL_ASSIGN_INT, 0 }, // Removed
-            { Instruction.RAGE_TEXT_LABEL_APPEND_STRING, 0 }, // Removed
-            { Instruction.RAGE_TEXT_LABEL_APPEND_INT, 0 }, // Removed
-            { Instruction.RAGE_TEXT_LABEL_COPY, 0 }, // Removed
-            { Instruction.RAGE_CATCH, 0 }, // Removed
-            { Instruction.RAGE_THROW, 0 }, // Removed
-            { Instruction.RAGE_CALLINDIRECT, 0 }, // Removed
-            { Instruction.RAGE_PUSH_CONST_M1, 0 }, // Removed
-            { Instruction.RAGE_PUSH_CONST_0, 0 }, // Removed
-            { Instruction.RAGE_PUSH_CONST_1, 0 }, // Removed
-            { Instruction.RAGE_PUSH_CONST_2, 0 }, // Removed
-            { Instruction.RAGE_PUSH_CONST_3, 0 }, // Removed
-            { Instruction.RAGE_PUSH_CONST_4, 0 }, // Removed
-            { Instruction.RAGE_PUSH_CONST_5, 0 }, // Removed
-            { Instruction.RAGE_PUSH_CONST_6, 0 }, // Removed
-            { Instruction.RAGE_PUSH_CONST_7, 0 }, // Removed
-            { Instruction.RAGE_PUSH_CONST_FM1, 0 }, // Removed
-            { Instruction.RAGE_PUSH_CONST_F0, 0 }, // Removed
-            { Instruction.RAGE_PUSH_CONST_F1, 0 }, // Removed
-            { Instruction.RAGE_PUSH_CONST_F2, 0 }, // Removed
-            { Instruction.RAGE_PUSH_CONST_F3, 0 }, // Removed
-            { Instruction.RAGE_PUSH_CONST_F4, 0 }, // Removed
-            { Instruction.RAGE_PUSH_CONST_F5, 0 }, // Removed
-            { Instruction.RAGE_PUSH_CONST_F6, 0 }, // Removed
-            { Instruction.RAGE_PUSH_CONST_F7, 0 }, // Removed
+            { Instruction.RAGE_NOP, 77 },
+            { Instruction.RAGE_IADD, 105 },
+            { Instruction.RAGE_ISUB, 79 },
+            { Instruction.RAGE_IMUL, 12 },
+            { Instruction.RAGE_IDIV, 27 },
+            { Instruction.RAGE_IMOD, 124 },
+            { Instruction.RAGE_INOT, 89 },
+            { Instruction.RAGE_INEG, 120 },
+            { Instruction.RAGE_IEQ, 138 },
+            { Instruction.RAGE_INE, 2 },
+            { Instruction.RAGE_IGT, 101 },
+            { Instruction.RAGE_IGE, 133 },
+            { Instruction.RAGE_ILT, 11 },
+            { Instruction.RAGE_ILE, 53 },
+            { Instruction.RAGE_FADD, 115 },
+            { Instruction.RAGE_FSUB, 84 },
+            { Instruction.RAGE_FMUL, 51 },
+            { Instruction.RAGE_FDIV, 70 },
+            { Instruction.RAGE_FMOD, 135 },
+            { Instruction.RAGE_FNEG, 37 },
+            { Instruction.RAGE_FEQ, 50 },
+            { Instruction.RAGE_FNE, 57 },
+            { Instruction.RAGE_FGT, 131 },
+            { Instruction.RAGE_FGE, 130 },
+            { Instruction.RAGE_FLT, 90 },
+            { Instruction.RAGE_FLE, 68 },
+            { Instruction.RAGE_VADD, 88 },
+            { Instruction.RAGE_VSUB, 5 },
+            { Instruction.RAGE_VMUL, 60 },
+            { Instruction.RAGE_VDIV, 55 },
+            { Instruction.RAGE_VNEG, 121 },
+            { Instruction.RAGE_IAND, 44 },
+            { Instruction.RAGE_IOR, 36 },
+            { Instruction.RAGE_IXOR, 75 },
+            { Instruction.RAGE_I2F, 35 },
+            { Instruction.RAGE_F2I, 104 },
+            { Instruction.RAGE_F2V, 18 },
+            { Instruction.RAGE_PUSH_CONST_U8, 128 },
+            { Instruction.RAGE_PUSH_CONST_U8_U8, 85 },
+            { Instruction.RAGE_PUSH_CONST_U8_U8_U8, 21 },
+            { Instruction.RAGE_PUSH_CONST_U32, 80 },
+            { Instruction.RAGE_PUSH_CONST_F, 103 },
+            { Instruction.RAGE_DUP, 16 },
+            { Instruction.RAGE_DROP, 92 },
+            { Instruction.RAGE_NATIVE, 95 },
+            { Instruction.RAGE_ENTER, 134 },
+            { Instruction.RAGE_LEAVE, 107 },
+            { Instruction.RAGE_LOAD, 10 },
+            { Instruction.RAGE_STORE, 33 },
+            { Instruction.RAGE_STORE_REV, 69 },
+            { Instruction.RAGE_LOAD_N, 137 },
+            { Instruction.RAGE_STORE_N, 67 },
+            { Instruction.RAGE_ARRAY_U8, 97 },
+            { Instruction.RAGE_ARRAY_U8_LOAD, 28 },
+            { Instruction.RAGE_ARRAY_U8_STORE, 71 },
+            { Instruction.RAGE_LOCAL_U8, 112 },
+            { Instruction.RAGE_LOCAL_U8_LOAD, 136 },
+            { Instruction.RAGE_LOCAL_U8_STORE, 127 },
+            { Instruction.RAGE_STATIC_U8, 119 },
+            { Instruction.RAGE_STATIC_U8_LOAD, 48 },
+            { Instruction.RAGE_STATIC_U8_STORE, 123 },
+            { Instruction.RAGE_IADD_U8, 9 },
+            { Instruction.RAGE_IMUL_U8, 106 },
+            { Instruction.RAGE_IOFFSET, 125 },
+            { Instruction.RAGE_IOFFSET_U8, 100 },
+            { Instruction.RAGE_IOFFSET_U8_LOAD, 110 },
+            { Instruction.RAGE_IOFFSET_U8_STORE, 3 },
+            { Instruction.RAGE_PUSH_CONST_S16, 26 },
+            { Instruction.RAGE_IADD_S16, 54 },
+            { Instruction.RAGE_IMUL_S16, 91 },
+            { Instruction.RAGE_IOFFSET_S16, 38 },
+            { Instruction.RAGE_IOFFSET_S16_LOAD, 6 },
+            { Instruction.RAGE_IOFFSET_S16_STORE, 93 },
+            { Instruction.RAGE_ARRAY_U16, 111 },
+            { Instruction.RAGE_ARRAY_U16_LOAD, 64 },
+            { Instruction.RAGE_ARRAY_U16_STORE, 25 },
+            { Instruction.RAGE_LOCAL_U16, 56 },
+            { Instruction.RAGE_LOCAL_U16_LOAD, 39 },
+            { Instruction.RAGE_LOCAL_U16_STORE, 4 },
+            { Instruction.RAGE_STATIC_U16, 114 },
+            { Instruction.RAGE_STATIC_U16_LOAD, 76 },
+            { Instruction.RAGE_STATIC_U16_STORE, 94 },
+            { Instruction.RAGE_GLOBAL_U16, 30 },
+            { Instruction.RAGE_GLOBAL_U16_LOAD, 126 },
+            { Instruction.RAGE_GLOBAL_U16_STORE, 23 },
+            { Instruction.RAGE_J, 96 },
+            { Instruction.RAGE_JZ, 66 },
+            { Instruction.RAGE_IEQ_JZ, 129 },
+            { Instruction.RAGE_INE_JZ, 31 },
+            { Instruction.RAGE_IGT_JZ, 1 },
+            { Instruction.RAGE_IGE_JZ, 99 },
+            { Instruction.RAGE_ILT_JZ, 29 },
+            { Instruction.RAGE_ILE_JZ, 118 },
+            { Instruction.RAGE_CALL, 34 },
+            { Instruction.RAGE_GLOBAL_U24, 86 },
+            { Instruction.RAGE_GLOBAL_U24_LOAD, 7 },
+            { Instruction.RAGE_GLOBAL_U24_STORE, 65 },
+            { Instruction.RAGE_PUSH_CONST_U24, 46 },
+            { Instruction.RAGE_SWITCH, 102 },
+            { Instruction.RAGE_STRING, 116 },
+            { Instruction.RAGE_STRINGHASH, 62 },
+            { Instruction.RAGE_TEXT_LABEL_ASSIGN_STRING, 78 },
+            { Instruction.RAGE_TEXT_LABEL_ASSIGN_INT, 32 },
+            { Instruction.RAGE_TEXT_LABEL_APPEND_STRING, 40 },
+            { Instruction.RAGE_TEXT_LABEL_APPEND_INT, 72 },
+            { Instruction.RAGE_TEXT_LABEL_COPY, 109 },
+            { Instruction.RAGE_CATCH, 117 },
+            { Instruction.RAGE_THROW, 47 },
+            { Instruction.RAGE_CALLINDIRECT, 22 },
+            { Instruction.RAGE_PUSH_CONST_M1, 24 },
+            { Instruction.RAGE_PUSH_CONST_0, 13 },
+            { Instruction.RAGE_PUSH_CONST_1, 98 },
+            { Instruction.RAGE_PUSH_CONST_2, 45 },
+            { Instruction.RAGE_PUSH_CONST_3, 0 },
+            { Instruction.RAGE_PUSH_CONST_4, 108 },
+            { Instruction.RAGE_PUSH_CONST_5, 83 },
+            { Instruction.RAGE_PUSH_CONST_6, 73 },
+            { Instruction.RAGE_PUSH_CONST_7, 15 },
+            { Instruction.RAGE_PUSH_CONST_FM1, 17 },
+            { Instruction.RAGE_PUSH_CONST_F0, 14 },
+            { Instruction.RAGE_PUSH_CONST_F1, 52 },
+            { Instruction.RAGE_PUSH_CONST_F2, 122 },
+            { Instruction.RAGE_PUSH_CONST_F3, 81 },
+            { Instruction.RAGE_PUSH_CONST_F4, 49 },
+            { Instruction.RAGE_PUSH_CONST_F5, 63 },
+            { Instruction.RAGE_PUSH_CONST_F6, 41 },
+            { Instruction.RAGE_PUSH_CONST_F7, 87 },
+
             // Temporary Mapping
-            { Instruction.RAGE_LOCAL_LOAD_S, 0 }, // Removed
-            { Instruction.RAGE_LOCAL_STORE_S, 0 }, // Removed
-            { Instruction.RAGE_LOCAL_STORE_SR, 0 }, // Removed
-            { Instruction.RAGE_STATIC_LOAD_S, 0 }, // Removed
-            { Instruction.RAGE_STATIC_STORE_S, 0 }, // Removed
-            { Instruction.RAGE_STATIC_STORE_SR, 0 }, // Removed
-            { Instruction.RAGE_LOAD_N_S, 0 }, // Removed
-            { Instruction.RAGE_STORE_N_S, 0 }, // Removed
-            { Instruction.RAGE_STORE_N_SR, 0 }, // Removed
-            { Instruction.RAGE_GLOBAL_LOAD_S, 0 }, // Removed
-            { Instruction.RAGE_GLOBAL_STORE_S, 0 }, // Removed
-            { Instruction.RAGE_GLOBAL_STORE_SR, 0 }, // Removed
+            { Instruction.RAGE_LOCAL_LOAD_S, 8 },
+            { Instruction.RAGE_LOCAL_STORE_S, 19 },
+            { Instruction.RAGE_LOCAL_STORE_SR, 20 },
+            { Instruction.RAGE_STATIC_LOAD_S, 42 },
+            { Instruction.RAGE_STATIC_STORE_S, 43 },
+            { Instruction.RAGE_STATIC_STORE_SR, 58 },
+            { Instruction.RAGE_LOAD_N_S, 59 },
+            { Instruction.RAGE_STORE_N_S, 61 },
+            { Instruction.RAGE_STORE_N_SR, 74 },
+            { Instruction.RAGE_GLOBAL_LOAD_S, 82 },
+            { Instruction.RAGE_GLOBAL_STORE_S, 113 },
+            { Instruction.RAGE_GLOBAL_STORE_SR, 132 },
         };
 
         public static readonly Dictionary<int, Instruction> Remap = ShuffledInstructions.ToDictionary((i) => i.Value, (i) => i.Key);
