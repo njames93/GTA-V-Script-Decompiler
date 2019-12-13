@@ -326,7 +326,7 @@ namespace Decompiler
 
         public void AppendLine(string line)
         {
-            sb.AppendLine(line);
+            sb.AppendLine(line.TrimEnd());
             LineCount++;
         }
 
