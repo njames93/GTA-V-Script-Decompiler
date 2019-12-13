@@ -63,7 +63,7 @@ namespace Decompiler
                     break;
                 case "rdr":
                     _rdrOpcodes = _rdrPCCipher = true;
-                    Program.Codeset = new RDOpcodeSet();
+                    Program.Codeset = new RDROpcodeSet();
                     break;
                 case "rdrconsole":
                     _rdrOpcodes = true;

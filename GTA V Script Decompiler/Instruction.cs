@@ -495,11 +495,11 @@ namespace Decompiler
     /// <summary>
     ///
     /// </summary>
-    public class RDOpcodeSet : OpcodeSet
+    public class RDROpcodeSet : OpcodeSet
     {
         public override int Count => 139;
 
-        public override Instruction Map(byte v) { return v < Count ? RDOpcodeSet.Remap[v] : Instruction.RAGE_last; }
+        public override Instruction Map(byte v) { return v < Count ? RDROpcodeSet.Remap[v] : Instruction.RAGE_last; }
 
         public static readonly Dictionary<Instruction, int> ShuffledInstructions = new Dictionary<Instruction, int> {
             { Instruction.RAGE_NOP, 0 }, // Removed

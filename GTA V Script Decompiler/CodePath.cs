@@ -90,8 +90,8 @@ namespace Decompiler
         {
             this.Cases = Cases;
             Offsets = Cases == null ? new List<int>() : Cases.Keys.ToList();
-            Offsets.Add(BreakOffset);
             if (Program.RDROpcodes) Offsets.Sort();
+            Offsets.Add(BreakOffset); // Ensure default is last offset
             foreach (int offset in Offsets)
                 EscapedCases[offset] = false;
         }
@@ -101,8 +101,8 @@ namespace Decompiler
         {
             this.Cases = Cases;
             Offsets = Cases == null ? new List<int>() : Cases.Keys.ToList();
-            Offsets.Add(BreakOffset);
             if (Program.RDROpcodes) Offsets.Sort();
+            Offsets.Add(BreakOffset);  // Ensure default is last offset
             foreach (int offset in Offsets)
                 EscapedCases[offset] = false;
         }

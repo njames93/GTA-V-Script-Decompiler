@@ -654,9 +654,10 @@ namespace Decompiler
                 else
                 {
                     //Default location is a new code path
-                    cases.Add(defaultloc, new List<string>(new string[] { "default" }));
                     sorted = cases.Keys.ToList();
                     sorted.Sort();
+                    sorted.Add(defaultloc);  // Ensure default is last offset
+                    cases.Add(defaultloc, new List<string>(new string[] { "default" }));
                 }
             }
 

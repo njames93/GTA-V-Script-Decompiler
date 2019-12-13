@@ -582,6 +582,11 @@ namespace Decompiler
                 Push("(&" + s1.Value + " + " + s2.Value + ")", DataType.Unk);
                 return;
             }
+            else if (s1.ItemType == StackValue.Type.Pointer && s2.ItemType == StackValue.Type.Pointer)
+            {
+                Push("(" + s1.Value + " + " + s2.Value + ") // PointerArith", DataType.Unk);
+                return;
+            }
             throw new Exception("Unexpected stack value");
         }
 
@@ -611,6 +616,11 @@ namespace Decompiler
             else if (s1.ItemType == StackValue.Type.Pointer && s2.ItemType == StackValue.Type.Literal)
             {
                 Push("(&" + s1.Value + " - " + s2.Value + ")", DataType.Unk);
+                return;
+            }
+            else if (s1.ItemType == StackValue.Type.Pointer && s2.ItemType == StackValue.Type.Pointer)
+            {
+                Push("(" + s1.Value + " - " + s2.Value + ") // PointerArith", DataType.Unk);
                 return;
             }
             throw new Exception("Unexpected stack value");
@@ -822,8 +832,13 @@ namespace Decompiler
             StackValue s1 = Pop();
             StackValue s2 = Pop();
             int temp;
-            if (s1.ItemType != StackValue.Type.Literal && s2.ItemType != StackValue.Type.Literal)
-                throw new Exception("Not a literal item recieved");
+            if (s1.ItemType == StackValue.Type.Pointer && s1.ItemType == StackValue.Type.Pointer)
+            {
+                Push("(" + s2.Value + " && " + s1.Value + ") // PointerArith");
+                return;
+            }
+            else if (s1.ItemType != StackValue.Type.Literal && s2.ItemType != StackValue.Type.Literal)
+                throw new Exception("Not a literal item recieved: " + s1.ItemType + " " + s2.ItemType);
             if (s1.Datatype == DataType.Bool || s2.Datatype == DataType.Bool)
                 PushCond("(" + s2.Value + " && " + s1.Value + ")");
             else if (Utils.IntParse(s1.Value, out temp) || Utils.IntParse(s2.Value, out temp))
@@ -837,8 +852,13 @@ namespace Decompiler
             StackValue s1 = Pop();
             StackValue s2 = Pop();
             int temp;
-            if (s1.ItemType != StackValue.Type.Literal && s2.ItemType != StackValue.Type.Literal)
-                throw new Exception("Not a literal item recieved");
+            if (s1.ItemType == StackValue.Type.Pointer && s1.ItemType == StackValue.Type.Pointer)
+            {
+                Push("(" + s2.Value + " || " + s1.Value + ") // PointerArith");
+                return;
+            }
+            else if (s1.ItemType != StackValue.Type.Literal && s2.ItemType != StackValue.Type.Literal)
+                throw new Exception("Not a literal item recieved: " + s1.ItemType + " " + s2.ItemType);
             if (s1.Datatype == DataType.Bool || s2.Datatype == DataType.Bool)
                 PushCond("(" + s2.Value + " || " + s1.Value + ")");
             else if (Utils.IntParse(s1.Value, out temp) || Utils.IntParse(s2.Value, out temp))
