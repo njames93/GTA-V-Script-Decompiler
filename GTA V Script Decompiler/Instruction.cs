@@ -193,12 +193,12 @@ namespace Decompiler
                 else if (Program.getIntType == Program.IntType._uint)
                 {
                     UInt32 hash = BitConverter.ToUInt32(operands, 2 + index * 6);
-                    return ScriptFile.hashbank.GetHash(Program.SwapEndian ? Utils.SwapEndian(hash) : hash);
+                    return Program.hashbank.GetHash(Program.SwapEndian ? Utils.SwapEndian(hash) : hash);
                 }
                 else
                 {
                     Int32 hash = BitConverter.ToInt32(operands, 2 + index * 6);
-                    return ScriptFile.hashbank.GetHash(Program.SwapEndian ? Utils.SwapEndian(hash) : hash);
+                    return Program.hashbank.GetHash(Program.SwapEndian ? Utils.SwapEndian(hash) : hash);
                 }
             }
             else
@@ -208,12 +208,12 @@ namespace Decompiler
                 else if (Program.getIntType == Program.IntType._uint)
                 {
                     UInt32 hash = BitConverter.ToUInt32(operands, 1 + index * 6);
-                    return ScriptFile.hashbank.GetHash(Program.SwapEndian ? Utils.SwapEndian(hash) : hash);
+                    return Program.hashbank.GetHash(Program.SwapEndian ? Utils.SwapEndian(hash) : hash);
                 }
                 else
                 {
                     Int32 hash = BitConverter.ToInt32(operands, 1 + index * 6);
-                    return ScriptFile.hashbank.GetHash(Program.SwapEndian ? Utils.SwapEndian(hash) : hash);
+                    return Program.hashbank.GetHash(Program.SwapEndian ? Utils.SwapEndian(hash) : hash);
                 }
             }
         }

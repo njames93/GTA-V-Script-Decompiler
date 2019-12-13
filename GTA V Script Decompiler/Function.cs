@@ -1036,9 +1036,9 @@ namespace Decompiler
                     }
                     Stack.DataType type = Stack.DataType.Int;
                     if (Program.getIntType == Program.IntType._uint)
-                        Stack.Push(ScriptFile.hashbank.GetHash(Instructions[Offset].GetOperandsAsUInt, tempstring), type);
+                        Stack.Push(Program.hashbank.GetHash(Instructions[Offset].GetOperandsAsUInt, tempstring), type);
                     else
-                        Stack.Push(ScriptFile.hashbank.GetHash(Instructions[Offset].GetOperandsAsInt, tempstring), type);
+                        Stack.Push(Program.hashbank.GetHash(Instructions[Offset].GetOperandsAsInt, tempstring), type);
                     break;
                 }
                 case Instruction.RAGE_PUSH_CONST_S16:

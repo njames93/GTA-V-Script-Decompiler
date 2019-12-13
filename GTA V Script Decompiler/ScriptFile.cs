@@ -24,7 +24,6 @@ namespace Decompiler
         public Dictionary<int, FunctionName> FunctionLoc;
         public Dictionary<string, Tuple<int, int>> Function_loc = new Dictionary<string, Tuple<int, int>>();
 
-        public static Hashes hashbank = new Hashes();
         private Stream file;
         public ScriptHeader Header;
         public string name;

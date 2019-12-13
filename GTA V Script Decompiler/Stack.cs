@@ -267,6 +267,22 @@ namespace Decompiler
             return val.Value;
         }
 
+        public string PeekLiteralSuffix()
+        {
+            int index = _stack.Count - 1;
+            if (index < 0)
+                return "";
+
+            StackValue val = Peek();
+            if (val.ItemType == StackValue.Type.Literal && val.Datatype == DataType.Int)
+            {
+                int temp;
+                if (int.TryParse(val.Value, out temp) && Program.gxtbank.IsKnownGXT(temp))
+                    return Program.gxtbank.GetEntry(temp);
+            }
+            return "";
+        }
+
         private string PeekLit()
         {
             StackValue val = Peek();
@@ -929,6 +945,7 @@ namespace Decompiler
         public string Op_SetImm(uint immediate)
         {
             string pointer = PopStructAccess();
+            string suffix = PeekLiteralSuffix();
             string value = PopLit();
 
             string imm = "";
@@ -949,7 +966,7 @@ namespace Decompiler
                     }
                 }
             }
-            return setcheck(pointer + imm, value);
+            return setcheck(pointer + imm, value, suffix);
         }
 
         public void Op_GetImmP(uint immediate)
@@ -1020,8 +1037,9 @@ namespace Decompiler
         {
             string arrayloc = PopArrayAccess();
             string index = PopLit();
+            string suffix = PeekLiteralSuffix();
             string value = PopLit();
-            return setcheck(arrayloc + "[" + index + getarray(immediate) + "]", value);
+            return setcheck(arrayloc + "[" + index + getarray(immediate) + "]", value, suffix);
         }
 
         public void Op_ArrayGetP(uint immediate)
@@ -1238,10 +1256,11 @@ namespace Decompiler
 
         public string Op_RefSet()
         {
-            string pointer, value;
+            string pointer, value, suffix;
             pointer = PopPointerRef();
+            suffix = PeekLiteralSuffix();
             value = PopLit();
-            return setcheck(pointer, value);
+            return setcheck(pointer, value, suffix);
         }
 
         public string Op_PeekSet()
@@ -1255,7 +1274,8 @@ namespace Decompiler
 
         public string Op_Set(string location)
         {
-            return setcheck(location, PopLit());
+            string suffix = PeekLiteralSuffix();
+            return setcheck(location, PopLit(), suffix);
         }
 
         public string Op_Set(string location, Vars_Info.Var Variable)
@@ -1329,10 +1349,10 @@ namespace Decompiler
         /// <param name="loc"></param>
         /// <param name="value"></param>
         /// <returns></returns>
-        public string setcheck(string loc, string value)
+        public string setcheck(string loc, string value, string suffix = "")
         {
             if (!value.StartsWith(loc + " "))
-                return loc + " = " + value + ";";
+                return loc + " = " + value + ";" + suffix;
 
             string temp = value.Substring(loc.Length + 1);
             string op = temp.Remove(temp.IndexOf(' '));
@@ -1344,7 +1364,7 @@ namespace Decompiler
                 if (op == "-")
                     return loc + "--;";
             }
-            return loc + " " + op + "= " + newval + ";";
+            return loc + " " + op + "= " + newval + ";" + suffix;
         }
 
         #endregion

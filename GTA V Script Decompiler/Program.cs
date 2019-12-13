@@ -12,6 +12,9 @@ namespace Decompiler
     {
         public static OpcodeSet Codeset;
         public static x64NativeFile X64npi;
+        public static Hashes hashbank;
+        public static GXTEntries gxtbank;
+
         internal static Ini.IniFile Config;
         public static Object ThreadLock;
         public static int ThreadCount;
@@ -87,6 +90,8 @@ namespace Decompiler
             Program.Find_Aggregate_MinHits();
             Program.Find_Aggregate_MinLines();
 
+            Program.hashbank = new Hashes();
+            Program.gxtbank = new GXTEntries();
             Program._compressin = o.CompressedInput;
             Program._compressout = o.CompressOutput;
             Program._AggregateFunctions = o.Aggregate;
@@ -96,6 +101,9 @@ namespace Decompiler
 
         private static void InitializeNativeTable(string nativeFile)
         {
+            if (nativeFile != null && !File.Exists(nativeFile))
+                throw new Exception("Could not find provided native file: " + nativeFile);
+
             Stream nativeJson;
             if (nativeFile != null && File.Exists(nativeFile))
                 nativeJson = File.OpenRead(nativeFile);
@@ -216,7 +224,7 @@ namespace Decompiler
                 {
                     string suffix = ".c" + (Program.CompressedOutput ? ".gz" : "");
                     string outname = Path.GetFileNameWithoutExtension(scriptToDecode);
-                    if (Path.GetExtension(outname) == ".full")
+                    if (Path.GetExtension(scriptToDecode) == ".gz") // Ensure the extension without compression is removed.
                         outname = Path.GetFileNameWithoutExtension(outname);
 
                     string output = Path.Combine(SaveDirectory, outname + suffix);

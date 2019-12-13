@@ -1,4 +1,6 @@
 using System;
+using System.CodeDom;
+using System.CodeDom.Compiler;
 using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
@@ -12,7 +14,7 @@ namespace Decompiler
         public Hashes()
         {
             hashes = new Dictionary<int, string>();
-            string file = Path.Combine(Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location), "entities.dat");
+            string file = Path.Combine(Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location), "Entities.dat");
 
             StreamReader reader;
             if (File.Exists(file))
@@ -31,37 +33,24 @@ namespace Decompiler
             while (!reader.EndOfStream)
             {
                 string line = reader.ReadLine();
-                string[] split = line.Split(new char[] { ':' }, StringSplitOptions.RemoveEmptyEntries);
-                if (split.Length != 2)
-                    continue;
-                int hash = 0;
-                try
+                if (line.Contains(":"))
                 {
-                    hash = Convert.ToInt32(split[0]);
+                    string[] split = line.Split(new char[] { ':' }, StringSplitOptions.RemoveEmptyEntries);
+                    if (split.Length != 2)
+                        continue;
+
+                    int hash = Convert.ToInt32(split[0]);
+                    if (hash != 0 && !hashes.ContainsKey(hash))
+                        hashes.Add(hash, split[1].ToLower());
                 }
-                catch
+                else if (line.Trim().Length > 0)
                 {
-                    hash = (int)Convert.ToUInt32(split[0]);
+                    line = line.ToLower();
+                    int hash = (int) Utils.jenkins_one_at_a_time_hash(line);
+                    if (hash != 0 && !hashes.ContainsKey(hash))
+                        hashes.Add(hash, line.ToLower());
                 }
-                if (!hashes.ContainsKey(hash) && hash != 0)
-                    hashes.Add(hash, split[1].ToLower());
             }
-
-        }
-
-        public void Export_Entities()
-        {
-            Stream Decompressed =
-                File.Create(Path.Combine(Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location),
-                    "entities_exp.dat"));
-            Stream Compressed = new MemoryStream(Properties.Resources.Entities);
-            DeflateStream deflate = new DeflateStream(Compressed, CompressionMode.Decompress);
-            deflate.CopyTo(Decompressed);
-            deflate.Dispose();
-            Decompressed.Close();
-            System.Diagnostics.Process.Start(
-                Path.Combine(Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location)));
-
         }
 
         public string GetHash(int value, string temp = "")
@@ -97,6 +86,68 @@ namespace Decompiler
                 return "0x" + s;
             }
             return value.ToString();
+        }
+    }
+
+    public class GXTEntries
+    {
+        Dictionary<int, string> entries;
+
+        private static string ToLiteral(string input)
+        {
+            using (var writer = new StringWriter())
+            {
+                using (var provider = CodeDomProvider.CreateProvider("CSharp"))
+                {
+                    provider.GenerateCodeFromExpression(new CodePrimitiveExpression(input), writer, null);
+                    return writer.ToString();
+                }
+            }
+        }
+
+        public GXTEntries()
+        {
+            entries = new Dictionary<int, string>();
+            string file = Path.Combine(Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location), Program.RDROpcodes ? "rdrgxr.dat" : "vgxt.dat");
+
+            StreamReader reader;
+            if (File.Exists(file))
+            {
+                reader = new StreamReader(File.OpenRead(file));
+            }
+            else
+            {
+                reader = new StreamReader(new MemoryStream(Program.RDROpcodes ? Properties.Resources.rdrgxt : Properties.Resources.vgxt));
+            }
+            Populate(reader);
+        }
+
+        private void Populate(StreamReader reader)
+        {
+            while (!reader.EndOfStream)
+            {
+                string line = reader.ReadLine();
+                if (line.Contains(" // "))
+                {
+                    string[] split = line.Split(new string[] { " // " }, StringSplitOptions.RemoveEmptyEntries);
+                    if (split.Length != 2)
+                        continue;
+
+                    int hash = split[0].StartsWith("0x") ? Convert.ToInt32(split[0], 16) : (int)Utils.jenkins_one_at_a_time_hash(split[0]);
+                    if (hash != 0 && !entries.ContainsKey(hash))
+                        entries.Add(hash, ToLiteral(split[1]));
+                }
+            }
+        }
+
+        public bool IsKnownGXT(int value)
+        {
+            return entries.ContainsKey(value);
+        }
+
+        public string GetEntry(int value)
+        {
+            return " /* GXTEntry: " + entries[value] + " */";
         }
     }
 }

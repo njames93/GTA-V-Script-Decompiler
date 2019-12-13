@@ -134,7 +134,9 @@
     </Compile>
     <None Include="Resources\config.ini" />
     <None Include="Resources\Entities.dat" />
+    <None Include="Resources\vgxt.dat" />
     <None Include="Resources\natives.json" />
+    <None Include="Resources\rdrgxt.dat" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />

@@ -89,5 +89,25 @@ namespace Decompiler.Properties {
                 return ((byte[])(obj));
             }
         }
+        
+        /// <summary>
+        ///   Looks up a localized resource of type System.Byte[].
+        /// </summary>
+        internal static byte[] rdrgxt {
+            get {
+                object obj = ResourceManager.GetObject("rdrgxt", resourceCulture);
+                return ((byte[])(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized resource of type System.Byte[].
+        /// </summary>
+        internal static byte[] vgxt {
+            get {
+                object obj = ResourceManager.GetObject("vgxt", resourceCulture);
+                return ((byte[])(obj));
+            }
+        }
     }
 }
