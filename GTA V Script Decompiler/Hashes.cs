@@ -41,14 +41,13 @@ namespace Decompiler
 
                     int hash = Convert.ToInt32(split[0]);
                     if (hash != 0 && !hashes.ContainsKey(hash))
-                        hashes.Add(hash, split[1].ToLower());
+                        hashes.Add(hash, split[1]); // Dont use ToLower(), use whatever is defined in Entities.
                 }
                 else if (line.Trim().Length > 0)
                 {
-                    line = line.ToLower();
-                    int hash = (int) Utils.jenkins_one_at_a_time_hash(line);
+                    int hash = (int) Utils.jenkins_one_at_a_time_hash(line.ToLower());
                     if (hash != 0 && !hashes.ContainsKey(hash))
-                        hashes.Add(hash, line.ToLower());
+                        hashes.Add(hash, line); // Dont use ToLower(), use whatever is defined in Entities.
                 }
             }
         }
