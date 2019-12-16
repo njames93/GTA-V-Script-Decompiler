@@ -82,6 +82,9 @@ namespace Decompiler
             [Option("position", Default = false, Required = false, HelpText = "Show function location in definition")]
             public bool ShowFuncPosition { get; set; }
 
+            [Option("comment", Default = false, Required = false, HelpText = "Show inlined GXT entries and other comments.")]
+            public bool ShowEntryComments { get; set; }
+
             [Option("HexIndex", Default = false, Required = false, HelpText = "")]
             public bool HexIndex { get; set; }
         }
@@ -128,6 +131,7 @@ namespace Decompiler
                 Program.ShiftVariables = o.ShiftVariables;
                 Program.ReverseHashes = o.ReverseHashes;
                 Program.ShowArraySize = o.ShowArraySize;
+                Program.ShowEntryComments = o.ShowEntryComments;
                 Program.HexIndex = o.HexIndex;
                 Program.ShowFuncPosition = o.ShowFuncPosition;
                 switch (o.IntStyle.ToLower())
@@ -304,6 +308,7 @@ namespace Decompiler
         public static bool ReverseHashes { get; private set; } = true;
         public static IntType IntStyle { get; private set; } = IntType._int;
         public static bool ShowArraySize { get; private set; } = true;
+        public static bool ShowEntryComments { get; private set; } = true;
 
         public static bool HexIndex { get; private set; } = false;
         public static bool ShowFuncPosition { get; private set; } = false;

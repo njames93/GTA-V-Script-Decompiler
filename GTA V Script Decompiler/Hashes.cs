@@ -2,6 +2,7 @@ using System;
 using System.CodeDom;
 using System.CodeDom.Compiler;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.IO.Compression;
 
@@ -45,7 +46,7 @@ namespace Decompiler
                 }
                 else if (line.Trim().Length > 0)
                 {
-                    int hash = (int) Utils.jenkins_one_at_a_time_hash(line.ToLower());
+                    int hash = (int)Utils.jenkins_one_at_a_time_hash(line.ToLower());
                     if (hash != 0 && !hashes.ContainsKey(hash))
                         hashes.Add(hash, line); // Dont use ToLower(), use whatever is defined in Entities.
                 }
@@ -139,30 +140,30 @@ namespace Decompiler
             }
         }
 
-        public bool IsKnownGXT(int value)
-        {
-            return entries.ContainsKey(value);
-        }
 
-        public string GetEntry(int value)
+        public string GetEntry(int value, bool floatTranslate)
         {
-            return " /* GXTEntry: " + entries[value] + " */";
-        }
+            if (!Program.ShowEntryComments) return "";
+            if (entries.ContainsKey(value)) return " /* GXTEntry: " + entries[value] + " */";
 
-        public bool IsKnownGXT(string value)
-        {
-            int tmp;
-            return int.TryParse(value, out tmp) && IsKnownGXT(tmp);
-        }
-
-        public string GetEntry(string value)
-        {
-            int tmp;
-            if (int.TryParse(value, out tmp) && IsKnownGXT(tmp))
+            /* This is a hack. There are many like it. But this one is mine. */
+            if (floatTranslate && value != 1 && value != 0)
             {
-                return GetEntry(tmp);
+                float f = BitConverter.ToSingle(BitConverter.GetBytes(value), 0);
+                if (float.IsNaN(f) || float.IsInfinity(f) || f == 0f)
+                    return "";
+
+                string fs = f.ToString(CultureInfo.InvariantCulture);
+                if (!fs.Contains("E") && (((int)f == f && Math.Abs(f) < 10000f) || fs.Length < 6))
+                    return " /* Float: " + fs + "f */";
             }
             return "";
+        }
+
+        public string GetEntry(string value, bool floatTranslate)
+        {
+            int tmp;
+            return int.TryParse(value, out tmp) ? GetEntry(tmp, floatTranslate) : "";
         }
     }
 }

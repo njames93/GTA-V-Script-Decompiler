@@ -588,7 +588,7 @@ namespace Decompiler
                                 writeline("default:");
                             }
                             else
-                                writeline("case " + temp + ":" + Program.gxtbank.GetEntry(temp));
+                                writeline("case " + temp + ":" + Program.gxtbank.GetEntry(temp, false));
                         }
                         opentab(false);
 
@@ -698,7 +698,7 @@ namespace Decompiler
             for (int i = 0; i < cases[sortedOffset].Count; i++)
             {
                 string caseStr = cases[sortedOffset][i];
-                writeline("case " + caseStr + ":" + Program.gxtbank.GetEntry(caseStr));
+                writeline("case " + caseStr + ":" + Program.gxtbank.GetEntry(caseStr, false));
             }
 
             opentab(false);

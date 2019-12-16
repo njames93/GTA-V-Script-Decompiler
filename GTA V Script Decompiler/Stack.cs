@@ -1388,11 +1388,10 @@ namespace Decompiler
             {
                 get
                 {
-                    if (ItemType == StackValue.Type.Literal && Datatype == DataType.Int)
+                    int temp;
+                    if (ItemType == StackValue.Type.Literal && Datatype == DataType.Int && int.TryParse(Value, out temp))
                     {
-                        int temp;
-                        if (int.TryParse(Value, out temp) && Program.gxtbank.IsKnownGXT(temp))
-                            return Program.gxtbank.GetEntry(temp);
+                        return Program.gxtbank.GetEntry(temp, true);
                     }
                     return "";
                 }
