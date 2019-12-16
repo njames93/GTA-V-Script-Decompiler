@@ -189,7 +189,7 @@ namespace Decompiler
 
                 name = IsAggregate ? (working + "func_") : (working + Name);
                 working = "(" + Params.GetPDec() + ")";
-                strFirstLineCache = name + working + (Program.IncFuncPos ? ("//Position - 0x" + Location.ToString("X")) : "");
+                strFirstLineCache = name + working + (Program.ShowFuncPosition ? ("//Position - 0x" + Location.ToString("X")) : "");
             }
             return strFirstLineCache;
         }
@@ -312,7 +312,7 @@ namespace Decompiler
             Offset = 0;
 
             //write all the function variables declared by the function
-            if (Program.Declare_Variables)
+            if (Program.DeclareVariables)
             {
                 bool temp = false;
                 foreach (string s in Vars.GetDeclaration())
@@ -1050,23 +1050,11 @@ namespace Decompiler
                 case Instruction.RAGE_PUSH_CONST_U32:
                 case Instruction.RAGE_PUSH_CONST_U24:
                 {
-                    string tempstring = "";
-                    if (Program.Show_Func_Pointer)
-                    {
-                        // sanity check, though should never really be an issue as any push values < 10
-                        // wont be 3 or 4 byte pushes
-                        int tempint = Instructions[Offset].GetOperandsAsInt;
-                        if (tempint > 10)
-                        {
-                            if (Scriptfile.FunctionLoc.ContainsKey(tempint))
-                                tempstring = IsAggregate ? "/* func */" : ("/*" + Scriptfile.FunctionLoc[tempint].Name + "*/");
-                        }
-                    }
                     Stack.DataType type = Stack.DataType.Int;
-                    if (Program.getIntType == Program.IntType._uint)
-                        Stack.Push(Program.hashbank.GetHash(Instructions[Offset].GetOperandsAsUInt, tempstring), type);
+                    if (Program.IntStyle == Program.IntType._uint)
+                        Stack.Push(Program.hashbank.GetHash(Instructions[Offset].GetOperandsAsUInt), type);
                     else
-                        Stack.Push(Program.hashbank.GetHash(Instructions[Offset].GetOperandsAsInt, tempstring), type);
+                        Stack.Push(Program.hashbank.GetHash(Instructions[Offset].GetOperandsAsInt), type);
                     break;
                 }
                 case Instruction.RAGE_PUSH_CONST_S16:
@@ -1782,7 +1770,7 @@ namespace Decompiler
                     case Instruction.RAGE_LOAD_N:
                     {
                         int tempint;
-                        if (Program.getIntType == Program.IntType._hex)
+                        if (Program.IntStyle == Program.IntType._hex)
                             tempint = int.Parse(Stack.PeekItem(1).Substring(2), System.Globalization.NumberStyles.HexNumber);
                         else
                             tempint = int.Parse(Stack.PeekItem(1));
@@ -1793,7 +1781,7 @@ namespace Decompiler
                     case Instruction.RAGE_STORE_N:
                     {
                         int tempint;
-                        if (Program.getIntType == Program.IntType._hex)
+                        if (Program.IntStyle == Program.IntType._hex)
                             tempint = int.Parse(Stack.PeekItem(1).Substring(2), System.Globalization.NumberStyles.HexNumber);
                         else
                             tempint = int.Parse(Stack.PeekItem(1));

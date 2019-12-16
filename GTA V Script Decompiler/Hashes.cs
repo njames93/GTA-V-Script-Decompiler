@@ -54,7 +54,7 @@ namespace Decompiler
 
         public string GetHash(int value, string temp = "")
         {
-            if (!Program.Reverse_Hashes)
+            if (!Program.ReverseHashes)
                 return inttohex(value);
             if (hashes.ContainsKey(value))
                 return "joaat(\"" + hashes[value] + "\")";
@@ -63,7 +63,7 @@ namespace Decompiler
 
         public string GetHash(uint value, string temp = "")
         {
-            if (!Program.Reverse_Hashes)
+            if (!Program.ReverseHashes)
                 return value.ToString();
             int intvalue = (int)value;
             if (hashes.ContainsKey(intvalue))
@@ -78,7 +78,7 @@ namespace Decompiler
 
         public static string inttohex(int value)
         {
-            if (Program.getIntType == Program.IntType._hex)
+            if (Program.IntStyle == Program.IntType._hex)
             {
                 string s = value.ToString("X");
                 while (s.Length < 8) s = "0" + s;

@@ -190,7 +190,7 @@ namespace Decompiler
             {
                 if ((cases = BitConverter.ToUInt16(operands, 0)) <= index)
                     throw new Exception("Out Or Range Script Case");
-                else if (Program.getIntType == Program.IntType._uint)
+                else if (Program.IntStyle == Program.IntType._uint)
                 {
                     UInt32 hash = BitConverter.ToUInt32(operands, 2 + index * 6);
                     return Program.hashbank.GetHash(Program.SwapEndian ? Utils.SwapEndian(hash) : hash);
@@ -205,7 +205,7 @@ namespace Decompiler
             {
                 if ((cases = GetOperand(0)) <= index)
                     throw new Exception("Out Or Range Script Case");
-                else if (Program.getIntType == Program.IntType._uint)
+                else if (Program.IntStyle == Program.IntType._uint)
                 {
                     UInt32 hash = BitConverter.ToUInt32(operands, 1 + index * 6);
                     return Program.hashbank.GetHash(Program.SwapEndian ? Utils.SwapEndian(hash) : hash);
@@ -293,12 +293,12 @@ namespace Decompiler
                 case Instruction.RAGE_GLOBAL_U16_LOAD:
                 case Instruction.RAGE_GLOBAL_U16_STORE:
                     if (aggregateName) return "Global";
-                    return "Global_" + (Program.Hex_Index ? GetOperandsAsUInt.ToString("X") : GetOperandsAsUInt.ToString());
+                    return "Global_" + (Program.HexIndex ? GetOperandsAsUInt.ToString("X") : GetOperandsAsUInt.ToString());
                 case Instruction.RAGE_GLOBAL_U24:
                 case Instruction.RAGE_GLOBAL_U24_LOAD:
                 case Instruction.RAGE_GLOBAL_U24_STORE:
                     if (aggregateName) return "Global";
-                    return "Global_" + (Program.Hex_Index ? GetOperandsAsUInt.ToString("X") : GetOperandsAsUInt.ToString());
+                    return "Global_" + (Program.HexIndex ? GetOperandsAsUInt.ToString("X") : GetOperandsAsUInt.ToString());
             }
             throw new Exception("Not a global variable");
         }

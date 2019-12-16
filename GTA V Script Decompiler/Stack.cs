@@ -60,7 +60,7 @@ namespace Decompiler
         {
             foreach (int value in values)
             {
-                switch (Program.getIntType)
+                switch (Program.IntStyle)
                 {
                     case Program.IntType._int:
                     case Program.IntType._hex:
@@ -388,7 +388,7 @@ namespace Decompiler
                         }
                         else if (val.Datatype == DataType.Int && native.GetParam(count).StackType == DataType.Float)
                         {
-                            switch (Program.getIntType)
+                            switch (Program.IntStyle)
                             {
                                 case Program.IntType._int:
                                 {
@@ -824,11 +824,11 @@ namespace Decompiler
                 if (Agg.Instance.CanAggregateLiteral(structAss))
                     Push(new StackValue(this, StackValue.Type.Literal, structAss + "f_"));
                 else
-                    Push(new StackValue(this, StackValue.Type.Literal, structAss + "f_" + (Program.Hex_Index ? immediate.ToString("X") : immediate.ToString())));
+                    Push(new StackValue(this, StackValue.Type.Literal, structAss + "f_" + (Program.HexIndex ? immediate.ToString("X") : immediate.ToString())));
             }
             else
             {
-                Push(new StackValue(this, StackValue.Type.Literal, structAss + "f_" + (Program.Hex_Index ? immediate.ToString("X") : immediate.ToString())));
+                Push(new StackValue(this, StackValue.Type.Literal, structAss + "f_" + (Program.HexIndex ? immediate.ToString("X") : immediate.ToString())));
             }
         }
 
@@ -843,7 +843,7 @@ namespace Decompiler
                 imm = "f_";
             else
             {
-                imm = "f_" + (Program.Hex_Index ? immediate.ToString("X") : immediate.ToString());
+                imm = "f_" + (Program.HexIndex ? immediate.ToString("X") : immediate.ToString());
                 if (PeekVar(0)?.DataType == DataType.Vector3)
                 {
                     switch (immediate)
@@ -863,7 +863,7 @@ namespace Decompiler
             if (IsAggregate && Agg.Instance.CanAggregateLiteral(saccess))
                 Push(new StackValue(this, StackValue.Type.Pointer, saccess + "f_"));
             else
-                Push(new StackValue(this, StackValue.Type.Pointer, saccess + "f_" + (Program.Hex_Index ? immediate.ToString("X") : immediate.ToString())));
+                Push(new StackValue(this, StackValue.Type.Pointer, saccess + "f_" + (Program.HexIndex ? immediate.ToString("X") : immediate.ToString())));
         }
 
         public void Op_GetImmP()
@@ -882,7 +882,7 @@ namespace Decompiler
             else
             {
                 if (Utils.IntParse(immediate, out temp))
-                    Push(new StackValue(this, StackValue.Type.Pointer, saccess + "f_" + (Program.Hex_Index ? temp.ToString("X") : temp.ToString())));
+                    Push(new StackValue(this, StackValue.Type.Pointer, saccess + "f_" + (Program.HexIndex ? temp.ToString("X") : temp.ToString())));
                 else
                     Push(new StackValue(this, StackValue.Type.Pointer, saccess + "f_[" + immediate + "]"));
             }
@@ -895,7 +895,7 @@ namespace Decompiler
         /// <returns></returns>
         private string getarray(uint immediate)
         {
-            if (!Program.Show_Array_Size)
+            if (!Program.ShowArraySize)
                 return "";
             if (immediate == 1)
                 return "";

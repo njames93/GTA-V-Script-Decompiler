@@ -24,16 +24,30 @@ A **command-line tool** that will decompile the script resources (xsc,csc,ysc,os
   --minhits          Minimum number of occurrences for aggregation. (Default: -1)  
   --gzin             Compressed Input (GZIP) (Default: false)
   --gzout            Compress Output (GZIP) (Default: false)
+  
+  --default          Use default configuration (Default: false)
+  --uppercase        Use uppercase native names (Default: true) 
+  --namespace        Concatenate Namespace to Native definition (Default: true) 
+  --int              Integer Formatting Method (int, uint, hex) (Default: "int") 
+  --hash             Use hash (Entity.dat) lookup table when formatting integers (Default: true)
+  --arraysize        Show array sizes in definitions (Default: true)
+  --declare          Declare all variables at the beginning of function/script definitions (Default: true)
+  --shift            Shift variable names, i.e., take into consideration the immediate size of stack values (Default: false)
+  --mt               Multithreaded decompilation (Default: true)
+  --position         Show function location in definition (Default: false)  
 ```
 
 ## Examples ## 
 
 ```sh
 # Decompile a single RDR Native Script
-decompiler.exe --opcode=rdr -n "Root:\rdr3-nativedb-data\natives.json" -i "Root:\rdr\ysc\startup_mp.ysc.full" -o "../somerelativepath/startup_mp.ysc.c"
+decompiler.exe --default --opcode=rdr -n "Root:\rdr3-nativedb-data\natives.json" -i "Root:\rdr\ysc\startup_mp.ysc.full" -o "../somerelativepath/startup_mp.ysc.c"
 
 # Bulk decompile GTA Native Scripts with aggregation statistics
-decompiler.exe --opcode=v -a -n "Root:\gta5-nativedb-data\natives.json" -i "Root:\gta\ysc" -o "Root:\gta-v-decompiled-scripts.1737"
+decompiler.exe --default --opcode=v -a -n "Root:\gta5-nativedb-data\natives.json" -i "Root:\gta\ysc" -o "Root:\gta-v-decompiled-scripts.1737"
+
+# Bulk decompile compressed RDR3
+decompiler.exe --default --opcode=rdr --gzin -n ./rdr3-nativedb-data/natives.json -i ./ysc/script_mp_rel -o ./rdr3-decompiled-scripts.1232/script_mp_rel
 ```
 
 # Aggregation

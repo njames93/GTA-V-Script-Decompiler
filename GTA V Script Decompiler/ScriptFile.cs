@@ -128,7 +128,7 @@ namespace Decompiler
             try
             {
                 int i = 1;
-                if (Program.Declare_Variables)
+                if (Program.DeclareVariables)
                 {
                     if (Header.StaticsCount > 0)
                     {

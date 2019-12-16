@@ -15,7 +15,6 @@ namespace Decompiler
         public static Hashes hashbank;
         public static GXTEntries gxtbank;
 
-        internal static Ini.IniFile Config;
         public static Object ThreadLock;
         public static int ThreadCount;
 
@@ -39,64 +38,107 @@ namespace Decompiler
             [Option('c', "opcode", Default = "v", Required = true, HelpText = "Opcode Set (v|vconsole|rdr|rdrconsole)")]
             public string Opcode { get; set; }
 
-            [Option('f', "force", Default = false, Required = false, HelpText = "Allow output file overriding.")]
+            [Option('f', "force", Default = false, Required = false, HelpText = "Allow output file overriding")]
             public bool Force { get; set; }
 
-            [Option('a', "aggregate", Default = false, Required = false, HelpText = "Compute aggregation statistics of bulk dataset.")]
+            [Option('a', "aggregate", Default = false, Required = false, HelpText = "Compute aggregation statistics of bulk dataset")]
             public bool Aggregate { get; set; }
 
             [Option("minlines", Default = -1, Required = false, HelpText = "Minimum function line count for aggregation")]
-            public int AggMinLines { get; set; }
+            public int AggregateMinHits { get; set; }
 
-            [Option("minhits", Default = -1, Required = false, HelpText = "Minimum number of occurrences for aggregation.")]
-            public int AggMinHits { get; set; }
+            [Option("minhits", Default = -1, Required = false, HelpText = "Minimum number of occurrences for aggregation")]
+            public int AggregateMinLines { get; set; }
+
+            /* Previous INI Configuration */
+
+            [Option("default", Default = false, Required = false, HelpText = "Use default configuration")]
+            public bool Default { get; set; }
+
+            [Option("uppercase", Default = false, Required = false, HelpText = "Use uppercase native names")]
+            public bool UppercaseNatives { get; set; }
+
+            [Option("namespace", Default = false, Required = false, HelpText = "Concatenate Namespace to Native definition")]
+            public bool ShowNamespace { get; set; }
+
+            [Option("int", Default = "int", Required = false, HelpText = "Integer Formatting Method (int, uint, hex)")]
+            public string IntStyle { get; set; }
+
+            [Option("hash", Default = false, Required = false, HelpText = "Use hash (Entity.dat) lookup table when formatting integers")]
+            public bool ReverseHashes { get; set; }
+
+            [Option("arraysize", Default = false, Required = false, HelpText = "Show array sizes in definitions")]
+            public bool ShowArraySize { get; set; }
+
+            [Option("declare", Default = false, Required = false, HelpText = "Declare all variables at the beginning of function/script definitions")]
+            public bool DeclareVariables { get; set; }
+
+            [Option("shift", Default = false, Required = false, HelpText = "Shift variable names, i.e., take into consideration the immediate size of stack values")]
+            public bool ShiftVariables { get; set; }
+
+            [Option("mt", Default = false, Required = false, HelpText = "Multithread bulk decompilation")]
+            public bool UseMultiThreading { get; set; }
+
+            [Option("position", Default = false, Required = false, HelpText = "Show function location in definition")]
+            public bool ShowFuncPosition { get; set; }
+
+            [Option("HexIndex", Default = false, Required = false, HelpText = "")]
+            public bool HexIndex { get; set; }
         }
 
         private static void InitializeINIFields(Options o)
         {
-            _bit32 = _endian = _rdrOpcodes = _rdrPCCipher = false;
+            IsBit32 = SwapEndian = RDROpcodes = RDRNativeCipher = false;
             switch (o.Opcode.ToLower())
             {
                 case "v":
                     Program.Codeset = new OpcodeSet();
                     break;
                 case "vconsole":
-                    _bit32 = _endian = true;
+                    IsBit32 = SwapEndian = true;
                     Program.Codeset = new OpcodeSet();
                     break;
                 case "rdr":
-                    _rdrOpcodes = _rdrPCCipher = true;
+                    RDROpcodes = RDRNativeCipher = true;
                     Program.Codeset = new RDROpcodeSet();
                     break;
                 case "rdrconsole":
-                    _rdrOpcodes = true;
+                    RDROpcodes = true;
                     Program.Codeset = new RDRConsoleOpcodeSet();
                     break;
                 default:
                     throw new System.ArgumentException("Invalid Opcode Set: " + o.Opcode);
             }
 
-            Program.Find_getINTType();
-            Program.Find_Show_Array_Size();
-            Program.Find_Reverse_Hashes();
-            Program.Find_Declare_Variables();
-            Program.Find_Shift_Variables();
-            Program.Find_Show_Func_Pointer();
-            Program.Find_Use_MultiThreading();
-            Program.Find_IncFuncPos();
-            Program.Find_Nat_Namespace();
-            Program.Find_Hex_Index();
-            Program.Find_Upper_Natives();
-            Program.Find_Aggregate_MinHits();
-            Program.Find_Aggregate_MinLines();
-
             Program.hashbank = new Hashes();
             Program.gxtbank = new GXTEntries();
-            Program._compressin = o.CompressedInput;
-            Program._compressout = o.CompressOutput;
-            Program._AggregateFunctions = o.Aggregate;
-            if (o.AggMinHits > 0) Program._agg_min_hits = o.AggMinHits;
-            if (o.AggMinLines > 0) Program._agg_min_lines = o.AggMinLines;
+
+            Program.CompressedInput = o.CompressedInput;
+            Program.CompressedOutput = o.CompressOutput;
+            Program.AggregateFunctions = o.Aggregate;
+            if (o.AggregateMinLines > 0) Program.AggregateMinLines = o.AggregateMinLines;
+            if (o.AggregateMinHits > 0) Program.AggregateMinHits = o.AggregateMinHits;
+
+            if (!o.Default)
+            {
+                Program.UseMultiThreading = o.UseMultiThreading;
+                Program.UppercaseNatives = o.UppercaseNatives;
+                Program.ShowNamespace = o.ShowNamespace;
+                Program.DeclareVariables = o.DeclareVariables;
+                Program.ShiftVariables = o.ShiftVariables;
+                Program.ReverseHashes = o.ReverseHashes;
+                Program.ShowArraySize = o.ShowArraySize;
+                Program.HexIndex = o.HexIndex;
+                Program.ShowFuncPosition = o.ShowFuncPosition;
+                switch (o.IntStyle.ToLower())
+                {
+                    case "uint": Program.IntStyle = IntType._uint; break;
+                    case "hex": Program.IntStyle = IntType._hex; break;
+                    case "int":
+                    default:
+                        Program.IntStyle = IntType._int; break;
+                }
+            }
         }
 
         private static void InitializeNativeTable(string nativeFile)
@@ -149,8 +191,6 @@ namespace Decompiler
         static void Main(string[] args)
         {
             ThreadLock = new object();
-            Config = new Ini.IniFile(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "config.ini"));
-
             Parser.Default.ParseArguments<Options>(args).WithParsed<Options>(o =>
             {
                 string inputPath = Utils.GetAbsolutePath(o.InputPath);
@@ -160,7 +200,7 @@ namespace Decompiler
                 {
                     if (outputPath != null && File.Exists(outputPath) && !o.Force) { Console.WriteLine("Cannot overwrite file, use -f to force."); return; }
 
-                    InitializeINIFields(o); Program._AggregateFunctions = false;
+                    InitializeINIFields(o); Program.AggregateFunctions = false;
                     InitializeNativeTable(nativeFile);
                     ProcessScriptfile(inputPath, outputPath).Close();
                 }
@@ -176,7 +216,7 @@ namespace Decompiler
                         CompileList.Enqueue(file);
 
                     SaveDirectory = outputPath;
-                    if (Program.Use_MultiThreading)
+                    if (Program.UseMultiThreading)
                     {
                         for (int i = 0; i < Environment.ProcessorCount - 1; i++)
                         {
@@ -253,144 +293,31 @@ namespace Decompiler
             _hex
         }
 
-        public static IntType Find_getINTType()
-        {
-            string s = Program.Config.IniReadValue("Base", "IntStyle").ToLower();
-            if (s.StartsWith("int")) return _getINTType = IntType._int;
-            else if (s.StartsWith("uint")) return _getINTType = IntType._uint;
-            else if (s.StartsWith("hex")) return _getINTType = IntType._hex;
-            else
-            {
-                Program.Config.IniWriteValue("Base", "IntStyle", "int");
-                return _getINTType = IntType._int;
-            }
-        }
+        public static bool UseMultiThreading { get; private set; } = false;
 
-        private static IntType _getINTType = IntType._int;
-        public static IntType getIntType { get => _getINTType; }
+        public static bool UppercaseNatives { get; private set; } = true;
+        public static string NativeName(string s) => Program.UppercaseNatives ? s.ToUpper() : s.ToLower();
+        public static bool ShowNamespace { get; private set; } = true;
 
-        public static bool Find_Show_Array_Size()
-        {
-            return _Show_Array_Size = Program.Config.IniReadBool("Base", "Show_Array_Size", true);
-        }
+        public static bool DeclareVariables { get; private set; } = true;
+        public static bool ShiftVariables { get; private set; } = false;
+        public static bool ReverseHashes { get; private set; } = true;
+        public static IntType IntStyle { get; private set; } = IntType._int;
+        public static bool ShowArraySize { get; private set; } = true;
 
-        private static bool _Show_Array_Size = false;
-        public static bool Show_Array_Size { get => _Show_Array_Size; }
+        public static bool HexIndex { get; private set; } = false;
+        public static bool ShowFuncPosition { get; private set; } = false;
 
-        public static bool Find_Reverse_Hashes()
-        {
-            return _Reverse_Hashes = Program.Config.IniReadBool("Base", "Reverse_Hashes", true);
-        }
+        public static bool AggregateFunctions { get; private set; } = false;
+        public static int AggregateMinLines { get; private set; } = 7;
+        public static int AggregateMinHits { get; private set; } = 3;
 
-        private static bool _Reverse_Hashes = false;
-        public static bool Reverse_Hashes { get => _Reverse_Hashes; }
+        public static bool CompressedInput { get; private set; } = false;
+        public static bool CompressedOutput { get; private set; } = false;
+        public static bool IsBit32 { get; private set; } = false;
+        public static bool SwapEndian { get; private set; } = false;
+        public static bool RDROpcodes { get; private set; } = false;
+        public static bool RDRNativeCipher { get; private set; } = false;
 
-        public static bool Find_Declare_Variables()
-        {
-            return _Declare_Variables = Program.Config.IniReadBool("Base", "Declare_Variables", true);
-        }
-
-        private static bool _Declare_Variables = false;
-        public static bool Declare_Variables { get => _Declare_Variables; }
-
-        public static bool Find_Shift_Variables()
-        {
-            return _Shift_Variables = Program.Config.IniReadBool("Base", "Shift_Variables", true);
-        }
-
-        private static bool _Shift_Variables = false;
-        public static bool Shift_Variables { get => _Shift_Variables; }
-
-        public static bool Find_Use_MultiThreading()
-        {
-            return _Use_MultiThreading = Program.Config.IniReadBool("Base", "Use_MultiThreading", false);
-        }
-
-        private static bool _Use_MultiThreading = false;
-        public static bool Use_MultiThreading { get => _Use_MultiThreading; }
-
-        public static bool Find_IncFuncPos()
-        {
-            return _IncFuncPos = Program.Config.IniReadBool("Base", "Include_Function_Position", false);
-        }
-
-        private static bool _IncFuncPos = false;
-        public static bool IncFuncPos { get => _IncFuncPos; }
-
-        public static bool Find_Show_Func_Pointer()
-        {
-            return _Show_Func_Pointer = Program.Config.IniReadBool("Base", "Show_Func_Pointer", false);
-        }
-
-        private static bool _Show_Func_Pointer = false;
-        public static bool Show_Func_Pointer { get => _Show_Func_Pointer; }
-
-        public static bool Find_Nat_Namespace()
-        {
-            return _Show_Nat_Namespace = Program.Config.IniReadBool("Base", "Show_Nat_Namespace", false);
-        }
-
-        private static bool _Show_Nat_Namespace = false;
-        public static bool Show_Nat_Namespace { get => _Show_Nat_Namespace; }
-
-        public static bool Find_Hex_Index()
-        {
-            return _Hex_Index = Program.Config.IniReadBool("Base", "Hex_Index", false);
-        }
-
-        private static bool _Hex_Index = false;
-        public static bool Hex_Index { get => _Hex_Index; }
-
-        public static bool Find_Upper_Natives()
-        {
-            return _upper_Natives = Program.Config.IniReadBool("Base", "Uppercase_Natives", false);
-        }
-
-        private static bool _upper_Natives = false;
-        public static bool Upper_Natives { get => _upper_Natives; }
-        public static string NativeName(string s) => Program.Upper_Natives ? s.ToUpper() : s.ToLower();
-
-        private static bool _AggregateFunctions = false;
-        public static bool AggregateFunctions { get => _AggregateFunctions; }
-
-        private static int _agg_min_lines = 7;
-        public static int AggregateMinLines { get => _agg_min_lines; }
-
-        private static int _agg_min_hits = 3;
-        public static int AggregateMinHits { get => _agg_min_hits; }
-
-        public static int Find_Aggregate_MinLines()
-        {
-            int tmp;
-            if (int.TryParse(Program.Config.IniReadValue("Base", "Aggregate_MinimumLines").ToLower(), out tmp))
-                _agg_min_lines = tmp;
-            return _agg_min_lines;
-        }
-
-        public static int Find_Aggregate_MinHits()
-        {
-            int tmp;
-            if (int.TryParse(Program.Config.IniReadValue("Base", "Aggregate_MinimumHits").ToLower(), out tmp))
-                _agg_min_hits = tmp;
-            return _agg_min_hits;
-        }
-
-        private static bool _compressin = false;
-        public static bool CompressedInput { get => _compressin; }
-
-        private static bool _compressout = false;
-        public static bool CompressedOutput { get => _compressout; }
-
-        private static bool _bit32 = false;
-        public static bool IsBit32 { get => _bit32; }
-
-        private static bool _endian = false;
-        public static bool SwapEndian { get => _endian; }
-
-        private static bool _rdrOpcodes = false;
-        public static bool RDROpcodes { get => _rdrOpcodes; }
-
-        private static bool _rdrPCCipher = false;
-        public static bool RDRNativeCipher { get => _rdrPCCipher; }
     }
 }

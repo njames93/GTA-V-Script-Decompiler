@@ -122,7 +122,7 @@ namespace Decompiler
                     case ListType.Params: name += "Param"; break;
                 }
 
-                if (Program.Shift_Variables)
+                if (Program.ShiftVariables)
                 {
                     if (VarRemapper.ContainsKey((int)index))
                         return name + VarRemapper[(int)index].ToString();
@@ -168,13 +168,13 @@ namespace Decompiler
                 j++;
                 if (!var.Is_Used)
                 {
-                    if (!Program.Shift_Variables)
+                    if (!Program.ShiftVariables)
                         i++;
                     continue;
                 }
                 if (Listtype == ListType.Vars && !var.IsCalled)
                 {
-                    if (!Program.Shift_Variables)
+                    if (!Program.ShiftVariables)
                         i++;
                     continue;
                 }
@@ -317,7 +317,7 @@ namespace Decompiler
             {
                 if (!var.Is_Used)
                 {
-                    if (!Program.Shift_Variables)
+                    if (!Program.ShiftVariables)
                     {
                         i++;
                     }
@@ -473,7 +473,7 @@ namespace Decompiler
                             case ListType.Params: name += "Param"; break;
                         }
 
-                        if (Program.Shift_Variables && _parent.VarRemapper != null)
+                        if (Program.ShiftVariables && _parent.VarRemapper != null)
                         {
                             if (_parent.VarRemapper.ContainsKey((int)Index))
                                 return name + _parent.VarRemapper[(int)Index].ToString();

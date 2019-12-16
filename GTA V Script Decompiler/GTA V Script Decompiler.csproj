@@ -132,7 +132,6 @@
       <DependentUpon>Settings.settings</DependentUpon>
       <DesignTimeSharedInput>True</DesignTimeSharedInput>
     </Compile>
-    <None Include="Resources\config.ini" />
     <None Include="Resources\Entities.dat" />
     <None Include="Resources\vgxt.dat" />
     <None Include="Resources\natives.json" />

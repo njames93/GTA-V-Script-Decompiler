@@ -88,31 +88,37 @@ namespace Decompiler
 
         public bool UpdateParam(ulong hash, Stack.DataType type, int index)
         {
-            Native native;
-            if (TryGetValue(hash, out native) && !native.Vardiac && index < native.Params.Count)
+            lock (Program.ThreadLock)
             {
-                Param p = native.Params[index];
-                if (p.StackType.Precedence() < type.Precedence() && !p.FixedType)
+                Native native;
+                if (TryGetValue(hash, out native) && !native.Vardiac && index < native.Params.Count)
                 {
-                    p.Type = type.LongName();
-                    return true;
+                    Param p = native.Params[index];
+                    if (p.StackType.Precedence() < type.Precedence() && !p.FixedType)
+                    {
+                        p.Type = type.LongName();
+                        return true;
+                    }
                 }
+                return false;
             }
-            return false;
         }
 
         public bool UpdateRetType(ulong hash, Stack.DataType returns, bool over = false)
         {
-            Native native;
-            if (TryGetValue(hash, out native) && !native.ReturnParam.FixedType)
+            lock (Program.ThreadLock)
             {
-                if (native.ReturnParam.StackType.Precedence() < returns.Precedence())
+                Native native;
+                if (TryGetValue(hash, out native) && !native.ReturnParam.FixedType)
                 {
-                    native.ReturnParam.Type = returns.LongName();
-                    return true;
+                    if (native.ReturnParam.StackType.Precedence() < returns.Precedence())
+                    {
+                        native.ReturnParam.Type = returns.LongName();
+                        return true;
+                    }
                 }
+                return false;
             }
-            return false;
         }
 
         public bool FetchNativeCall(ulong hash, string name, int pcount, int rcount, out Native native)
@@ -345,7 +351,7 @@ namespace Decompiler
         {
             if (!_dirty) return;
 
-            string dispStr = Program.NativeName((Program.Show_Nat_Namespace && Namespace != "") ? (Namespace + "::") : "");
+            string dispStr = Program.NativeName((Program.ShowNamespace && Namespace != "") ? (Namespace + "::") : "");
             if (Name.StartsWith("_0x"))
                 dispStr += Name.Remove(3) + Program.NativeName(Name.Substring(3));
             else if (Name.StartsWith(Program.NativeName(Native.UnkPrefix)))

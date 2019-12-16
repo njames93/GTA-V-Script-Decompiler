@@ -120,7 +120,7 @@ namespace Decompiler
                 value = unchecked((int)val);
                 return true;
             }
-            if (Program.getIntType == Program.IntType._hex)
+            if (Program.IntStyle == Program.IntType._hex)
             {
                 return int.TryParse(temp.Substring(2), System.Globalization.NumberStyles.HexNumber, new System.Globalization.CultureInfo("en-gb"), out value);
             }
