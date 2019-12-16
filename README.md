@@ -5,6 +5,7 @@ A **command-line tool** that will decompile the script resources (xsc,csc,ysc,os
 1. [GTA-V-Script-Decompiler](https://github.com/zorg93/GTA-V-Script-Decompiler)
 2. [gta5-nativedb-data](https://github.com/alloc8or/gta5-nativedb-data): Native table used for V & V-Console decompilation. [Dataset](GTA%20V%20Script%20Decompiler/Resources/natives.json) slightly modified to include cross-mapping. 32-bit console hashes use only the v323 Jenkins hashes.
 3. [rdr3-nativedb-data](https://github.com/alloc8or/rdr3-nativedb-data): Native table used for RDR3 & RDR-Console decompilation. [Dataset](GTA%20V%20Script%20Decompiler/Resources/natives-rdr.json) will require modification on version bump & hash changes.
+4. [emcifuntik](https://github.com/emcifuntik): 1737-to-1868 V Crossmap.
 
 # Dependencies
 1. [Newtonsoft.Json 12.0.3](https://www.nuget.org/packages/Newtonsoft.Json/)
@@ -21,23 +22,23 @@ A **command-line tool** that will decompile the script resources (xsc,csc,ysc,os
   -f, --force        Allow output file overriding. (Default: false)
   -a, --aggregate    Compute aggregation statistics of bulk dataset. (Default: false)
   --minlines         Minimum function line count for aggregation (Default: -1)
-  --minhits          Minimum number of occurrences for aggregation. (Default: -1)  
+  --minhits          Minimum number of occurrences for aggregation. (Default: -1)
   --gzin             Compressed Input (GZIP) (Default: false)
   --gzout            Compress Output (GZIP) (Default: false)
-  
+
   --default          Use default configuration (Default: false)
-  --uppercase        Use uppercase native names (Default: true) 
-  --namespace        Concatenate Namespace to Native definition (Default: true) 
-  --int              Integer Formatting Method (int, uint, hex) (Default: "int") 
+  --uppercase        Use uppercase native names (Default: true)
+  --namespace        Concatenate Namespace to Native definition (Default: true)
+  --int              Integer Formatting Method (int, uint, hex) (Default: "int")
   --hash             Use hash (Entity.dat) lookup table when formatting integers (Default: true)
   --arraysize        Show array sizes in definitions (Default: true)
   --declare          Declare all variables at the beginning of function/script definitions (Default: true)
   --shift            Shift variable names, i.e., take into consideration the immediate size of stack values (Default: false)
   --mt               Multithreaded decompilation (Default: true)
-  --position         Show function location in definition (Default: false)  
+  --position         Show function location in definition (Default: false)
 ```
 
-## Examples ## 
+## Examples ##
 
 ```sh
 # Decompile a single RDR Native Script
