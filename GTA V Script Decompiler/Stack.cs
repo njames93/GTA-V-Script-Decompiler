@@ -227,22 +227,6 @@ namespace Decompiler
                 Push(top);
         }
 
-        public string PeekLiteralSuffix()
-        {
-            int index = _stack.Count - 1;
-            if (index < 0)
-                return "";
-
-            StackValue val = Peek();
-            if (val.ItemType == StackValue.Type.Literal && val.Datatype == DataType.Int)
-            {
-                int temp;
-                if (int.TryParse(val.Value, out temp) && Program.gxtbank.IsKnownGXT(temp))
-                    return Program.gxtbank.GetEntry(temp);
-            }
-            return "";
-        }
-
         private string PeekLit()
         {
             StackValue val = Peek();
@@ -834,12 +818,12 @@ namespace Decompiler
 
         public string Op_SetImm(uint immediate)
         {
-            string pointer = Pop().AsStructAccess;
-            string suffix = PeekLiteralSuffix();
-            string value = Pop().AsLiteral;
+            StackValue pointer, value;
+            pointer = Pop();
+            value = Pop();
 
             string imm = "";
-            if (IsAggregate && Agg.Instance.CanAggregateLiteral(value))
+            if (IsAggregate && Agg.Instance.CanAggregateLiteral(value.AsLiteral))
                 imm = "f_";
             else
             {
@@ -854,7 +838,7 @@ namespace Decompiler
                     }
                 }
             }
-            return setcheck(pointer + imm, value, suffix);
+            return setcheck(pointer.AsStructAccess + imm, value.AsLiteral, value.LiteralComment);
         }
 
         public void Op_GetImmP(uint immediate)
@@ -923,11 +907,11 @@ namespace Decompiler
 
         public string Op_ArraySet(uint immediate)
         {
+            StackValue index, value;
             string arrayloc = PopArrayAccess();
-            string index = Pop().AsLiteral;
-            string suffix = PeekLiteralSuffix();
-            string value = Pop().AsLiteral;
-            return setcheck(arrayloc + "[" + index + getarray(immediate) + "]", value, suffix);
+            index = Pop();
+            value = Pop();
+            return setcheck(arrayloc + "[" + index.AsLiteral + getarray(immediate) + "]", value.AsLiteral, value.LiteralComment);
         }
 
         public void Op_ArrayGetP(uint immediate)
@@ -1126,17 +1110,15 @@ namespace Decompiler
 
         public string Op_RefSet()
         {
-            string pointer, value, suffix;
-            pointer = Pop().AsPointerRef;
-            suffix = PeekLiteralSuffix();
-            value = Pop().AsLiteral;
-            return setcheck(pointer, value, suffix);
+            StackValue pointer, value;
+            pointer = Pop();
+            value = Pop();
+            return setcheck(pointer.AsPointerRef, value.AsLiteral, value.LiteralComment);
         }
 
         public string Op_PeekSet()
         {
             string pointer, value;
-
             value = Pop().AsLiteral;
             pointer = Peek().AsPointerRef;
             return setcheck(pointer, value);
@@ -1144,22 +1126,18 @@ namespace Decompiler
 
         public string Op_Set(string location)
         {
-            string suffix = PeekLiteralSuffix();
-            return setcheck(location, Pop().AsLiteral, suffix);
+            StackValue set = Pop();
+            return setcheck(location, set.AsLiteral, set.LiteralComment);
         }
 
         public string Op_Set(string location, Vars_Info.Var Variable)
         {
-            if (Variable.Immediatesize == 3)
-            {
-                location += ".x";
-            }
-            return Op_Set(location);
+            return Op_Set(location + (Variable.Immediatesize == 3 ? ".x" : ""));
         }
 
         public void Op_Hash()
         {
-            Push("Hash(" + Pop().AsType(DataType.Int).AsLiteral + ")", DataType.Int);
+            Push("Hash(" + Pop().AsLiteral + ")", DataType.Int);
         }
 
         public string Op_StrCpy(int size)
@@ -1389,6 +1367,8 @@ namespace Decompiler
                 }
             }
 
+            public string AsLiteralStatement { get { return AsLiteral + LiteralComment; } }
+
             public string AsLiteral
             {
                 get
@@ -1478,7 +1458,7 @@ namespace Decompiler
             {
                 string res = prefix + " = { ";
                 foreach (StackValue val in data)
-                    res += val.Value + ", ";
+                    res += val.AsLiteralStatement + ", ";
                 return res.Remove(res.Length - 2) + " };";
             }
 
@@ -1492,7 +1472,7 @@ namespace Decompiler
                     switch (val.ItemType)
                     {
                         case StackValue.Type.Literal:
-                            items += val.Value + ", ";
+                            items += val.AsLiteralStatement + ", ";
                             break;
                         case StackValue.Type.Pointer:
                             items += val.AsPointer + ", ";

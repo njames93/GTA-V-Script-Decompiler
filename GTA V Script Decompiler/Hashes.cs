@@ -148,5 +148,21 @@ namespace Decompiler
         {
             return " /* GXTEntry: " + entries[value] + " */";
         }
+
+        public bool IsKnownGXT(string value)
+        {
+            int tmp;
+            return int.TryParse(value, out tmp) && IsKnownGXT(tmp);
+        }
+
+        public string GetEntry(string value)
+        {
+            int tmp;
+            if (int.TryParse(value, out tmp) && IsKnownGXT(tmp))
+            {
+                return GetEntry(tmp);
+            }
+            return "";
+        }
     }
 }

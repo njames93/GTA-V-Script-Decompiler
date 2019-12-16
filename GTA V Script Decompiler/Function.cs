@@ -588,7 +588,7 @@ namespace Decompiler
                                 writeline("default:");
                             }
                             else
-                                writeline("case " + temp + ":");
+                                writeline("case " + temp + ":" + Program.gxtbank.GetEntry(temp));
                         }
                         opentab(false);
 
@@ -696,7 +696,11 @@ namespace Decompiler
             writeline("switch (" + Stack.Pop().AsLiteral + ")");
             opentab();
             for (int i = 0; i < cases[sortedOffset].Count; i++)
-                writeline("case " + cases[sortedOffset][i] + ":");
+            {
+                string caseStr = cases[sortedOffset][i];
+                writeline("case " + caseStr + ":" + Program.gxtbank.GetEntry(caseStr));
+            }
+
             opentab(false);
 
             // Need to build the escape paths prior to removing the offsets.
