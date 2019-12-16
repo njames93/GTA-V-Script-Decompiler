@@ -23,6 +23,7 @@ namespace Decompiler
         public List<Function> AggFunctions;
         public Dictionary<int, FunctionName> FunctionLoc;
         public Dictionary<string, Tuple<int, int>> Function_loc = new Dictionary<string, Tuple<int, int>>();
+        private Dictionary<ulong, HashSet<Function>> NativeXRef = new Dictionary<ulong, HashSet<Function>>();
 
         private Stream file;
         public ScriptHeader Header;
@@ -57,10 +58,62 @@ namespace Decompiler
             GetStaticInfo();
             GetFunctions();
             foreach (Function func in Functions) func.PreDecode();
-            if (Program.AggregateFunctions) foreach (Function func in AggFunctions) func.PreDecode();
             Statics.checkvars();
+
+            bool dirty = true;
+            while (dirty)
+            {
+                dirty = false;
+                foreach (Function func in Functions)
+                {
+                    if (func.Dirty)
+                    {
+                        dirty = true;
+                        func.Dirty = false;
+                        func.decodeinsructionsforvarinfo();
+                    }
+                }
+            }
+
+            if (Program.AggregateFunctions) foreach (Function func in AggFunctions) func.PreDecode();
             foreach (Function func in Functions) func.Decode();
             if (Program.AggregateFunctions) foreach (Function func in AggFunctions) func.Decode();
+        }
+
+        public void CrossReferenceNative(ulong hash, Function f)
+        {
+            if (!NativeXRef.ContainsKey(hash))
+                NativeXRef.Add(hash, new HashSet<Function>(new Function[] { f }));
+            else
+                NativeXRef[hash].Add(f);
+        }
+
+        public void UpdateStaticType(uint index, Stack.DataType dataType)
+        {
+            Stack.DataType prev = Statics.GetTypeAtIndex(index);
+            if (Statics.SetTypeAtIndex(index, dataType))
+            {
+                foreach (Function f in Functions)
+                    f.Dirty = true;
+            }
+        }
+
+        public void UpdateNativeReturnType(ulong hash, Stack.DataType datatype)
+        {
+            if (Program.X64npi.UpdateRetType(hash, datatype) && NativeXRef.ContainsKey(hash))
+            {
+                foreach (Function f in NativeXRef[hash])
+                    f.Dirty = true;
+            }
+        }
+
+        public void UpdateNativeParameter(ulong hash, Stack.DataType type, int index)
+        {
+            if (Program.X64npi.UpdateParam(hash, type, index))
+            {
+                foreach (Function f in NativeXRef[hash])
+                    f.Dirty = true;
+            }
         }
 
         public void Save(string filename)

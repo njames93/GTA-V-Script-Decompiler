@@ -7,22 +7,17 @@ namespace Decompiler
 {
     public class Stack
     {
-        List<StackValue> _stack;
+        Function _parent;
+        List<StackValue> _stack = new List<StackValue>();
+
+        public bool DecodeVarInfo { get; private set; }
         public bool IsAggregate { get; private set; } // Stateless stack information.
+        public DataType TopType => (_stack.Count == 0) ? DataType.Unk : _stack[_stack.Count - 1].Datatype;
 
-        public DataType TopType
+        public Stack(Function parent, bool decodeVar = false, bool isAggregate = false)
         {
-            get
-            {
-                if (_stack.Count == 0)
-                    return DataType.Unk;
-                return _stack[_stack.Count - 1].Datatype;
-            }
-        }
-
-        public Stack(bool isAggregate = false)
-        {
-            _stack = new List<StackValue>();
+            _parent = parent;
+            DecodeVarInfo = decodeVar;
             IsAggregate = isAggregate;
         }
 
@@ -33,22 +28,22 @@ namespace Decompiler
 
         public void Push(string value, DataType Datatype = DataType.Unk)
         {
-            _stack.Add(new StackValue(StackValue.Type.Literal, value, Datatype));
+            _stack.Add(new StackValue(this, StackValue.Type.Literal, value, Datatype));
         }
 
         public void PushGlobal(string value)
         {
-            _stack.Add(StackValue.Global(StackValue.Type.Literal, value));
+            _stack.Add(StackValue.Global(this, StackValue.Type.Literal, value));
         }
 
         public void PushPGlobal(string value)
         {
-            _stack.Add(StackValue.Global(StackValue.Type.Pointer, value));
+            _stack.Add(StackValue.Global(this, StackValue.Type.Pointer, value));
         }
 
-        private void PushCond(string value)
+        public void PushCond(string value)
         {
-            _stack.Add(new StackValue(StackValue.Type.Literal, value, DataType.Bool));
+            _stack.Add(new StackValue(this, StackValue.Type.Literal, value, DataType.Bool));
         }
 
         private void Push(StackValue item)
@@ -58,7 +53,7 @@ namespace Decompiler
 
         public void PushString(string value)
         {
-            _stack.Add(new StackValue(StackValue.Type.Literal, value.ToString(), DataType.StringPtr));
+            _stack.Add(new StackValue(this, StackValue.Type.Literal, value.ToString(), DataType.StringPtr));
         }
 
         public void Push(params int[] values)
@@ -69,10 +64,10 @@ namespace Decompiler
                 {
                     case Program.IntType._int:
                     case Program.IntType._hex:
-                        _stack.Add(new StackValue(StackValue.Type.Literal, Hashes.inttohex(value), DataType.Int));
+                        _stack.Add(new StackValue(this, StackValue.Type.Literal, Hashes.inttohex(value), DataType.Int));
                         break;
                     case Program.IntType._uint:
-                        _stack.Add(new StackValue(StackValue.Type.Literal, unchecked((uint)value).ToString(), DataType.Int));
+                        _stack.Add(new StackValue(this, StackValue.Type.Literal, unchecked((uint)value).ToString(), DataType.Int));
                         break;
                 }
             }
@@ -80,53 +75,49 @@ namespace Decompiler
 
         public void PushHexInt(uint value)
         {
-            _stack.Add(new StackValue(StackValue.Type.Literal, Utils.FormatHexHash(value), DataType.Int));
+            _stack.Add(new StackValue(this, StackValue.Type.Literal, Utils.FormatHexHash(value), DataType.Int));
         }
 
-        public void PushVar(string value, Vars_Info.Var Variable)
+        public void PushVar(Vars_Info.Var Variable)
         {
-            if (Variable.Immediatesize == 3)
-            {
-                value += ".x";
-            }
-            _stack.Add(new StackValue(StackValue.Type.Literal, value, Variable));
+            _stack.Add(new StackValue(this, StackValue.Type.Literal, Variable, (Variable.Immediatesize == 3) ? ".x" : ""));
         }
 
-        public void PushPVar(string value, Vars_Info.Var Variable)
+        public void PushPVar(Vars_Info.Var Variable, string suffix = "")
         {
-            _stack.Add(new StackValue(StackValue.Type.Pointer, value, Variable));
+            _stack.Add(new StackValue(this, StackValue.Type.Pointer, Variable, suffix));
         }
 
         public void Push(float value)
         {
-            _stack.Add(new StackValue(StackValue.Type.Literal, value.ToString(CultureInfo.InvariantCulture) + "f", DataType.Float));
+            _stack.Add(new StackValue(this, StackValue.Type.Literal, value.ToString(CultureInfo.InvariantCulture) + "f", DataType.Float));
         }
 
         public void PushPointer(string value)
         {
-            _stack.Add(new StackValue(StackValue.Type.Pointer, value));
+            _stack.Add(new StackValue(this, StackValue.Type.Pointer, value));
         }
 
         private void PushStruct(string value, int size)
         {
-            _stack.Add(new StackValue(value, size));
+            _stack.Add(new StackValue(this, value, size));
         }
 
         private void PushVector(string value)
         {
-            _stack.Add(new StackValue(value, 3, true));
+            _stack.Add(new StackValue(this, value, 3, true));
         }
 
         private void PushString(string value, int size)
         {
-            _stack.Add(new StackValue(size, value));
+            _stack.Add(new StackValue(this, size, value));
         }
 
-        private StackValue Pop()
+        public StackValue Pop()
         {
             int index = _stack.Count - 1;
             if (index < 0)
-                return new StackValue(StackValue.Type.Literal, "StackVal");
+                return new StackValue(this, StackValue.Type.Literal, "StackVal");
             StackValue val = _stack[index];
             _stack.RemoveAt(index);
             return val;
@@ -158,10 +149,7 @@ namespace Decompiler
                     }
                     case StackValue.Type.Pointer:
                     {
-                        if (top.isNotVar)
-                            items.Add(new StackValue(StackValue.Type.Literal, "&(" + top.Value + ")"));
-                        else
-                            items.Add(new StackValue(StackValue.Type.Literal, "&" + top.Value));
+                        items.Add(new StackValue(this, StackValue.Type.Literal, top.AsPointer));
                         count++;
                         break;
                     }
@@ -170,7 +158,7 @@ namespace Decompiler
                         if (count + top.StructSize > size)
                             throw new Exception("Struct size too large");
                         count += top.StructSize;
-                        items.Add(new StackValue(StackValue.Type.Literal, top.Value));
+                        items.Add(new StackValue(this, StackValue.Type.Literal, top.Value));
                         break;
                     }
                     default:
@@ -199,10 +187,7 @@ namespace Decompiler
                     }
                     case StackValue.Type.Pointer:
                     {
-                        if (top.isNotVar)
-                            items.Add(new StackValue(StackValue.Type.Literal, "&(" + top.Value + ")"));
-                        else
-                            items.Add(new StackValue(StackValue.Type.Literal, "&" + top.Value));
+                        items.Add(new StackValue(this, StackValue.Type.Literal, top.AsPointer));
                         count++;
                         break;
                     }
@@ -211,7 +196,7 @@ namespace Decompiler
                         if (count + top.StructSize > size)
                             throw new Exception("Struct size too large");
                         count += top.StructSize;
-                        items.Add(new StackValue(top.Value, top.StructSize));
+                        items.Add(new StackValue(this, top.Value, top.StructSize));
                         break;
                     }
                     default:
@@ -225,17 +210,7 @@ namespace Decompiler
 
         private string PopVector()
         {
-            StackValue[] data = PopList(3);
-            switch (data.Length)
-            {
-                case 1:
-                    return data[0].Value;
-                case 3:
-                    return "Vector(" + data[2].Value + ", " + data[1].Value + ", " + data[0].Value + ")";
-                case 2:
-                    return "Vector(" + data[1].Value + ", " + data[0].Value + ")";
-            }
-            throw new Exception("Unexpected data length");
+            return StackValue.AsVector(PopList(3));
         }
 
         private StackValue Peek()
@@ -250,21 +225,6 @@ namespace Decompiler
                 Push("Stack.Peek()");
             else
                 Push(top);
-        }
-
-        public string PopLit()
-        {
-            StackValue val = Pop();
-            if (val.ItemType != StackValue.Type.Literal)
-            {
-                if (val.ItemType == StackValue.Type.Pointer)
-                {
-                    return "&" + val.Value;
-                }
-                else
-                    throw new Exception("Not a literal item recieved");
-            }
-            return val.Value;
         }
 
         public string PeekLiteralSuffix()
@@ -308,58 +268,10 @@ namespace Decompiler
             throw new Exception("Not a pointer item recieved");
         }
 
-        private string PopPointer()
-        {
-            StackValue val = Pop();
-            if (val.ItemType == StackValue.Type.Pointer)
-            {
-                if (val.isNotVar)
-                    return "&(" + val.Value + ")";
-                else
-                    return "&" + val.Value;
-            }
-            else if (val.ItemType == StackValue.Type.Literal)
-                return val.Value;
-            throw new Exception("Not a pointer item recieved");
-        }
-
-        private string PopPointerRef()
-        {
-            StackValue val = Pop();
-            if (val.ItemType == StackValue.Type.Pointer)
-                return val.Value;
-            else if (val.ItemType == StackValue.Type.Literal)
-                return "*" + (val.Value.Contains(" ") ? "(" + val.Value + ")" : val.Value);
-            throw new Exception("Not a pointer item recieved");
-        }
-
         public string PopListForCall(int size)
         {
-            if (size == 0)
-                return "";
-            string items = "";
-            foreach (StackValue val in PopList(size))
-            {
-                switch (val.ItemType)
-                {
-                    case StackValue.Type.Literal:
-                        items += val.Value + ", ";
-                        break;
-                    case StackValue.Type.Pointer:
-                    {
-                        if (val.isNotVar)
-                            items += "&(" + val.Value + "), ";
-                        else
-                            items += "&" + val.Value + ", ";
-                        break;
-                    }
-                    case StackValue.Type.Struct:
-                        items += val.Value + ", ";
-                        break;
-                    default:
-                        throw new Exception("Unexpeced Stack Type\n" + val.ItemType.ToString());
-                }
-            }
+            if (size == 0) return "";
+            string items = StackValue.AsCall(PopList(size));
             return items.Remove(items.Length - 2);
         }
 
@@ -374,13 +286,8 @@ namespace Decompiler
                         stack.Add(val.Value);
                         break;
                     case StackValue.Type.Pointer:
-                    {
-                        if (val.isNotVar)
-                            stack.Add("&(" + val.Value + ")");
-                        else
-                            stack.Add("&" + val.Value);
+                        stack.Add(val.AsPointer);
                         break;
-                    }
                     case StackValue.Type.Struct:
                         stack.Add(val.Value);
                         break;
@@ -408,12 +315,35 @@ namespace Decompiler
 
         public string FunctionCall(Function function)
         {
-            string functionline = function.Name + "(" + PopListForCall(function.Pcount) + ")";
+            string popList = "";
+            if (DecodeVarInfo)
+            {
+                if (function.Pcount != 0)
+                {
+                    StackValue[] items = PopList(function.Pcount);
+                    for (int i = 0; i < items.Length; ++i)
+                    {
+                        if (function.Params.GetTypeAtIndex((uint)i).Precedence() < items[i].Datatype.Precedence())
+                        {
+                            if (function != _parent)
+                                function.UpdateFuncParamType((uint)i, items[i].Datatype);
+                        }
+                        else if (function.Params.GetTypeAtIndex((uint)i) != items[i].Datatype)
+                            items[i].Datatype = function.Params.GetTypeAtIndex((uint)i);
+                    }
+                    popList = StackValue.AsCall(items);
+                    popList = popList.Remove(popList.Length - 2);
+                }
+            }
+            else
+                popList = (function.Pcount > 0) ? PopListForCall(function.Pcount) : "";
+
+            string functionline = function.Name + "(" + popList + ")";
             if (IsAggregate) functionline = "func_()"; // Burn the PopList call.
             if (function.Rcount == 0)
                 return functionline + ";";
             else if (function.Rcount == 1)
-                Push(new StackValue(StackValue.Type.Literal, functionline, function));
+                Push(new StackValue(this, StackValue.Type.Literal, functionline, function));
             else if (function.Rcount > 1)
                 PushStruct(functionline, function.Rcount);
             else
@@ -436,17 +366,14 @@ namespace Decompiler
                 {
                     case StackValue.Type.Literal:
                     {
-                        if (val.Variable != null)
+                        if (val.Variable != null && DecodeVarInfo)
                         {
                             if (val.Variable.DataType.Precedence() < native.GetParam(count).StackType.Precedence())
-                            {
                                 val.Variable.DataType = native.GetParam(count).StackType;
-                            }
                             else if (val.Variable.DataType.Precedence() > native.GetParam(count).StackType.Precedence())
-                            {
-                                Program.X64npi.UpdateParam(hash, val.Variable.DataType, count);
-                            }
+                                _parent.UpdateNativeParameter(hash, val.Variable.DataType, count);
                         }
+
                         if (val.Datatype == DataType.Bool || native.GetParam(count).StackType == DataType.Bool)
                         {
                             bool temp;
@@ -517,7 +444,7 @@ namespace Decompiler
                     }
                     case StackValue.Type.Pointer:
                     {
-                        functionline += val.isNotVar ? ("&(" + val.Value + "), ") : ("&" + val.Value + ", ");
+                        functionline += val.AsPointer + " ";
                         if (val.Datatype.PointerType() != Stack.DataType.Unk)
                             _params.Add(val.Datatype.PointerType());
                         else
@@ -547,10 +474,12 @@ namespace Decompiler
                         throw new Exception("Unexpeced Stack Type\n" + val.ItemType.ToString());
                 }
             }
+
             if (pcount > 0)
                 functionline = functionline.Remove(functionline.Length - 2) + ")";
             else
                 functionline += ")";
+
             if (rcount == 0)
             {
                 Program.X64npi.UpdateNative(hash, DataType.None, _params.ToArray());
@@ -558,18 +487,18 @@ namespace Decompiler
             }
             else if (rcount == 1)
             {
-                Program.X64npi.UpdateNative(hash, Program.X64npi.GetReturnType(hash), _params.ToArray());
-                PushNative(functionline, hash, Program.X64npi.GetReturnType(hash));
+                PushNative(functionline, Program.X64npi.UpdateNative(hash, Program.X64npi.GetReturnType(hash), _params.ToArray()));
             }
             else if (rcount > 1)
             {
+                Native n = null;
                 if (rcount == 2)
-                    Program.X64npi.UpdateNative(hash, DataType.Unk, _params.ToArray());
+                    n = Program.X64npi.UpdateNative(hash, DataType.Unk, _params.ToArray());
                 else if (rcount == 3)
-                    Program.X64npi.UpdateNative(hash, DataType.Vector3, _params.ToArray());
+                    n = Program.X64npi.UpdateNative(hash, DataType.Vector3, _params.ToArray());
                 else
                     throw new Exception("Error in return items count");
-                PushStructNative(functionline, hash, rcount, Program.X64npi.GetReturnType(hash));
+                PushStructNative(functionline, n, rcount);
             }
             else
                 throw new Exception("Error in return items count");
@@ -584,34 +513,23 @@ namespace Decompiler
             s1 = Pop();
             s2 = Pop();
             if (s1.ItemType == StackValue.Type.Literal && s2.ItemType == StackValue.Type.Literal)
-            {
-                Push("(" + s2.Value + " + " + s1.Value + ")", DataType.Int);
-                return;
-            }
-            if (s2.ItemType == StackValue.Type.Pointer && s1.ItemType == StackValue.Type.Literal)
-            {
-                Push("(&" + s2.Value + " + " + s1.Value + ")", DataType.Unk);
-                return;
-            }
+                Push("(" + s2.AsType(DataType.Int).Value + " + " + s1.AsType(DataType.Int).Value + ")", DataType.Int);
+            else if (s2.ItemType == StackValue.Type.Pointer && s1.ItemType == StackValue.Type.Literal)
+                Push("(&" + s2.UnifyType(s1).Value + " + " + s1.UnifyType(s2).Value + ")", DataType.Unk);
             else if (s1.ItemType == StackValue.Type.Pointer && s2.ItemType == StackValue.Type.Literal)
-            {
-                Push("(&" + s1.Value + " + " + s2.Value + ")", DataType.Unk);
-                return;
-            }
+                Push("(&" + s1.UnifyType(s2).Value + " + " + s2.UnifyType(s1).Value + ")", DataType.Unk);
             else if (s1.ItemType == StackValue.Type.Pointer && s2.ItemType == StackValue.Type.Pointer)
-            {
-                Push("(" + s1.Value + " + " + s2.Value + ") // PointerArith", DataType.Unk);
-                return;
-            }
-            throw new Exception("Unexpected stack value");
+                Push("(" + s1.UnifyType(s2).Value + " + " + s2.UnifyType(s1).Value + ") // PointerArith", DataType.Unk);
+            else
+                throw new Exception("Unexpected stack value");
         }
 
         public void Op_Addf()
         {
-            string s1, s2;
-            s1 = PopLit();
-            s2 = PopLit();
-            Push("(" + s2 + " + " + s1 + ")", DataType.Float);
+            StackValue s1, s2;
+            s1 = Pop();
+            s2 = Pop();
+            Push("(" + s2.AsType(DataType.Float).AsLiteral + " + " + s1.AsType(DataType.Float).AsLiteral + ")", DataType.Float);
         }
 
         public void Op_Sub()
@@ -620,164 +538,152 @@ namespace Decompiler
             s1 = Pop();
             s2 = Pop();
             if (s1.ItemType == StackValue.Type.Literal && s2.ItemType == StackValue.Type.Literal)
-            {
-                Push("(" + s2.Value + " - " + s1.Value + ")", DataType.Int);
-                return;
-            }
-            if (s2.ItemType == StackValue.Type.Pointer && s1.ItemType == StackValue.Type.Literal)
-            {
-                Push("(&" + s2.Value + " - " + s1.Value + ")", DataType.Unk);
-                return;
-            }
+                Push("(" + s2.AsType(DataType.Int).Value + " - " + s1.AsType(DataType.Int).Value + ")", DataType.Int);
+            else if (s2.ItemType == StackValue.Type.Pointer && s1.ItemType == StackValue.Type.Literal)
+                Push("(&" + s2.UnifyType(s1).Value + " - " + s1.UnifyType(s2).Value + ")", DataType.Unk);
             else if (s1.ItemType == StackValue.Type.Pointer && s2.ItemType == StackValue.Type.Literal)
-            {
-                Push("(&" + s1.Value + " - " + s2.Value + ")", DataType.Unk);
-                return;
-            }
+                Push("(&" + s1.UnifyType(s2).Value + " - " + s2.UnifyType(s1).Value + ")", DataType.Unk);
             else if (s1.ItemType == StackValue.Type.Pointer && s2.ItemType == StackValue.Type.Pointer)
-            {
-                Push("(" + s1.Value + " - " + s2.Value + ") // PointerArith", DataType.Unk);
-                return;
-            }
-            throw new Exception("Unexpected stack value");
+                Push("(" + s1.UnifyType(s2).Value + " - " + s2.UnifyType(s1).Value + ") // PointerArith", DataType.Unk);
+            else
+                throw new Exception("Unexpected stack value");
         }
 
         public void Op_Subf()
         {
-            string s1, s2;
-            s1 = PopLit();
-            s2 = PopLit();
-            Push("(" + s2 + " - " + s1 + ")", DataType.Float);
+            StackValue s1, s2;
+            s1 = Pop().AsType(DataType.Float);
+            s2 = Pop().AsType(DataType.Float);
+            Push("(" + s2.AsLiteral + " - " + s1.AsLiteral + ")", DataType.Float);
         }
 
         public void Op_Mult()
         {
-            string s1, s2;
-            s1 = PopLit();
-            s2 = PopLit();
-            Push("(" + s2 + " * " + s1 + ")", DataType.Int);
+            StackValue s1, s2;
+            s1 = Pop().AsType(DataType.Int);
+            s2 = Pop().AsType(DataType.Int);
+            Push("(" + s2.AsLiteral + " * " + s1.AsLiteral + ")", DataType.Int);
         }
 
         public void Op_Multf()
         {
-            string s1, s2;
-            s1 = PopLit();
-            s2 = PopLit();
-            Push("(" + s2 + " * " + s1 + ")", DataType.Float);
+            StackValue s1, s2;
+            s1 = Pop().AsType(DataType.Float);
+            s2 = Pop().AsType(DataType.Float);
+            Push("(" + s2.AsLiteral + " * " + s1.AsLiteral + ")", DataType.Float);
         }
 
         public void Op_Div()
         {
-            string s1, s2;
-            s1 = PopLit();
-            s2 = PopLit();
-            Push("(" + s2 + " / " + s1 + ")", DataType.Int);
+            StackValue s1, s2;
+            s1 = Pop().AsType(DataType.Int);
+            s2 = Pop().AsType(DataType.Int);
+            Push("(" + s2.AsLiteral + " / " + s1.AsLiteral + ")", DataType.Int);
         }
 
         public void Op_Divf()
         {
-            string s1, s2;
-            s1 = PopLit();
-            s2 = PopLit();
-            Push("(" + s2 + " / " + s1 + ")", DataType.Float);
+            StackValue s1, s2;
+            s1 = Pop().AsType(DataType.Float);
+            s2 = Pop().AsType(DataType.Float);
+            Push("(" + s2.AsLiteral + " / " + s1.AsLiteral + ")", DataType.Float);
         }
 
         public void Op_Mod()
         {
-            string s1, s2;
-            s1 = PopLit();
-            s2 = PopLit();
-            Push("(" + s2 + " % " + s1 + ")", DataType.Int);
+            StackValue s1, s2;
+            s1 = Pop().AsType(DataType.Int);
+            s2 = Pop().AsType(DataType.Int);
+            Push("(" + s2.AsLiteral + " % " + s1.AsLiteral + ")", DataType.Int);
         }
 
         public void Op_Modf()
         {
-            string s1, s2;
-            s1 = PopLit();
-            s2 = PopLit();
-            Push("(" + s2 + " % " + s1 + ")", DataType.Float);
+            StackValue s1, s2;
+            s1 = Pop().AsType(DataType.Float);
+            s2 = Pop().AsType(DataType.Float);
+            Push("(" + s2.AsLiteral + " % " + s1.AsLiteral + ")", DataType.Float);
         }
 
         public void Op_Not()
         {
-            string s1;
-            s1 = PopLit();
-            if (s1.StartsWith("!(") && s1.EndsWith(")"))
-                PushCond(s1.Remove(s1.Length - 1).Substring(2));
-            else if (s1.StartsWith("(") && s1.EndsWith(")"))
-                PushCond("!" + s1);
-            else if (!(s1.Contains("&&") && s1.Contains("||") && s1.Contains("^")))
+            StackValue s1 = Pop().AsType(DataType.Bool);
+            string s1v = s1.AsLiteral;
+            if (s1v.StartsWith("!(") && s1v.EndsWith(")"))
+                PushCond(s1v.Remove(s1v.Length - 1).Substring(2));
+            else if (s1v.StartsWith("(") && s1v.EndsWith(")"))
+                PushCond("!" + s1v);
+            else if (!(s1v.Contains("&&") && s1v.Contains("||") && s1v.Contains("^")))
             {
-                if (s1.StartsWith("!"))
-                    PushCond(s1.Substring(1));
+                if (s1v.StartsWith("!"))
+                    PushCond(s1v.Substring(1));
                 else
-                    PushCond("!" + s1);
+                    PushCond("!" + s1v);
             }
             else
-                PushCond("!(" + s1 + ")");
+                PushCond("!(" + s1v + ")");
         }
 
         public void Op_Neg()
         {
-            string s1;
-            s1 = PopLit();
-            Push("-" + s1, DataType.Int);
+            StackValue s1;
+            s1 = Pop().AsType(DataType.Int);
+            Push("-" + s1.AsLiteral, DataType.Int);
         }
 
         public void Op_Negf()
         {
-            string s1;
-            s1 = PopLit();
-            Push("-" + s1, DataType.Float);
+            StackValue s1;
+            s1 = Pop().AsType(DataType.Float);
+            Push("-" + s1.AsLiteral, DataType.Float);
         }
 
         public void Op_CmpEQ()
         {
-            string s1, s2;
-            s1 = PopLit();
-            s2 = PopLit();
-            PushCond(s2 + " == " + s1);
-
+            StackValue s1, s2;
+            s1 = Pop();
+            s2 = Pop().UnifyType(s1); s1.UnifyType(s2);
+            PushCond(s2.AsLiteral + " == " + s1.AsLiteral);
         }
 
         public void Op_CmpNE()
         {
-            string s1, s2;
-            s1 = PopLit();
-            s2 = PopLit();
-            PushCond(s2 + " != " + s1);
+            StackValue s1, s2;
+            s1 = Pop();
+            s2 = Pop().UnifyType(s1); s1.UnifyType(s2);
+            PushCond(s2.AsLiteral + " != " + s1.AsLiteral);
         }
 
         public void Op_CmpGE()
         {
-            string s1, s2;
-            s1 = PopLit();
-            s2 = PopLit();
-            PushCond(s2 + " >= " + s1);
+            StackValue s1, s2;
+            s1 = Pop();
+            s2 = Pop().UnifyType(s1); s1.UnifyType(s2);
+            PushCond(s2.AsLiteral + " >= " + s1.AsLiteral);
         }
 
         public void Op_CmpGT()
         {
-            string s1, s2;
-            s1 = PopLit();
-            s2 = PopLit();
-            PushCond(s2 + " > " + s1);
+            StackValue s1, s2;
+            s1 = Pop();
+            s2 = Pop().UnifyType(s1); s1.UnifyType(s2);
+            PushCond(s2.AsLiteral + " > " + s1.AsLiteral);
         }
 
         public void Op_CmpLE()
         {
-            string s1, s2;
-            s1 = PopLit();
-            s2 = PopLit();
-            PushCond(s2 + " <= " + s1);
+            StackValue s1, s2;
+            s1 = Pop();
+            s2 = Pop().UnifyType(s1); s1.UnifyType(s2);
+            PushCond(s2.AsLiteral + " <= " + s1.AsLiteral);
         }
 
         public void Op_CmpLT()
         {
-            string s1, s2;
-            s1 = PopLit();
-            s2 = PopLit();
-            PushCond(s2 + " < " + s1);
+            StackValue s1, s2;
+            s1 = Pop();
+            s2 = Pop().UnifyType(s1); s1.UnifyType(s2);
+            PushCond(s2.AsLiteral + " < " + s1.AsLiteral);
         }
 
         public void Op_Vadd()
@@ -835,12 +741,12 @@ namespace Decompiler
 
         public void Op_Itof()
         {
-            Push("IntToFloat(" + PopLit() + ")", DataType.Float);
+            Push("IntToFloat(" + Pop().AsType(DataType.Int).AsLiteral + ")", DataType.Float);
         }
 
         public void Op_FtoI()
         {
-            Push("FloatToInt(" + PopLit() + ")", DataType.Int);
+            Push("FloatToInt(" + Pop().AsType(DataType.Float).AsLiteral + ")", DataType.Int);
         }
 
         public void Op_And()
@@ -849,18 +755,15 @@ namespace Decompiler
             StackValue s2 = Pop();
             int temp;
             if (s1.ItemType == StackValue.Type.Pointer && s1.ItemType == StackValue.Type.Pointer)
-            {
-                Push("(" + s2.Value + " && " + s1.Value + ") // PointerArith");
-                return;
-            }
+                Push("(" + s2.UnifyType(s1).Value + " && " + s1.UnifyType(s1).Value + ") // PointerArith");
             else if (s1.ItemType != StackValue.Type.Literal && s2.ItemType != StackValue.Type.Literal)
                 throw new Exception("Not a literal item recieved: " + s1.ItemType + " " + s2.ItemType);
-            if (s1.Datatype == DataType.Bool || s2.Datatype == DataType.Bool)
-                PushCond("(" + s2.Value + " && " + s1.Value + ")");
+            else if (s1.Datatype == DataType.Bool || s2.Datatype == DataType.Bool)
+                PushCond("(" + s2.AsType(DataType.Bool).Value + " && " + s1.AsType(DataType.Bool).Value + ")");
             else if (Utils.IntParse(s1.Value, out temp) || Utils.IntParse(s2.Value, out temp))
-                Push(s2.Value + " & " + s1.Value, DataType.Int);
+                Push(s2.AsType(DataType.Int).Value + " & " + s1.AsType(DataType.Int).Value, DataType.Int);
             else
-                Push("(" + s2.Value + " && " + s1.Value + ")");
+                Push("(" + s2.UnifyType(s1).Value + " && " + s1.UnifyType(s2).Value + ")");
         }
 
         public void Op_Or()
@@ -869,36 +772,23 @@ namespace Decompiler
             StackValue s2 = Pop();
             int temp;
             if (s1.ItemType == StackValue.Type.Pointer && s1.ItemType == StackValue.Type.Pointer)
-            {
                 Push("(" + s2.Value + " || " + s1.Value + ") // PointerArith");
-                return;
-            }
             else if (s1.ItemType != StackValue.Type.Literal && s2.ItemType != StackValue.Type.Literal)
                 throw new Exception("Not a literal item recieved: " + s1.ItemType + " " + s2.ItemType);
-            if (s1.Datatype == DataType.Bool || s2.Datatype == DataType.Bool)
-                PushCond("(" + s2.Value + " || " + s1.Value + ")");
+            else if (s1.Datatype == DataType.Bool || s2.Datatype == DataType.Bool)
+                PushCond("(" + s2.AsType(DataType.Bool).Value + " || " + s1.AsType(DataType.Bool).Value + ")");
             else if (Utils.IntParse(s1.Value, out temp) || Utils.IntParse(s2.Value, out temp))
-                Push(s2.Value + " | " + s1.Value, DataType.Int);
+                Push(s2.AsType(DataType.Int).Value + " | " + s1.AsType(DataType.Int).Value, DataType.Int);
             else
-                Push("(" + s2.Value + " || " + s1.Value + ")");
+                Push("(" + s2.UnifyType(s1).Value + " || " + s1.UnifyType(s2).Value + ")");
         }
 
         public void Op_Xor()
         {
-            string s1, s2;
-            s1 = PopLit();
-            s2 = PopLit();
-            Push(s2 + " ^ " + s1, DataType.Int);
-        }
-
-        string PopStructAccess()
-        {
-            StackValue val = Pop();
-            if (val.ItemType == StackValue.Type.Pointer)
-                return val.Value + ".";
-            else if (val.ItemType == StackValue.Type.Literal)
-                return (val.Value.Contains(" ") ? "(" + val.Value + ")" : val.Value) + "->";
-            throw new Exception("Not a pointer item recieved");
+            StackValue s1, s2;
+            s1 = Pop();
+            s2 = Pop();
+            Push(s2.AsType(DataType.Int).AsLiteral + " ^ " + s1.AsType(DataType.Int).AsLiteral, DataType.Int);
         }
 
         public void Op_GetImm(uint immediate)
@@ -909,44 +799,44 @@ namespace Decompiler
                 {
                     case 1:
                     {
-                        string saccess = PopStructAccess();
+                        string saccess = Pop().AsStructAccess;
                         if (IsAggregate && Agg.Instance.CanAggregateLiteral(saccess))
-                            Push(new StackValue(StackValue.Type.Literal, saccess));
+                            Push(new StackValue(this, StackValue.Type.Literal, saccess));
                         else
-                            Push(new StackValue(StackValue.Type.Literal, saccess + "y"));
+                            Push(new StackValue(this, StackValue.Type.Literal, saccess + "y"));
                         return;
                     }
                     case 2:
                     {
-                        string saccess = PopStructAccess();
+                        string saccess = Pop().AsStructAccess;
                         if (IsAggregate && Agg.Instance.CanAggregateLiteral(saccess))
-                            Push(new StackValue(StackValue.Type.Literal, saccess));
+                            Push(new StackValue(this, StackValue.Type.Literal, saccess));
                         else
-                            Push(new StackValue(StackValue.Type.Literal, saccess + "z"));
+                            Push(new StackValue(this, StackValue.Type.Literal, saccess + "z"));
                         return;
                     }
                 }
             }
 
-            string structAss = PopStructAccess();
+            string structAss = Pop().AsStructAccess;
             if (IsAggregate)
             {
                 if (Agg.Instance.CanAggregateLiteral(structAss))
-                    Push(new StackValue(StackValue.Type.Literal, structAss + "f_"));
+                    Push(new StackValue(this, StackValue.Type.Literal, structAss + "f_"));
                 else
-                    Push(new StackValue(StackValue.Type.Literal, structAss + "f_" + (Program.Hex_Index ? immediate.ToString("X") : immediate.ToString())));
+                    Push(new StackValue(this, StackValue.Type.Literal, structAss + "f_" + (Program.Hex_Index ? immediate.ToString("X") : immediate.ToString())));
             }
             else
             {
-                Push(new StackValue(StackValue.Type.Literal, structAss + "f_" + (Program.Hex_Index ? immediate.ToString("X") : immediate.ToString())));
+                Push(new StackValue(this, StackValue.Type.Literal, structAss + "f_" + (Program.Hex_Index ? immediate.ToString("X") : immediate.ToString())));
             }
         }
 
         public string Op_SetImm(uint immediate)
         {
-            string pointer = PopStructAccess();
+            string pointer = Pop().AsStructAccess;
             string suffix = PeekLiteralSuffix();
-            string value = PopLit();
+            string value = Pop().AsLiteral;
 
             string imm = "";
             if (IsAggregate && Agg.Instance.CanAggregateLiteral(value))
@@ -954,15 +844,13 @@ namespace Decompiler
             else
             {
                 imm = "f_" + (Program.Hex_Index ? immediate.ToString("X") : immediate.ToString());
-                if (PeekVar(0) != null)
+                if (PeekVar(0)?.DataType == DataType.Vector3)
                 {
-                    if (PeekVar(0).Immediatesize == 3)
+                    switch (immediate)
                     {
-                        switch (immediate)
-                        {
-                            case 1: imm = "y"; break;
-                            case 2: imm = "z"; break;
-                        }
+                        case 0: imm = "x"; break;
+                        case 1: imm = "y"; break;
+                        case 2: imm = "z"; break;
                     }
                 }
             }
@@ -971,32 +859,32 @@ namespace Decompiler
 
         public void Op_GetImmP(uint immediate)
         {
-            string saccess = PopStructAccess();
+            string saccess = Pop().AsStructAccess;
             if (IsAggregate && Agg.Instance.CanAggregateLiteral(saccess))
-                Push(new StackValue(StackValue.Type.Pointer, saccess + "f_"));
+                Push(new StackValue(this, StackValue.Type.Pointer, saccess + "f_"));
             else
-                Push(new StackValue(StackValue.Type.Pointer, saccess + "f_" + (Program.Hex_Index ? immediate.ToString("X") : immediate.ToString())));
+                Push(new StackValue(this, StackValue.Type.Pointer, saccess + "f_" + (Program.Hex_Index ? immediate.ToString("X") : immediate.ToString())));
         }
 
         public void Op_GetImmP()
         {
-            string immediate = PopLit();
-            string saccess = PopStructAccess();
+            string immediate = Pop().AsLiteral;
+            string saccess = Pop().AsStructAccess;
 
             int temp;
             if (IsAggregate && Agg.Instance.CanAggregateLiteral(saccess))
             {
                 if (Utils.IntParse(immediate, out temp))
-                    Push(new StackValue(StackValue.Type.Pointer, saccess + "f_"));
+                    Push(new StackValue(this, StackValue.Type.Pointer, saccess + "f_"));
                 else
-                    Push(new StackValue(StackValue.Type.Pointer, saccess + "f_[]"));
+                    Push(new StackValue(this, StackValue.Type.Pointer, saccess + "f_[]"));
             }
             else
             {
                 if (Utils.IntParse(immediate, out temp))
-                    Push(new StackValue(StackValue.Type.Pointer, saccess + "f_" + (Program.Hex_Index ? temp.ToString("X") : temp.ToString())));
+                    Push(new StackValue(this, StackValue.Type.Pointer, saccess + "f_" + (Program.Hex_Index ? temp.ToString("X") : temp.ToString())));
                 else
-                    Push(new StackValue(StackValue.Type.Pointer, saccess + "f_[" + immediate + "]"));
+                    Push(new StackValue(this, StackValue.Type.Pointer, saccess + "f_[" + immediate + "]"));
             }
         }
 
@@ -1029,16 +917,16 @@ namespace Decompiler
         public void Op_ArrayGet(uint immediate)
         {
             string arrayloc = PopArrayAccess();
-            string index = PopLit();
-            Push(new StackValue(StackValue.Type.Literal, arrayloc + "[" + index + getarray(immediate) + "]"));
+            string index = Pop().AsLiteral;
+            Push(new StackValue(this, StackValue.Type.Literal, arrayloc + "[" + index + getarray(immediate) + "]"));
         }
 
         public string Op_ArraySet(uint immediate)
         {
             string arrayloc = PopArrayAccess();
-            string index = PopLit();
+            string index = Pop().AsLiteral;
             string suffix = PeekLiteralSuffix();
-            string value = PopLit();
+            string value = Pop().AsLiteral;
             return setcheck(arrayloc + "[" + index + getarray(immediate) + "]", value, suffix);
         }
 
@@ -1049,22 +937,21 @@ namespace Decompiler
             if (Peek().ItemType == StackValue.Type.Pointer)
             {
                 arrayloc = PopArrayAccess();
-                index = PopLit();
-                Push(new StackValue(StackValue.Type.Pointer, arrayloc + "[" + index + getarray(immediate) + "]"));
+                index = Pop().AsLiteral;
+                Push(new StackValue(this, StackValue.Type.Pointer, arrayloc + "[" + index + getarray(immediate) + "]"));
             }
             else if (Peek().ItemType == StackValue.Type.Literal)
             {
-                arrayloc = PopLit();
-                index = PopLit();
-                Push(new StackValue(StackValue.Type.Literal, arrayloc + "[" + index + getarray(immediate) + "]"));
+                arrayloc = Pop().AsLiteral;
+                index = Pop().AsLiteral;
+                Push(new StackValue(this, StackValue.Type.Literal, arrayloc + "[" + index + getarray(immediate) + "]"));
             }
             else throw new Exception("Unexpected Stack Value :" + Peek().ItemType.ToString());
-
         }
 
         public void Op_RefGet()
         {
-            Push(new StackValue(StackValue.Type.Literal, PopPointerRef()));
+            Push(new StackValue(this, StackValue.Type.Literal, Pop().AsPointerRef));
         }
 
         public void Op_ToStack()
@@ -1073,8 +960,8 @@ namespace Decompiler
             int amount;
             if (TopType == DataType.StringPtr || TopType == DataType.String)
             {
-                pointer = PopPointerRef();
-                count = PopLit();
+                pointer = Pop().AsPointerRef;
+                count = Pop().AsLiteral;
 
                 if (!Utils.IntParse(count, out amount))
                     throw new Exception("Expecting the amount to push");
@@ -1082,8 +969,8 @@ namespace Decompiler
             }
             else
             {
-                pointer = PopPointerRef();
-                count = PopLit();
+                pointer = Pop().AsPointerRef;
+                count = Pop().AsLiteral;
 
                 if (!Utils.IntParse(count, out amount))
                     throw new Exception("Expecting the amount to push");
@@ -1103,10 +990,9 @@ namespace Decompiler
                 int stackIndex = _stack.Count - i - 1;
                 if (stackIndex < 0)
                     return -1;
-                if (_stack[stackIndex].ItemType == StackValue.Type.Struct)
-                {
+
+                if (_stack[stackIndex].ItemType == StackValue.Type.Struct && _stack[stackIndex].Datatype != DataType.Vector3)
                     index -= _stack[stackIndex].StructSize - 1;
-                }
                 if (i < index)
                     actindex++;
             }
@@ -1153,14 +1039,14 @@ namespace Decompiler
             return _stack[_stack.Count - newIndex - 1].Function;
         }
 
-        public ulong PeekNat64(int index)
+        public Native PeekNat64(int index)
         {
             int newIndex = GetIndex(index);
             if (newIndex == -1)
             {
-                return 0;
+                return null;
             }
-            return _stack[_stack.Count - newIndex - 1].X64NatHash;
+            return _stack[_stack.Count - newIndex - 1].Native;
         }
 
         public bool isnat(int index)
@@ -1193,24 +1079,14 @@ namespace Decompiler
             return _stack[_stack.Count - newIndex - 1].ItemType == StackValue.Type.Literal;
         }
 
-        public void PushNative(string value, uint hash, DataType type)
+        public void PushNative(string value, Native native)
         {
-            Push(new StackValue(value, hash, type));
+            Push(new StackValue(this, value, native));
         }
 
-        public void PushNative(string value, ulong hash, DataType type)
+        public void PushStructNative(string value, Native native, int structsize)
         {
-            Push(new StackValue(value, hash, type));
-        }
-
-        public void PushStructNative(string value, uint hash, int structsize, DataType dt = DataType.Unk)
-        {
-            Push(new StackValue(value, structsize, hash, dt));
-        }
-
-        public void PushStructNative(string value, ulong hash, int structsize, DataType dt = DataType.Unk)
-        {
-            Push(new StackValue(value, structsize, hash, dt));
+            Push(new StackValue(this, value, structsize, native));
         }
 
         public DataType ItemType(int index)
@@ -1226,40 +1102,34 @@ namespace Decompiler
         public string Op_FromStack()
         {
             string pointer, count;
-            pointer = PopPointerRef();
-            count = PopLit();
+            pointer = Pop().AsPointerRef;
+            count = Pop().AsLiteral;
             int amount;
             if (!Utils.IntParse(count, out amount))
                 throw new Exception("Expecting the amount to push");
-            string res = pointer + " = { ";
-            foreach (StackValue val in PopList(amount))
-                res += val.Value + ", ";
-            return res.Remove(res.Length - 2) + " };";
+            return StackValue.AsList(pointer, PopList(amount));
         }
 
         public void Op_AmmImm(int immediate)
         {
             if (immediate < 0)
-            {
-                Push(PopLit() + " - " + (-immediate).ToString());
-            }
-            else if (immediate == 0)
-            { }
-            else
-                Push(PopLit() + " + " + immediate.ToString());
+                Push(Pop().AsLiteral + " - " + (-immediate).ToString());
+            else if (immediate > 0)
+                Push(Pop().AsLiteral + " + " + immediate.ToString());
+            //else if (immediate == 0) { }
         }
 
         public void Op_MultImm(int immediate)
         {
-            Push(PopLit() + " * " + immediate.ToString());
+            Push(Pop().AsLiteral + " * " + immediate.ToString());
         }
 
         public string Op_RefSet()
         {
             string pointer, value, suffix;
-            pointer = PopPointerRef();
+            pointer = Pop().AsPointerRef;
             suffix = PeekLiteralSuffix();
-            value = PopLit();
+            value = Pop().AsLiteral;
             return setcheck(pointer, value, suffix);
         }
 
@@ -1267,15 +1137,15 @@ namespace Decompiler
         {
             string pointer, value;
 
-            value = PopLit();
-            pointer = PeekPointerRef();
+            value = Pop().AsLiteral;
+            pointer = Peek().AsPointerRef;
             return setcheck(pointer, value);
         }
 
         public string Op_Set(string location)
         {
             string suffix = PeekLiteralSuffix();
-            return setcheck(location, PopLit(), suffix);
+            return setcheck(location, Pop().AsLiteral, suffix);
         }
 
         public string Op_Set(string location, Vars_Info.Var Variable)
@@ -1289,42 +1159,42 @@ namespace Decompiler
 
         public void Op_Hash()
         {
-            Push("Hash(" + PopLit() + ")", DataType.Int);
+            Push("Hash(" + Pop().AsType(DataType.Int).AsLiteral + ")", DataType.Int);
         }
 
-        public string op_strcopy(int size)
+        public string Op_StrCpy(int size)
         {
-            string pointer = PopPointer();
-            string pointer2 = PopPointer();
-            return "StringCopy(" + pointer + ", " + pointer2 + ", " + size.ToString() + ");";
+            StackValue pointer = Pop().AsType(DataType.StringPtr);
+            StackValue pointer2 = Pop().AsType(DataType.StringPtr);
+            return "StringCopy(" + pointer.AsPointer + ", " + pointer2.AsPointer + ", " + size.ToString() + ");";
         }
 
-        public string op_stradd(int size)
+        public string Op_StrAdd(int size)
         {
-            string pointer = PopPointer();
-            string pointer2 = PopPointer();
-            return "StringConCat(" + pointer + ", " + pointer2 + ", " + size.ToString() + ");";
+            StackValue pointer = Pop().AsType(DataType.StringPtr);
+            StackValue pointer2 = Pop().AsType(DataType.StringPtr);
+            return "StringConCat(" + pointer.AsPointer + ", " + pointer2.AsPointer + ", " + size.ToString() + ");";
         }
 
-        public string op_straddi(int size)
+        public string Op_StrAddI(int size)
         {
-            string pointer = PopPointer();
-            string inttoadd = PopLit();
+            string pointer = Pop().AsType(DataType.StringPtr).AsPointer;
+            string inttoadd = Pop().AsType(DataType.Int).AsLiteral;
             return "StringIntConCat(" + pointer + ", " + inttoadd + ", " + size.ToString() + ");";
         }
 
-        public string op_itos(int size)
+        public string Op_ItoS(int size)
         {
-            string pointer = PopPointer();
-            string intval = PopLit();
+            string pointer = Pop().AsPointer;
+            string intval = Pop().AsLiteral;
             return "IntToString(" + pointer + ", " + intval + ", " + size.ToString() + ");";
         }
 
-        public string op_sncopy()
+        public string Op_SnCopy()
         {
-            string pointer = PopPointer();
-            string value = PopLit();
-            string count = PopLit();
+            string pointer = Pop().AsPointer;
+            string value = Pop().AsLiteral;
+            string count = Pop().AsLiteral;
             int amount;
             if (!Utils.IntParse(count, out amount))
                 throw new Exception("Int Stack value expected");
@@ -1334,11 +1204,9 @@ namespace Decompiler
         public string[] pcall()
         {
             List<string> temp = new List<string>();
-            string loc = PopLit();
+            string loc = Pop().AsLiteral;
             foreach (string s in EmptyStack())
-            {
                 temp.Add("Stack.Push(" + s + ");");
-            }
             temp.Add("Call_Loc(" + loc + ");");
             return temp.ToArray();
         }
@@ -1351,8 +1219,7 @@ namespace Decompiler
         /// <returns></returns>
         public string setcheck(string loc, string value, string suffix = "")
         {
-            if (!value.StartsWith(loc + " "))
-                return loc + " = " + value + ";" + suffix;
+            if (!value.StartsWith(loc + " ")) return loc + " = " + value + ";" + suffix;
 
             string temp = value.Substring(loc.Length + 1);
             string op = temp.Remove(temp.IndexOf(' '));
@@ -1389,7 +1256,7 @@ namespace Decompiler
             Vector3Ptr,
         }
 
-        private class StackValue
+        public class StackValue
         {
             public enum Type
             {
@@ -1398,107 +1265,247 @@ namespace Decompiler
                 Struct
             }
 
+            Stack _parent;
             string _value;
             Type _type;
-            int _structSize;
             DataType _datatype;
+            int _structSize = 0;
             Vars_Info.Var _var = null;
-            ulong _xhash = 0;
-            bool global = false;
+            Native _native = null;
             Function _function = null;
+            bool global = false;
 
-            public StackValue(Type type, string value)
+            public StackValue(Stack parent, Type type, string value, DataType datatype = DataType.Unk)
             {
+                _parent = parent;
                 _type = type;
                 _value = value;
-                _structSize = 0;
-                _datatype = DataType.Unk;
+                _datatype = datatype;
             }
 
-            public StackValue(Type type, string name, Vars_Info.Var var)
+            public StackValue(Stack parent, Type type, Vars_Info.Var var, string suffix = "") : this(parent, type, var.Name + suffix, var.DataType)
             {
-                _type = type;
-                _value = name;
-                _structSize = 0;
-                _datatype = var.DataType;
                 _var = var;
             }
 
-            public StackValue(Type type, string name, Function function)
+            public StackValue(Stack parent, Type type, string name, Function function) : this(parent, type, name, function.ReturnType)
             {
-                _type = type;
-                _value = name;
-                _structSize = 0;
-                _datatype = function.ReturnType;
                 _function = function;
             }
 
-            public StackValue(Type type, string value, DataType datatype)
+            public StackValue(Stack parent, string value, Native native) : this(parent, Type.Literal, value, native.ReturnParam.StackType)
             {
-                _type = type;
-                _value = value;
-                _structSize = 0;
-                _datatype = datatype;
+                _native = native;
             }
 
-            public StackValue(string value, ulong hash, DataType datatype)
+            public StackValue(Stack parent, string value, int structsize, Native native) : this(parent, Type.Struct, value, native.ReturnParam.StackType)
             {
-                _type = Type.Literal;
-                _value = value;
-                _structSize = 0;
-                _xhash = hash;
-                _datatype = datatype;
-            }
-
-            public StackValue(string value, int structsize, ulong hash, DataType datatype = DataType.Unk)
-            {
-                _type = Type.Struct;
-                _value = value;
+                _native = native;
                 _structSize = structsize;
-                _xhash = hash;
-                _datatype = datatype;
             }
 
-            public StackValue(string value, int structsize, bool Vector = false)
+            public StackValue(Stack parent, string value, int structsize, bool Vector = false) : this(parent, Type.Struct, value, (Vector && structsize == 3) ? DataType.Vector3 : DataType.Unk)
             {
-                _type = Type.Struct;
-                _value = value;
                 _structSize = structsize;
-                _datatype = (Vector && structsize == 3) ? DataType.Vector3 : DataType.Unk;
             }
 
-            public StackValue(int stringsize, string value)
+            public StackValue(Stack parent, int stringsize, string value) : this(parent, Type.Struct, value, DataType.String)
             {
-                _type = Type.Struct;
-                _value = value;
                 _structSize = stringsize;
-                _datatype = DataType.String;
             }
 
-            public static StackValue Global(Type type, string name)
+            public static StackValue Global(Stack parent, Type type, string name)
             {
-                StackValue G = new StackValue(type, name);
+                StackValue G = new StackValue(parent, type, name);
                 G.global = true;
                 return G;
             }
 
-            public string Value { get { return _value; } }
+            public string Value => _value;
+            public Type ItemType => _type;
+            private bool isLiteral => ItemType == Type.Literal;
+            public int StructSize => _structSize;
 
-            public Type ItemType { get { return _type; } }
+            public Vars_Info.Var Variable => _var;
+            public Function Function => _function;
+            public Native Native => _native;
+            public bool isNative => Native != null;
+            public bool isNotVar => (Variable == null && !global);
 
-            public int StructSize { get { return _structSize; } }
+            private static DataType PrecendenceSet(DataType a, DataType b) => (a.Precedence() < b.Precedence() ? b : a);
+            public DataType Datatype
+            {
+                get
+                {
+                    if (_parent.DecodeVarInfo)
+                    {
+                        if (Native != null && isLiteral) { return Native.ReturnParam.StackType; }
+                        if (Variable != null && isLiteral) { return Variable.DataType; }
+                        if (Function != null && isLiteral) { return Function.ReturnType; }
+                    }
+                    return _datatype;
+                }
 
-            public DataType Datatype { get { return _datatype; } }
+                set
+                {
+                    if (_parent.DecodeVarInfo)
+                    {
+                        _datatype = PrecendenceSet(_datatype, value);
+                        if (Native != null && isLiteral) { _parent._parent.UpdateNativeReturnType(Native.Hash, PrecendenceSet(Native.ReturnParam.StackType, value)); }
+                        if (Variable != null && isLiteral) Variable.DataType = PrecendenceSet(Variable.DataType, value);
+                        if (Function != null && isLiteral) Function.ReturnType = PrecendenceSet(Function.ReturnType, value);
+                    }
+                    else
+                        _datatype = value;
+                }
+            }
 
-            public Vars_Info.Var Variable { get { return _var; } }
+            public StackValue AsType(DataType t)
+            {
+                if (_parent.DecodeVarInfo) Datatype = t;
+                return this;
+            }
 
-            public Function Function { get { return _function; } }
+            public StackValue UnifyType(StackValue other)
+            {
+                if (_parent.DecodeVarInfo)
+                {
+                    if (Datatype != DataType.Unk && Datatype != DataType.UnkPtr && Datatype != DataType.Unsure)
+                        Datatype = other.Datatype;
+                }
+                return this;
+            }
 
-            public bool isNative { get { return _xhash != 0; } }
+            public object AsDrop
+            {
+                get
+                {
+                    if (Value != null && Value.Contains("(") && Value.EndsWith(")"))
+                    {
+                        if (Value.IndexOf("(") > 4)
+                            return Value.ToString() + ";";
+                    }
+                    return null;
+                }
+            }
 
-            public ulong X64NatHash { get { return _xhash; } }
+            public string AsLiteral
+            {
+                get
+                {
+                    if (ItemType != StackValue.Type.Literal)
+                    {
+                        if (ItemType == StackValue.Type.Pointer)
+                            return "&" + Value;
+                        else
+                            throw new Exception("Not a literal item recieved");
+                    }
+                    return Value;
+                }
+            }
 
-            public bool isNotVar { get { return Variable == null && !global; } }
+            public string LiteralComment
+            {
+                get
+                {
+                    if (ItemType == StackValue.Type.Literal && Datatype == DataType.Int)
+                    {
+                        int temp;
+                        if (int.TryParse(Value, out temp) && Program.gxtbank.IsKnownGXT(temp))
+                            return Program.gxtbank.GetEntry(temp);
+                    }
+                    return "";
+                }
+            }
+
+            public string AsPointer
+            {
+                get
+                {
+                    if (ItemType == StackValue.Type.Pointer)
+                    {
+                        if (isNotVar)
+                            return "&(" + Value + ")";
+                        else
+                            return "&" + Value;
+                    }
+                    else if (ItemType == StackValue.Type.Literal)
+                        return Value;
+                    throw new Exception("Not a pointer item recieved");
+                }
+            }
+
+            public string AsPointerRef
+            {
+                get
+                {
+                    if (ItemType == StackValue.Type.Pointer)
+                        return Value;
+                    else if (ItemType == StackValue.Type.Literal)
+                        return "*" + (Value.Contains(" ") ? "(" + Value + ")" : Value);
+                    throw new Exception("Not a pointer item recieved");
+                }
+            }
+
+            public string AsStructAccess
+            {
+                get
+                {
+                    if (ItemType == StackValue.Type.Pointer)
+                        return Value + ".";
+                    else if (ItemType == StackValue.Type.Literal)
+                        return (Value.Contains(" ") ? "(" + Value + ")" : Value) + "->";
+                    throw new Exception("Not a pointer item recieved");
+                }
+            }
+
+            public static string AsVector(StackValue[] data)
+            {
+                switch (data.Length)
+                {
+                    case 1:
+                        data[0]._datatype = DataType.Vector3;
+                        return data[0].AsLiteral;
+                    case 3:
+                        return "Vector(" + data[2].AsType(DataType.Float).AsLiteral + ", " + data[1].AsType(DataType.Float).AsLiteral + ", " + data[0].AsType(DataType.Float).AsLiteral + ")";
+                    case 2:
+                        return "Vector(" + data[1].AsType(DataType.Float).AsLiteral + ", " + data[0].AsType(DataType.Float).AsLiteral + ")";
+                }
+                throw new Exception("Unexpected data length");
+            }
+
+            public static string AsList(string prefix, StackValue[] data)
+            {
+                string res = prefix + " = { ";
+                foreach (StackValue val in data)
+                    res += val.Value + ", ";
+                return res.Remove(res.Length - 2) + " };";
+            }
+
+            public static string AsCall(StackValue[] data)
+            {
+                if (data.Length == 0) return "";
+
+                string items = "";
+                foreach (StackValue val in data)
+                {
+                    switch (val.ItemType)
+                    {
+                        case StackValue.Type.Literal:
+                            items += val.Value + ", ";
+                            break;
+                        case StackValue.Type.Pointer:
+                            items += val.AsPointer + ", ";
+                            break;
+                        case StackValue.Type.Struct:
+                            items += val.Value + ", ";
+                            break;
+                        default:
+                            throw new Exception("Unexpeced Stack Type\n" + val.ItemType.ToString());
+                    }
+                }
+                return items;
+            }
 
         }
 
@@ -1563,22 +1570,23 @@ namespace Decompiler
             switch (c)
             {
                 case Stack.DataType.Unsure:
-                case Stack.DataType.UnkPtr:
                     return 1;
                 case Stack.DataType.Vector3:
                     return 2;
                 case Stack.DataType.BoolPtr:
-                case Stack.DataType.Float:
                 case Stack.DataType.Int:
+                case Stack.DataType.IntPtr:
                 case Stack.DataType.String:
                 case Stack.DataType.StringPtr:
-                case Stack.DataType.IntPtr:
-                case Stack.DataType.FloatPtr:
                 case Stack.DataType.Vector3Ptr:
+                case Stack.DataType.Float:
+                case Stack.DataType.FloatPtr:
                     return 3;
                 case Stack.DataType.Bool:
                 case Stack.DataType.None:
                     return 4;
+
+                case Stack.DataType.UnkPtr:
                 case Stack.DataType.Unk:
                 default:
                     return 0;

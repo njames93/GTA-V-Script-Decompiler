@@ -23,6 +23,9 @@ namespace Decompiler
                     foreach (KeyValuePair<string, JToken> natives in ns.Value.ToObject<RootObject>().Values)
                     {
                         Native native = natives.Value.ToObject<Native>();
+                        foreach (Param p in native.Params)
+                            p.UpdateFixed();
+
                         native.Namespace = ns.Key;
                         if (Program.IsBit32)
                         {
@@ -83,28 +86,33 @@ namespace Decompiler
             return TryGetValue(hash, out native) ? native.ReturnParam.StackType : Stack.DataType.Unk;
         }
 
-        public void UpdateParam(ulong hash, Stack.DataType type, int index)
+        public bool UpdateParam(ulong hash, Stack.DataType type, int index)
         {
             Native native;
-            if (TryGetValue(hash, out native))
+            if (TryGetValue(hash, out native) && !native.Vardiac && index < native.Params.Count)
             {
-                if (index < native.Params.Count && !native.Vardiac)
+                Param p = native.Params[index];
+                if (p.StackType.Precedence() < type.Precedence() && !p.FixedType)
                 {
-                    Param p = native.Params[index];
-                    if (p.StackType.IsUnknown())
-                        p.Type = type.LongName();
+                    p.Type = type.LongName();
+                    return true;
                 }
             }
+            return false;
         }
 
-        public void UpdateRetType(ulong hash, Stack.DataType returns, bool over = false)
+        public bool UpdateRetType(ulong hash, Stack.DataType returns, bool over = false)
         {
             Native native;
-            if (TryGetValue(hash, out native))
+            if (TryGetValue(hash, out native) && !native.ReturnParam.FixedType)
             {
-                if (native.ReturnParam.StackType.IsUnknown())
+                if (native.ReturnParam.StackType.Precedence() < returns.Precedence())
+                {
                     native.ReturnParam.Type = returns.LongName();
+                    return true;
+                }
             }
+            return false;
         }
 
         public bool FetchNativeCall(ulong hash, string name, int pcount, int rcount, out Native native)
@@ -145,9 +153,9 @@ namespace Decompiler
             return true;
         }
 
-        public void UpdateNative(ulong hash, Stack.DataType returns, params Stack.DataType[] param)
+        public Native UpdateNative(ulong hash, Stack.DataType returns, params Stack.DataType[] param)
         {
-            Native native;
+            Native native = null;
             lock (Program.ThreadLock)
             {
                 if (!TryGetValue(hash, out native)) throw new Exception("Unknown Native: " + hash.ToString("X"));
@@ -161,6 +169,7 @@ namespace Decompiler
                         native.Params[i].Type = param[i].LongName();
                 }
             }
+            return native;
         }
 
         /// <summary>
@@ -311,7 +320,11 @@ namespace Decompiler
         public string Return
         {
             get => _return;
-            set { _return = value; ReturnParam = new Param(_return, "Return"); }
+            set
+            {
+                _return = value;
+                ReturnParam = new Param(value, "Return").UpdateFixed();
+            }
         }
 
         /// <summary>
@@ -355,6 +368,7 @@ namespace Decompiler
     {
         private string _type;
         private bool _vardiac; // Temporary fix for 0xFA925AC00EB830B9.
+        private bool _fixedType = false;
         private Stack.DataType _sType;
 
         public Param() { }
@@ -376,6 +390,12 @@ namespace Decompiler
             }
         }
 
+        public Param UpdateFixed()
+        {
+            _fixedType = !StackType.IsUnknown();
+            return this;
+        }
+
         /// <summary>
         ///
         /// </summary>
@@ -385,5 +405,10 @@ namespace Decompiler
         ///
         /// </summary>
         public bool Vardiac => _vardiac;
+
+        /// <summary>
+        ///
+        /// </summary>
+        public bool FixedType => _fixedType;
     }
 }

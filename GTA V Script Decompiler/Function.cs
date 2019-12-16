@@ -23,6 +23,9 @@ namespace Decompiler
         public int Location { get; private set; }
         public int MaxLocation { get; private set; }
 
+        private bool _dirty = false;
+        private HashSet<Function> Associated = new HashSet<Function>();
+
         public ScriptFile Scriptfile { get; private set; }
         public int NativeCount { get; private set; } // Number of decoded native calls.
         public bool IsAggregate { get; private set; } // Stateless function.
@@ -37,7 +40,7 @@ namespace Decompiler
         string tabs = "";
         CodePath Outerpath;
         bool writeelse = false;
-        public Stack.DataType ReturnType { get; private set; }
+        public Stack.DataType ReturnType { get; set; } = Stack.DataType.Unk;
         FunctionName fnName;
         internal bool Decoded { get; private set; }
         internal bool DecodeStarted = false;
@@ -74,6 +77,44 @@ namespace Decompiler
         /// </summary>
         /// <returns></returns>
         public string ToHash() { return Agg.SHA256(sb.ToString()); }
+
+        public void UpdateNativeReturnType(ulong hash, Stack.DataType datatype)
+        {
+            Scriptfile.UpdateNativeReturnType(hash, datatype);
+        }
+
+        public void UpdateNativeParameter(ulong hash, Stack.DataType dataType, int index)
+        {
+            Scriptfile.UpdateNativeParameter(hash, dataType, index);
+        }
+
+        public void UpdateFuncParamType(uint index, Stack.DataType dataType)
+        {
+            if (Params.SetTypeAtIndex(index, dataType))
+                Dirty = true;
+        }
+
+        public bool Dirty
+        {
+            get => _dirty;
+            set
+            {
+                bool forward = !_dirty && value;
+                _dirty = value;
+                if (forward) // Dirty all associate functions.
+                {
+                    foreach (Function f in Associated)
+                        f.Dirty = true;
+                }
+            }
+        }
+
+        public void Associate(Function f)
+        {
+            if (f != this) {
+                this.Associated.Add(f); // f.Associated.Add(this);
+            }
+        }
 
         /// <summary>
         /// Invalidate function aggregate cache
@@ -151,20 +192,6 @@ namespace Decompiler
                 strFirstLineCache = name + working + (Program.IncFuncPos ? ("//Position - 0x" + Location.ToString("X")) : "");
             }
             return strFirstLineCache;
-        }
-
-        /// <summary>
-        /// Determines if a frame variable is a parameter or a variable and returns its name
-        /// </summary>
-        /// <param name="index">the frame variable index</param>
-        /// <returns>the name of the variable</returns>
-        public string GetFrameVarName(uint index)
-        {
-            if (index < Pcount)
-                return Params.GetVarName(index);
-            else if (index < Pcount + 2)
-                throw new Exception("Unexpecteed fvar");
-            return Vars.GetVarName((uint)(index - 2 - Pcount));
         }
 
         /// <summary>
@@ -254,6 +281,7 @@ namespace Decompiler
         public void PreDecode()
         {
             if (predecoded || predecodeStarted) return;
+            Dirty = false;
             predecodeStarted = true;
             getinstructions();
             decodeinsructionsforvarinfo();
@@ -271,7 +299,7 @@ namespace Decompiler
                 if (Decoded) return;
             }
             //Set up a stack
-            Stack = new Stack(IsAggregate);
+            Stack = new Stack(this, false, IsAggregate);
 
             //Get The Instructions in the function along with their operands
             //getinstructions();
@@ -665,7 +693,7 @@ namespace Decompiler
             Outerpath = new SwitchPath(Outerpath, cases, -1, breakloc);
 
             // Found all information about switch, write the first case, the rest will be handled when we get to them
-            writeline("switch (" + Stack.PopLit() + ")");
+            writeline("switch (" + Stack.Pop().AsLiteral + ")");
             opentab();
             for (int i = 0; i < cases[sortedOffset].Count; i++)
                 writeline("case " + cases[sortedOffset][i] + ":");
@@ -684,7 +712,7 @@ namespace Decompiler
         /// </summary>
         void CheckConditional()
         {
-            string tempstring = Stack.PopLit();
+            string tempstring = Stack.Pop().AsLiteral;
             if (!(tempstring.StartsWith("(") && tempstring.EndsWith(")")))
                 tempstring = "(" + tempstring + ")";
 
@@ -1155,45 +1183,39 @@ namespace Decompiler
                     break;
                 case Instruction.RAGE_LOCAL_U8:
                 case Instruction.RAGE_LOCAL_U16:
-                    Stack.PushPVar(GetFrameVarName(Instructions[Offset].GetOperandsAsUInt),
-                        GetFrameVar(Instructions[Offset].GetOperandsAsUInt));
+                    Stack.PushPVar(GetFrameVar(Instructions[Offset].GetOperandsAsUInt));
                     break;
                 case Instruction.RAGE_LOCAL_U8_LOAD:
                 case Instruction.RAGE_LOCAL_U16_LOAD:
-                    Stack.PushVar(GetFrameVarName(Instructions[Offset].GetOperandsAsUInt),
-                        GetFrameVar(Instructions[Offset].GetOperandsAsUInt));
+                    Stack.PushVar(GetFrameVar(Instructions[Offset].GetOperandsAsUInt));
                     break;
                 case Instruction.RAGE_LOCAL_U8_STORE:
                 case Instruction.RAGE_LOCAL_U16_STORE:
                 {
-                    string tempstring = Stack.Op_Set(GetFrameVarName(Instructions[Offset].GetOperandsAsUInt),
-                        GetFrameVar(Instructions[Offset].GetOperandsAsUInt));
-                    if (GetFrameVar(Instructions[Offset].GetOperandsAsUInt).DataType == Stack.DataType.Bool)
+                    Vars_Info.Var var = GetFrameVar(Instructions[Offset].GetOperandsAsUInt);
+                    string tempstring = Stack.Op_Set(var.Name, var);
+                    if (var.DataType == Stack.DataType.Bool)
                         tempstring = tempstring.Replace("= 0;", "= false;").Replace("= 1;", "= true;");
-                    if (!GetFrameVar(Instructions[Offset].GetOperandsAsUInt).Is_Array)
+                    if (!var.Is_Array)
                         writeline(tempstring);
                     break;
                 }
                 case Instruction.RAGE_STATIC_U8:
                 case Instruction.RAGE_STATIC_U16:
-                    Stack.PushPVar(Scriptfile.Statics.GetVarName(Instructions[Offset].GetOperandsAsUInt),
-                        Scriptfile.Statics.GetVarAtIndex(Instructions[Offset].GetOperandsAsUInt));
+                    Stack.PushPVar(Scriptfile.Statics.GetVarAtIndex(Instructions[Offset].GetOperandsAsUInt).Fixed());
                     break;
-                // Stack.PushPointer(Scriptfile.Statics.GetVarName(Instructions[Offset].GetOperandsAsUInt)); break;
                 case Instruction.RAGE_STATIC_U8_LOAD:
                 case Instruction.RAGE_STATIC_U16_LOAD:
-                    Stack.PushVar(Scriptfile.Statics.GetVarName(Instructions[Offset].GetOperandsAsUInt),
-                        Scriptfile.Statics.GetVarAtIndex(Instructions[Offset].GetOperandsAsUInt));
+                    Stack.PushVar(Scriptfile.Statics.GetVarAtIndex(Instructions[Offset].GetOperandsAsUInt).Fixed());
                     break;
-                //Stack.Push(Scriptfile.Statics.GetVarName(Instructions[Offset].GetOperandsAsUInt), Scriptfile.Statics.GetTypeAtIndex(Instructions[Offset].GetOperandsAsUInt)); break;
                 case Instruction.RAGE_STATIC_U8_STORE:
                 case Instruction.RAGE_STATIC_U16_STORE:
                 {
-                    string tempstring = Stack.Op_Set(Scriptfile.Statics.GetVarName(Instructions[Offset].GetOperandsAsUInt),
-                        Scriptfile.Statics.GetVarAtIndex(Instructions[Offset].GetOperandsAsUInt));
-                    if (Scriptfile.Statics.GetVarAtIndex(Instructions[Offset].GetOperandsAsUInt).DataType == Stack.DataType.Bool)
+                    Vars_Info.Var var = Scriptfile.Statics.GetVarAtIndex(Instructions[Offset].GetOperandsAsUInt).Fixed();
+                    string tempstring = Stack.Op_Set(Scriptfile.Statics.GetVarName(Instructions[Offset].GetOperandsAsUInt), var);
+                    if (var.DataType == Stack.DataType.Bool)
                         tempstring = tempstring.Replace("= 0;", "= false;").Replace("= 1;", "= true;");
-                    if (!Scriptfile.Statics.GetVarAtIndex(Instructions[Offset].GetOperandsAsUInt).Is_Array)
+                    if (!var.Is_Array)
                         writeline(tempstring);
                     break;
                 }
@@ -1269,7 +1291,7 @@ namespace Decompiler
                 case Instruction.RAGE_STRING:
                 {
                     int tempint;
-                    string tempstring = Stack.PopLit();
+                    string tempstring = Stack.Pop().AsLiteral;
                     if (!Utils.IntParse(tempstring, out tempint))
                         Stack.Push("StringTable(" + tempstring + ")", Stack.DataType.StringPtr);
                     else if (!this.Scriptfile.StringTable.StringExists(tempint))
@@ -1282,19 +1304,19 @@ namespace Decompiler
                     Stack.Op_Hash();
                     break;
                 case Instruction.RAGE_TEXT_LABEL_ASSIGN_STRING:
-                    writeline(Stack.op_strcopy(Instructions[Offset].GetOperandsAsInt));
+                    writeline(Stack.Op_StrCpy(Instructions[Offset].GetOperandsAsInt));
                     break;
                 case Instruction.RAGE_TEXT_LABEL_ASSIGN_INT:
-                    writeline(Stack.op_itos(Instructions[Offset].GetOperandsAsInt));
+                    writeline(Stack.Op_ItoS(Instructions[Offset].GetOperandsAsInt));
                     break;
                 case Instruction.RAGE_TEXT_LABEL_APPEND_STRING:
-                    writeline(Stack.op_stradd(Instructions[Offset].GetOperandsAsInt));
+                    writeline(Stack.Op_StrAdd(Instructions[Offset].GetOperandsAsInt));
                     break;
                 case Instruction.RAGE_TEXT_LABEL_APPEND_INT:
-                    writeline(Stack.op_straddi(Instructions[Offset].GetOperandsAsInt));
+                    writeline(Stack.Op_StrAddI(Instructions[Offset].GetOperandsAsInt));
                     break;
                 case Instruction.RAGE_TEXT_LABEL_COPY:
-                    writeline(Stack.op_sncopy());
+                    writeline(Stack.Op_SnCopy());
                     break;
                 case Instruction.RAGE_CATCH:
                     throw new Exception(); // writeline("catch;"); break;
@@ -1370,7 +1392,7 @@ namespace Decompiler
                         Var.DataType = Stack.DataType.String;
                     else if (functionPars && Stack.isPointer(index + i) && type.BaseType() != Stack.DataType.Unk)
                         Var.DataType = type.BaseType();
-                    else
+                    else if (!functionPars)
                         Var.DataType = type;
                     continue;
                 }
@@ -1387,7 +1409,7 @@ namespace Decompiler
                 }
                 if (Stack.isnat(index + i))
                 {
-                    Program.X64npi.UpdateRetType(Stack.PeekNat64(index + i), type);
+                    UpdateNativeReturnType(Stack.PeekNat64(index + i).Hash, type);
                 }
             }
         }
@@ -1413,24 +1435,10 @@ namespace Decompiler
                 }
                 if (Stack.isnat(index + i))
                 {
-                    Program.X64npi.UpdateRetType(Stack.PeekNat64(index + i), Stack.DataType.StringPtr);
+                    UpdateNativeReturnType(Stack.PeekNat64(index + i).Hash, Stack.DataType.StringPtr);
                 }
             }
         }
-
-        /*	public void CheckInstructionString(int strsize, int index = 0)
-            {
-                Vars_Info.Var Var = Stack.PeekVar(index);
-                if (Var != null && Stack.isPointer(index))
-                {
-                    if (Var.Immediatesize == 1 || Var.Immediatesize == strsize/4)
-                    {
-                        Var.DataType = Stack.DataType.String;
-                        Var.Immediatesize = strsize/4;
-                    }
-                }
-
-            }*/
 
         public void SetImmediate(int size)
         {
@@ -1550,8 +1558,8 @@ namespace Decompiler
 
         public void decodeinsructionsforvarinfo()
         {
-            Stack = new Stack(IsAggregate);
-            ReturnType = Stack.DataType.Unk;
+            Stack = new Stack(this, true, IsAggregate);
+            //ReturnType = Stack.DataType.Unk;
             for (int i = 0; i < Instructions.Count; i++)
             {
                 HLInstruction ins = Instructions[i];
@@ -1723,10 +1731,9 @@ namespace Decompiler
                         break;
                     case Instruction.RAGE_NATIVE:
                     {
-                        Stack.NativeCallTest(
-                            this.Scriptfile.X64NativeTable.GetNativeHashFromIndex(ins.GetNativeIndex),
-                            this.Scriptfile.X64NativeTable.GetNativeFromIndex(ins.GetNativeIndex), ins.GetNativeParams, ins.GetNativeReturns
-                        );
+                        ulong hash = Scriptfile.X64NativeTable.GetNativeHashFromIndex(ins.GetNativeIndex);
+                        Scriptfile.CrossReferenceNative(hash, this);
+                        Stack.NativeCallTest(hash, this.Scriptfile.X64NativeTable.GetNativeFromIndex(ins.GetNativeIndex), ins.GetNativeParams, ins.GetNativeReturns);
                         break;
                     }
                     case Instruction.RAGE_ENTER:
@@ -1748,7 +1755,7 @@ namespace Decompiler
                         if (Stack.TopType == Stack.DataType.Int)
                         {
                             int tempint;
-                            string tempstring = Stack.PopLit();
+                            string tempstring = Stack.Pop().AsLiteral;
                             if (Utils.IntParse(tempstring, out tempint))
                                 Stack.PeekVar(0).Value = tempint;
                             break;
@@ -1766,7 +1773,7 @@ namespace Decompiler
                         if (Stack.TopType == Stack.DataType.Int)
                         {
                             int tempint;
-                            string tempstring = Stack.PopLit();
+                            string tempstring = Stack.Pop().AsLiteral;
                             if (Utils.IntParse(tempstring, out tempint))
                                 Stack.PeekVar(0).Value = tempint;
                         }
@@ -1830,12 +1837,12 @@ namespace Decompiler
                     }
                     case Instruction.RAGE_LOCAL_U8:
                     case Instruction.RAGE_LOCAL_U16:
-                        Stack.PushPVar("FrameVar", GetFrameVar(ins.GetOperandsAsUInt));
+                        Stack.PushPVar(GetFrameVar(ins.GetOperandsAsUInt));
                         GetFrameVar(ins.GetOperandsAsUInt).call();
                         break;
                     case Instruction.RAGE_LOCAL_U8_LOAD:
                     case Instruction.RAGE_LOCAL_U16_LOAD:
-                        Stack.PushVar("FrameVar", GetFrameVar(ins.GetOperandsAsUInt));
+                        Stack.PushVar(GetFrameVar(ins.GetOperandsAsUInt));
                         GetFrameVar(ins.GetOperandsAsUInt).call();
                         break;
                     case Instruction.RAGE_LOCAL_U8_STORE:
@@ -1851,10 +1858,10 @@ namespace Decompiler
                             CheckInstruction(0, GetFrameVar(ins.GetOperandsAsUInt).DataType);
                         }
 
-                        string tempstring = Stack.PopLit();
+                        string tempstring = Stack.Pop().AsLiteral;
                         if (Stack.TopType == Stack.DataType.Int)
                         {
-                            tempstring = Stack.PopLit();
+                            tempstring = Stack.Pop().AsLiteral;
                             if (ins.GetOperandsAsUInt > Pcount)
                             {
                                 int tempint;
@@ -1871,22 +1878,18 @@ namespace Decompiler
                     }
                     case Instruction.RAGE_STATIC_U8:
                     case Instruction.RAGE_STATIC_U16:
-                        Stack.PushPVar("Static", Scriptfile.Statics.GetVarAtIndex(ins.GetOperandsAsUInt));
+                        Stack.PushPVar(Scriptfile.Statics.GetVarAtIndex(ins.GetOperandsAsUInt).Fixed());
                         break;
                     case Instruction.RAGE_STATIC_U8_LOAD:
                     case Instruction.RAGE_STATIC_U16_LOAD:
-                        Stack.PushVar("Static", Scriptfile.Statics.GetVarAtIndex(ins.GetOperandsAsUInt));
+                        Stack.PushVar(Scriptfile.Statics.GetVarAtIndex(ins.GetOperandsAsUInt).Fixed());
                         break;
                     case Instruction.RAGE_STATIC_U8_STORE:
                     case Instruction.RAGE_STATIC_U16_STORE:
                         if (Stack.TopType != Stack.DataType.Unk)
-                        {
-                            Scriptfile.Statics.SetTypeAtIndex(ins.GetOperandsAsUInt, Stack.TopType);
-                        }
+                            Scriptfile.UpdateStaticType(ins.GetOperandsAsUInt, Stack.TopType);
                         else
-                        {
                             CheckInstruction(0, Scriptfile.Statics.GetTypeAtIndex(ins.GetOperandsAsUInt));
-                        }
                         Stack.Drop();
                         break;
                     case Instruction.RAGE_IADD_U8:
@@ -1974,17 +1977,19 @@ namespace Decompiler
                         {
                             for (int j = 0; j < func.Pcount; j++)
                             {
-                                //CheckInstruction(func.Pcount - j - 1, func.Params.GetTypeAtIndex((uint)j));
                                 if (Stack.ItemType(func.Pcount - j - 1) != Stack.DataType.Unk)
                                 {
                                     if (Stack.ItemType(func.Pcount - j - 1).Precedence() > func.Params.GetTypeAtIndex((uint)j).Precedence())
                                     {
-                                        func.Params.SetTypeAtIndex((uint)j, Stack.ItemType(func.Pcount - j - 1));
+                                        if (func != this)
+                                            func.UpdateFuncParamType((uint) j, Stack.ItemType(func.Pcount - j - 1));
                                     }
                                 }
                                 CheckInstruction(func.Pcount - j - 1, func.Params.GetTypeAtIndex((uint)j), 1, true);
                             }
                         }
+
+                        this.Associate(func);
                         Stack.FunctionCall(func);
                         break;
                     }
@@ -1993,7 +1998,7 @@ namespace Decompiler
                         break;
                     case Instruction.RAGE_STRING:
                     {
-                        string tempstring = Stack.PopLit();
+                        string tempstring = Stack.Pop().AsLiteral;
                         Stack.PushString("");
                         break;
                     }
@@ -2003,24 +2008,24 @@ namespace Decompiler
                         break;
                     case Instruction.RAGE_TEXT_LABEL_ASSIGN_STRING:
                         CheckInstructionString(0, ins.GetOperandsAsInt, 2);
-                        Stack.op_strcopy(ins.GetOperandsAsInt);
+                        Stack.Op_StrCpy(ins.GetOperandsAsInt);
                         break;
                     case Instruction.RAGE_TEXT_LABEL_ASSIGN_INT:
                         CheckInstructionString(0, ins.GetOperandsAsInt);
                         CheckInstruction(1, Stack.DataType.Int);
-                        Stack.op_itos(ins.GetOperandsAsInt);
+                        Stack.Op_ItoS(ins.GetOperandsAsInt);
                         break;
                     case Instruction.RAGE_TEXT_LABEL_APPEND_STRING:
                         CheckInstructionString(0, ins.GetOperandsAsInt, 2);
-                        Stack.op_stradd(ins.GetOperandsAsInt);
+                        Stack.Op_StrAdd(ins.GetOperandsAsInt);
                         break;
                     case Instruction.RAGE_TEXT_LABEL_APPEND_INT:
                         CheckInstructionString(0, ins.GetOperandsAsInt);
                         CheckInstruction(1, Stack.DataType.Int);
-                        Stack.op_straddi(ins.GetOperandsAsInt);
+                        Stack.Op_StrAddI(ins.GetOperandsAsInt);
                         break;
                     case Instruction.RAGE_TEXT_LABEL_COPY:
-                        Stack.op_sncopy();
+                        Stack.Op_SnCopy();
                         break;
                     case Instruction.RAGE_CATCH:
                         break;

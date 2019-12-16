@@ -25,7 +25,7 @@ namespace Decompiler
             Listtype = type;
             Vars = new List<Var>();
             for (int i = 0; i < varcount; i++)
-                Vars.Add(new Var(i));
+                Vars.Add(new Var(this, i));
             count = varcount;
 
             IsAggregate = isAggregate;
@@ -41,17 +41,41 @@ namespace Decompiler
 
         public void AddVar(int value)
         {
-            Vars.Add(new Var(Vars.Count, value));//only used for static variables that are pre assigned
+            Vars.Add(new Var(this, Vars.Count, value));//only used for static variables that are pre assigned
         }
 
         public void AddVar(long value)
         {
-            Vars.Add(new Var(Vars.Count, value));
+            Vars.Add(new Var(this, Vars.Count, value));
         }
 
         public void checkvars()
         {
-            unusedcheck();
+            VarRemapper = new Dictionary<int, int>();
+            for (int i = 0, k = 0; i < Vars.Count; i++)
+            {
+                if (!Vars[i].Is_Used)
+                    continue;
+                if (Listtype == ListType.Vars && !Vars[i].IsCalled)
+                    continue;
+                if (Vars[i].Is_Array)
+                {
+                    for (int j = i + 1; j < i + 1 + Vars[i].Value * Vars[i].Immediatesize; j++)
+                    {
+                        Vars[j].dontuse();
+                    }
+                }
+                else if (Vars[i].Immediatesize > 1)
+                {
+                    for (int j = i + 1; j < i + Vars[i].Immediatesize; j++)
+                    {
+                        broken_check((uint)j);
+                        Vars[j].dontuse();
+                    }
+                }
+                VarRemapper.Add(i, k);
+                k++;
+            }
         }
         //This shouldnt be needed but in gamever 1.0.757.2
         //It seems a few of the scripts are accessing items from the
@@ -62,7 +86,7 @@ namespace Decompiler
             {
                 for (int i = Vars.Count; i <= index; i++)
                 {
-                    Vars.Add(new Var(i));
+                    Vars.Add(new Var(this, i));
                 }
             }
         }
@@ -148,7 +172,7 @@ namespace Decompiler
                         i++;
                     continue;
                 }
-                if (Listtype == ListType.Vars && !var.Is_Called)
+                if (Listtype == ListType.Vars && !var.IsCalled)
                 {
                     if (!Program.Shift_Variables)
                         i++;
@@ -303,30 +327,24 @@ namespace Decompiler
                 if (!var.Is_Array)
                 {
                     if (var.DataType == Stack.DataType.String)
-                    {
                         datatype = "char[" + (var.Immediatesize * 4).ToString() + "] c";
-                    }
                     else if (var.Immediatesize == 1)
                         datatype = var.DataType.VarDeclaration();
                     else if (var.Immediatesize == 3)
-                    {
                         datatype = "vector3 v";
-                    }
-                    else datatype = "struct<" + var.Immediatesize.ToString() + "> ";
+                    else
+                        datatype = "struct<" + var.Immediatesize.ToString() + "> ";
                 }
                 else
                 {
                     if (var.DataType == Stack.DataType.String)
-                    {
                         datatype = "char[" + (var.Immediatesize * 4).ToString() + "][] c";
-                    }
                     else if (var.Immediatesize == 1)
                         datatype = var.DataType.VarArrayDeclaration();
                     else if (var.Immediatesize == 3)
-                    {
                         datatype = "vector3[] v";
-                    }
-                    else datatype = "struct<" + var.Immediatesize.ToString() + ">[] ";
+                    else
+                        datatype = "struct<" + var.Immediatesize.ToString() + ">[] ";
                 }
 
                 if (IsAggregate)
@@ -340,46 +358,20 @@ namespace Decompiler
             return decl;
         }
 
-        /// <summary>
-        /// Remove unused vars from declaration, and shift var indexes down
-        /// </summary>
-        private void unusedcheck()
-        {
-            VarRemapper = new Dictionary<int, int>();
-            for (int i = 0, k = 0; i < Vars.Count; i++)
-            {
-                if (!Vars[i].Is_Used)
-                    continue;
-                if (Listtype == ListType.Vars && !Vars[i].Is_Called)
-                    continue;
-                if (Vars[i].Is_Array)
-                {
-                    for (int j = i + 1; j < i + 1 + Vars[i].Value * Vars[i].Immediatesize; j++)
-                    {
-                        Vars[j].dontuse();
-                    }
-                }
-                else if (Vars[i].Immediatesize > 1)
-                {
-                    for (int j = i + 1; j < i + Vars[i].Immediatesize; j++)
-                    {
-                        broken_check((uint)j);
-                        Vars[j].dontuse();
-                    }
-                }
-                VarRemapper.Add(i, k);
-                k++;
-            }
-        }
-
         public Stack.DataType GetTypeAtIndex(uint index)
         {
             return Vars[(int)index].DataType;
         }
 
-        public void SetTypeAtIndex(uint index, Stack.DataType type)
+        public bool SetTypeAtIndex(uint index, Stack.DataType type)
         {
-            Vars[(int)index].DataType = type;
+            Stack.DataType prev = Vars[(int)index].DataType;
+            if (!type.IsUnknown() && (prev.IsUnknown() || prev.Precedence() < type.Precedence()))
+            {
+                Vars[(int)index].DataType = type;
+                return true;
+            }
+            return false;
         }
 
         public Var GetVarAtIndex(uint index)
@@ -390,59 +382,111 @@ namespace Decompiler
 
         public class Var
         {
-            public Var(int index)
-            {
-                this.index = index;
-                value = 0;
-                immediatesize = 1;
-                isArray = false;
-                is_used = true;
-                Datatype = Stack.DataType.Unk;
+            private Vars_Info _parent;
+            private Stack.DataType _datatype = Stack.DataType.Unk;
+            private bool _fixed = false;
+
+            public int Index { get; private set; }
+            public long Value { get; set; }
+            public int Immediatesize { get; set; } = 1;
+            public Stack.DataType DataType {
+                get => _datatype;
+                set
+                {
+                    if (_fixed && (value.Precedence() <= _datatype.Precedence())) return;
+                    _datatype = value;
+                }
             }
-            public Var(int index, long Value)
+
+            public bool IsStruct { get; private set; } = false;
+            public bool Is_Array { get; private set; } = false;
+            public bool Is_Used { get; private set; } = true;
+            public bool IsCalled { get; private set; } = false;
+
+            public Var(Vars_Info parent, int index)
             {
-                this.index = index;
-                value = Value;
-                immediatesize = 1;
-                isArray = false;
-                is_used = true;
-                Datatype = Stack.DataType.Unk;
-                isstruct = false;
+                _parent = parent;
+                Index = index;
+                Value = 0;
             }
-            int index;
-            long value;
-            int immediatesize;
-            bool isArray;
-            bool is_used;
-            bool isstruct;
-            bool iscalled = false;
-            Stack.DataType Datatype;
-            public int Index { get { return index; } }
-            public long Value { get { return value; } set { this.value = value; } }
-            public int Immediatesize { get { return immediatesize; } set { immediatesize = value; } }
+
+            public Var(Vars_Info parent, int index, long value)
+            {
+                _parent = parent;
+                Index = index;
+                Value = value;
+            }
+
+            public Var Fixed()
+            {
+                if (_parent.VarRemapper == null) return this;
+                _fixed = true; return this;
+            }
+
             public void makearray()
             {
-                if (!isstruct)
-                    isArray = true;
+                if (!IsStruct)
+                    Is_Array = true;
             }
-            public void call()
-            {
-                iscalled = true;
-            }
+
+            public void call() { IsCalled = true; }
+            public void dontuse() { Is_Used = false; }
             public void makestruct()
             {
                 DataType = Stack.DataType.Unk;
-                isArray = false;
-                isstruct = true;
+                Is_Array = false;
+                IsStruct = true;
             }
-            public void dontuse()
+
+            public string Name
             {
-                is_used = false;
+                get
+                {
+                    ListType Listtype = _parent.Listtype;
+                    int scriptParamStart = _parent.scriptParamStart;
+
+                    if (_parent.IsAggregate)
+                    {
+                        switch (Listtype)
+                        {
+                            case ListType.Statics: return (Index >= scriptParamStart ? "ScriptParam_" : "Local_");
+                            case ListType.Params: return "Param";
+                            case ListType.Vars:
+                            default:
+                                return "Var";
+                        }
+                    }
+                    else
+                    {
+                        string name = "";
+                        if (DataType == Stack.DataType.String)
+                            name = "c";
+                        else if (Immediatesize == 1)
+                            name = DataType.ShortName();
+                        else if (Immediatesize == 3)
+                            name = "v";
+
+                        switch (Listtype)
+                        {
+                            case ListType.Statics: name += (Index >= scriptParamStart ? "ScriptParam_" : "Local_"); break;
+                            case ListType.Vars: name += "Var"; break;
+                            case ListType.Params: name += "Param"; break;
+                        }
+
+                        if (Program.Shift_Variables && _parent.VarRemapper != null)
+                        {
+                            if (_parent.VarRemapper.ContainsKey((int)Index))
+                                return name + _parent.VarRemapper[(int)Index].ToString();
+                            else
+                                return name + "unknownVar";
+                        }
+                        else
+                        {
+                            return name + (Listtype == ListType.Statics && Index >= scriptParamStart ? Index - scriptParamStart : Index).ToString();
+                        }
+                    }
+                }
             }
-            public bool Is_Used { get { return is_used; } }
-            public bool Is_Called { get { return iscalled; } }
-            public bool Is_Array { get { return isArray; } }
-            public Stack.DataType DataType { get { return Datatype; } set { Datatype = value; } }
         }
         public enum ListType
         {
