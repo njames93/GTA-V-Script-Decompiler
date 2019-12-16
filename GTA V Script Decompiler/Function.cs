@@ -330,7 +330,7 @@ namespace Decompiler
         /// </summary>
         public void Decode()
         {
-            lock (Program.ThreadLock)
+            lock (Program.ReadLock)
             {
                 DecodeStarted = true;
                 if (Decoded) return;
@@ -1412,7 +1412,7 @@ namespace Decompiler
                 Vars_Info.Var Var = Stack.PeekVar(index + i);
                 if (Var != null && (Stack.isLiteral(index + i) || Stack.isPointer(index + i)))
                 {
-                    if (type.Precedence() < Var.DataType.Precedence())
+                    if (type.LessThan(Var.DataType))
                         continue;
                     if (type == Stack.DataType.StringPtr && Stack.isPointer(index + 1))
                         Var.DataType = Stack.DataType.String;
@@ -1425,7 +1425,7 @@ namespace Decompiler
                 Function func = Stack.PeekFunc(index + i);
                 if (func != null)
                 {
-                    if (type.Precedence() < func.ReturnType.Precedence())
+                    if (type.LessThan(func.ReturnType))
                         continue;
                     if (type == Stack.DataType.StringPtr && Stack.isPointer(index + 1))
                         func.ReturnType = Stack.DataType.String;
@@ -1876,7 +1876,7 @@ namespace Decompiler
                     {
                         if (Stack.TopType != Stack.DataType.Unk)
                         {
-                            if (Stack.TopType.Precedence() > GetFrameVar(ins.GetOperandsAsUInt).DataType.Precedence())
+                            if (GetFrameVar(ins.GetOperandsAsUInt).DataType.LessThan(Stack.TopType))
                                 GetFrameVar(ins.GetOperandsAsUInt).DataType = Stack.TopType;
                         }
                         else
@@ -1945,18 +1945,21 @@ namespace Decompiler
                         break;
                     case Instruction.RAGE_GLOBAL_U16:
                     case Instruction.RAGE_GLOBAL_U24:
-                        if (IsAggregate) Stack.PushPointer("Global_");
-                        else Stack.PushPointer("Global_" + ins.GetOperandsAsUInt.ToString());
+                        //if (AggregateDecoding) Stack.PushPointer("Global_");
+                        //else
+                        Stack.PushPointer("Global_" + ins.GetOperandsAsUInt.ToString());
                         break;
                     case Instruction.RAGE_GLOBAL_U16_LOAD:
                     case Instruction.RAGE_GLOBAL_U24_LOAD:
-                        if (IsAggregate) Stack.Push("Global_");
-                        else Stack.Push("Global_" + ins.GetOperandsAsUInt.ToString());
+                        //if (AggregateDecoding) Stack.Push("Global_");
+                        //else
+                        Stack.Push("Global_" + ins.GetOperandsAsUInt.ToString());
                         break;
                     case Instruction.RAGE_GLOBAL_U16_STORE:
                     case Instruction.RAGE_GLOBAL_U24_STORE:
-                        if (IsAggregate) Stack.Push("Global_");
-                        else Stack.Op_Set("Global_" + ins.GetOperandsAsUInt.ToString());
+                        //if (AggregateDecoding) Stack.Push("Global_");
+                        //else
+                        Stack.Op_Set("Global_" + ins.GetOperandsAsUInt.ToString());
                         break;
                     case Instruction.RAGE_J:
                         break;
@@ -2005,7 +2008,7 @@ namespace Decompiler
                             {
                                 if (Stack.ItemType(func.Pcount - j - 1) != Stack.DataType.Unk)
                                 {
-                                    if (Stack.ItemType(func.Pcount - j - 1).Precedence() > func.Params.GetTypeAtIndex((uint)j).Precedence())
+                                    if (func.Params.GetTypeAtIndex((uint)j).LessThan(Stack.ItemType(func.Pcount - j - 1)))
                                     {
                                         if (func != this)
                                             func.UpdateFuncParamType((uint) j, Stack.ItemType(func.Pcount - j - 1));

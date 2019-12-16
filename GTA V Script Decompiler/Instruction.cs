@@ -303,12 +303,12 @@ namespace Decompiler
                 case Instruction.RAGE_GLOBAL_U16:
                 case Instruction.RAGE_GLOBAL_U16_LOAD:
                 case Instruction.RAGE_GLOBAL_U16_STORE:
-                    if (aggregateName) return "Global";
+                    //if (aggregateName) return "Global";
                     return "Global_" + (Program.HexIndex ? GetOperandsAsUInt.ToString("X") : GetOperandsAsUInt.ToString());
                 case Instruction.RAGE_GLOBAL_U24:
                 case Instruction.RAGE_GLOBAL_U24_LOAD:
                 case Instruction.RAGE_GLOBAL_U24_STORE:
-                    if (aggregateName) return "Global";
+                    //if (aggregateName) return "Global";
                     return "Global_" + (Program.HexIndex ? GetOperandsAsUInt.ToString("X") : GetOperandsAsUInt.ToString());
             }
             throw new Exception("Not a global variable");

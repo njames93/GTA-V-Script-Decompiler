@@ -14,9 +14,14 @@ namespace Decompiler
         public static x64NativeFile X64npi;
         public static Hashes hashbank;
         public static GXTEntries gxtbank;
+        static string SaveDirectory = "";
 
-        public static Object ThreadLock;
+        public static Object ReadLock;
+        public static Object WriteLock;
         public static int ThreadCount;
+        static Queue<string> CompileList = new Queue<string>();
+        static Queue<Tuple<ScriptFile, string>> DecodeList = new Queue<Tuple<ScriptFile, string>>();
+        public static ThreadLocal<int> _gcCount = new ThreadLocal<int>(() => { return 0; });
 
         class Options
         {
@@ -76,7 +81,7 @@ namespace Decompiler
             [Option("shift", Default = false, Required = false, HelpText = "Shift variable names, i.e., take into consideration the immediate size of stack values")]
             public bool ShiftVariables { get; set; }
 
-            [Option("mt", Default = false, Required = false, HelpText = "Multithread bulk decompilation")]
+            [Option("thread", Default = false, Required = false, HelpText = "Multithread bulk decompilation")]
             public bool UseMultiThreading { get; set; }
 
             [Option("position", Default = false, Required = false, HelpText = "Show function location in definition")]
@@ -115,7 +120,7 @@ namespace Decompiler
 
             Program.hashbank = new Hashes();
             Program.gxtbank = new GXTEntries();
-
+            Program.UseMultiThreading = o.UseMultiThreading;
             Program.CompressedInput = o.CompressedInput;
             Program.CompressedOutput = o.CompressOutput;
             Program.AggregateFunctions = o.Aggregate;
@@ -124,7 +129,6 @@ namespace Decompiler
 
             if (!o.Default)
             {
-                Program.UseMultiThreading = o.UseMultiThreading;
                 Program.UppercaseNatives = o.UppercaseNatives;
                 Program.ShowNamespace = o.ShowNamespace;
                 Program.DeclareVariables = o.DeclareVariables;
@@ -161,12 +165,11 @@ namespace Decompiler
         }
 
         /// <summary>
-        ///
+        /// Open & Load a Scriptfile from the specified path.
         /// </summary>
         /// <param name="inputPath"></param>
-        /// <param name="outputPath"></param>
         /// <returns></returns>
-        private static ScriptFile ProcessScriptfile(string inputPath, string outputPath)
+        private static ScriptFile LoadScriptFile(string inputPath)
         {
             /* A ScriptFile tends to skip around the offset table */
             MemoryStream buffer = new MemoryStream();
@@ -174,8 +177,17 @@ namespace Decompiler
             {
                 (Program.CompressedInput ? new GZipStream(fs, CompressionMode.Decompress) : fs).CopyTo(buffer);
             }
+            return new ScriptFile(buffer, Program.Codeset);
+        }
 
-            ScriptFile scriptFile = new ScriptFile(buffer, Program.Codeset);
+        /// <summary>
+        ///
+        /// </summary>
+        /// <param name="scriptFile"></param>
+        /// <param name="outputPath"></param>
+        /// <returns></returns>
+        private static ScriptFile SaveScriptFile(ScriptFile scriptFile, string outputPath)
+        {
             if (outputPath != null)
             {
                 using (Stream stream = File.Create(outputPath))
@@ -183,9 +195,19 @@ namespace Decompiler
             }
             else
                 scriptFile.Save(Console.OpenStandardOutput(), false);
-
-            buffer.Close();
             return scriptFile;
+        }
+
+        /// <summary>
+        /// Open, Decode, Save a script file.
+        /// </summary>
+        /// <param name="inputPath"></param>
+        /// <param name="outputPath"></param>
+        /// <returns></returns>
+        private static ScriptFile ProcessScriptfile(string inputPath, string outputPath)
+        {
+            ScriptFile scriptFile = LoadScriptFile(inputPath).Predecode().BuildAggregation().Decode();
+            return SaveScriptFile(scriptFile, outputPath);
         }
 
         /// <summary>
@@ -194,7 +216,8 @@ namespace Decompiler
         [STAThread]
         static void Main(string[] args)
         {
-            ThreadLock = new object();
+            ReadLock = new object();
+            WriteLock = new object();
             Parser.Default.ParseArguments<Options>(args).WithParsed<Options>(o =>
             {
                 string inputPath = Utils.GetAbsolutePath(o.InputPath);
@@ -211,6 +234,7 @@ namespace Decompiler
                 else if (Directory.Exists(inputPath)) // Decompile directory
                 {
                     if (outputPath == null || !Directory.Exists(outputPath)) { Console.WriteLine("Invalid Output Directory"); return; }
+                    SaveDirectory = outputPath;
 
                     InitializeINIFields(o);
                     InitializeNativeTable(nativeFile);
@@ -219,26 +243,31 @@ namespace Decompiler
                     foreach (string file in Directory.GetFiles(inputPath, "*.ysc.full*"))
                         CompileList.Enqueue(file);
 
-                    SaveDirectory = outputPath;
-                    if (Program.UseMultiThreading)
-                    {
-                        for (int i = 0; i < Environment.ProcessorCount - 1; i++)
-                        {
-                            Program.ThreadCount++;
-                            new System.Threading.Thread(Decompile).Start();
-                        }
+                    // Predecode all script files.
+                    ThreadPool(PredecodeScripts);
 
-                        Program.ThreadCount++;
-                        Decompile();
-                        while (Program.ThreadCount > 0)
-                            System.Threading.Thread.Sleep(10);
-                    }
-                    else
+                    // In a single thread, ensure all scripts have no dirty
+                    // functions, i.e., native & global parameter changes
+                    // affecting the state to other functions.
+                    Console.WriteLine("Cleaning up dirty predecodes");
+
+                    int count = 0;
+                    bool dirty = true;
+                    while (dirty)
                     {
-                        Program.ThreadCount++;
-                        Decompile();
+                        count++;
+                        if (count > 10000)
+                            throw new Exception("Program.BulkDecode: infinite loop");
+
+                        dirty = false;
+                        foreach (Tuple<ScriptFile, string> scriptTuple in DecodeList)
+                            dirty = scriptTuple.Item1.PredecodeFunctions() || dirty;
                     }
 
+                    // Finally, decode and save all script files.
+                    ThreadPool(DecodeScripts);
+
+                    // Finally compute aggregation functions.
                     if (Program.AggregateFunctions)
                     {
                         Agg.Instance.SaveAggregate(outputPath);
@@ -252,18 +281,32 @@ namespace Decompiler
             });
         }
 
-        static string SaveDirectory = "";
-        static Queue<string> CompileList = new Queue<string>();
-        public static ThreadLocal<int> _gcCount = new ThreadLocal<int>(() => { return 0; });
-        private static void Decompile()
+        private static void ThreadPool(ThreadStart method)
         {
+            if (Program.UseMultiThreading)
+            {
+                for (int i = 0; i < Environment.ProcessorCount - 1; i++)
+                {
+                    Program.ThreadCount++; new System.Threading.Thread(method).Start();
+                }
+
+                Program.ThreadCount++; method();
+                while (Program.ThreadCount > 0)
+                    System.Threading.Thread.Sleep(10);
+            }
+            else
+            {
+                Program.ThreadCount++; method();
+            }
+        }
+
+        private static void PredecodeScripts()
+        {
+            string scriptToDecode;
             while (CompileList.Count > 0)
             {
-                string scriptToDecode;
-                lock (Program.ThreadLock)
-                {
+                lock (Program.ReadLock)
                     scriptToDecode = CompileList.Dequeue();
-                }
                 try
                 {
                     string suffix = ".c" + (Program.CompressedOutput ? ".gz" : "");
@@ -272,19 +315,40 @@ namespace Decompiler
                         outname = Path.GetFileNameWithoutExtension(outname);
 
                     string output = Path.Combine(SaveDirectory, outname + suffix);
-                    Console.WriteLine("Decompiling: " + scriptToDecode + " > " + output);
 
-                    ScriptFile scriptFile = ProcessScriptfile(scriptToDecode, output);
-                    if (Program.AggregateFunctions) /* Compile aggregation statistics for each function. */
-                        scriptFile.CompileAggregate();
+                    Console.WriteLine("Predecoding: " + scriptToDecode);
+                    ScriptFile scriptFile = LoadScriptFile(scriptToDecode).Predecode();
+                    lock (Program.WriteLock)
+                        DecodeList.Enqueue(new Tuple<ScriptFile, string>(scriptFile, output));
 
-                    scriptFile.Close();
-                    if ((_gcCount.Value++) % 25 == 0)
+                    if ((_gcCount.Value++) % 50 == 0)
                         GC.Collect();
                 }
                 catch (Exception ex)
                 {
                     throw new SystemException("Error decompiling script " + Path.GetFileNameWithoutExtension(scriptToDecode) + " - " + ex.Message);
+                }
+            }
+            Program.ThreadCount--;
+        }
+
+        private static void DecodeScripts()
+        {
+            Tuple<ScriptFile, string> scriptTuple;
+
+            while (DecodeList.Count > 0)
+            {
+                lock (Program.ReadLock)
+                    scriptTuple = DecodeList.Dequeue();
+
+                try
+                {
+                    Console.WriteLine("Decoding: " + scriptTuple.Item1.name + " > " + scriptTuple.Item2);
+                    SaveScriptFile(scriptTuple.Item1.BuildAggregation().Decode(), scriptTuple.Item2).Close();
+                }
+                catch (Exception ex)
+                {
+                    throw new SystemException("Error decoding script " + scriptTuple.Item1.name + " - " + ex.Message);
                 }
             }
             Program.ThreadCount--;

@@ -88,13 +88,13 @@ namespace Decompiler
 
         public bool UpdateParam(ulong hash, Stack.DataType type, int index)
         {
-            lock (Program.ThreadLock)
+            lock (Program.WriteLock)
             {
                 Native native;
                 if (TryGetValue(hash, out native) && !native.Vardiac && index < native.Params.Count)
                 {
                     Param p = native.Params[index];
-                    if (p.StackType.Precedence() < type.Precedence() && !p.FixedType)
+                    if (p.StackType.LessThan(type) && !p.FixedType)
                     {
                         p.Type = type.LongName();
                         return true;
@@ -106,12 +106,12 @@ namespace Decompiler
 
         public bool UpdateRetType(ulong hash, Stack.DataType returns, bool over = false)
         {
-            lock (Program.ThreadLock)
+            lock (Program.WriteLock)
             {
                 Native native;
                 if (TryGetValue(hash, out native) && !native.ReturnParam.FixedType)
                 {
-                    if (native.ReturnParam.StackType.Precedence() < returns.Precedence())
+                    if (native.ReturnParam.StackType.LessThan(returns))
                     {
                         native.ReturnParam.Type = returns.LongName();
                         return true;
@@ -123,7 +123,7 @@ namespace Decompiler
 
         public bool FetchNativeCall(ulong hash, string name, int pcount, int rcount, out Native native)
         {
-            lock (Program.ThreadLock)
+            lock (Program.WriteLock)
             {
                 if (TryGetValue(hash, out native))
                 {
@@ -162,7 +162,7 @@ namespace Decompiler
         public Native UpdateNative(ulong hash, Stack.DataType returns, params Stack.DataType[] param)
         {
             Native native = null;
-            lock (Program.ThreadLock)
+            lock (Program.WriteLock)
             {
                 if (!TryGetValue(hash, out native)) throw new Exception("Unknown Native: " + hash.ToString("X"));
 

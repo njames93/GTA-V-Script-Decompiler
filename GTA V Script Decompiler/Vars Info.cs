@@ -375,7 +375,7 @@ namespace Decompiler
         public bool SetTypeAtIndex(uint index, Stack.DataType type)
         {
             Stack.DataType prev = Vars[(int)index].DataType;
-            if (!type.IsUnknown() && (prev.IsUnknown() || prev.Precedence() < type.Precedence()))
+            if (!type.IsUnknown() && (prev.IsUnknown() || prev.LessThan(type)))
             {
                 Vars[(int)index].DataType = type;
                 return true;

@@ -305,7 +305,7 @@ namespace Decompiler
                     StackValue[] items = PopList(func.Pcount);
                     for (int i = 0; i < items.Length; ++i)
                     {
-                        if (func.Params.GetTypeAtIndex((uint)i).Precedence() < items[i].Datatype.Precedence())
+                        if (func.Params.GetTypeAtIndex((uint)i).LessThan(items[i].Datatype))
                         {
                             if (func != Function)
                                 func.UpdateFuncParamType((uint)i, items[i].Datatype);
@@ -350,9 +350,9 @@ namespace Decompiler
                     {
                         if (val.Variable != null && DecodeVarInfo)
                         {
-                            if (val.Variable.DataType.Precedence() < native.GetParam(count).StackType.Precedence())
+                            if (val.Variable.DataType.NativeLessThan(native.GetParam(count).StackType))
                                 val.Variable.DataType = native.GetParam(count).StackType;
-                            else if (val.Variable.DataType.Precedence() > native.GetParam(count).StackType.Precedence())
+                            else if (native.GetParam(count).StackType.NativeLessThan(val.Variable.DataType))
                                 Function.UpdateNativeParameter(hash, val.Variable.DataType, count);
                         }
 
@@ -382,7 +382,7 @@ namespace Decompiler
                                         functionline += floatval.ToString(CultureInfo.InvariantCulture) + "f, ";
                                     }
                                     else
-                                        functionline += val.Value + ", ";
+                                        functionline += val.AsLiteralStatement + ", ";
                                     break;
                                 }
                                 case Program.IntType._uint:
@@ -395,7 +395,7 @@ namespace Decompiler
                                         functionline += floatval.ToString(CultureInfo.InvariantCulture) + "f, ";
                                     }
                                     else
-                                        functionline += val.Value + ", ";
+                                        functionline += val.AsLiteralStatement + ", ";
                                     break;
                                 }
                                 case Program.IntType._hex:
@@ -411,7 +411,7 @@ namespace Decompiler
                                         functionline += floatval.ToString(CultureInfo.InvariantCulture) + "f, ";
                                     }
                                     else
-                                        functionline += val.Value + ", ";
+                                        functionline += val.AsLiteralStatement + ", ";
                                     break;
                                 }
                                 default:
@@ -419,7 +419,7 @@ namespace Decompiler
                             }
                         }
                         else
-                            functionline += val.Value + ", ";
+                            functionline += val.AsLiteralStatement + ", ";
                         _params.Add(val.Datatype);
                         count++;
                         break;
@@ -1537,6 +1537,19 @@ namespace Decompiler
                 case Stack.DataType.Vector3Ptr: return Stack.DataType.Vector3;
                 default: return Stack.DataType.Unk;
             }
+        }
+
+        ///
+        public static bool LessThan(this Stack.DataType c, Stack.DataType other)
+        {
+            return c.Precedence() < other.Precedence();
+        }
+
+        public static bool NativeLessThan(this Stack.DataType c, Stack.DataType other)
+        {
+            if (c == Stack.DataType.Int && other == Stack.DataType.Float) return true;
+            if (c == Stack.DataType.IntPtr && other == Stack.DataType.FloatPtr) return true;
+            return c.LessThan(other);
         }
 
         /// <summary>

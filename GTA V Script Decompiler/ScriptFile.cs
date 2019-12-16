@@ -54,36 +54,67 @@ namespace Decompiler
                 scriptStream.Read(working, 0, tablesize);
                 CodeTable.AddRange(working);
             }
+        }
 
+        public bool Dirty
+        {
+            get
+            {
+                bool dirty = false;
+                foreach (Function func in Functions)
+                    dirty = dirty || func.Dirty;
+                return dirty;
+            }
+        }
+
+        public bool PredecodeFunctions()
+        {
+            bool dirty = false;
+            foreach (Function func in Functions)
+            {
+                if (func.Dirty)
+                {
+                    dirty = true;
+                    func.Dirty = false;
+                    func.decodeinsructionsforvarinfo();
+                }
+            }
+            return dirty;
+        }
+
+        public ScriptFile Predecode()
+        {
             GetStaticInfo();
             GetFunctions();
             foreach (Function func in Functions) func.PreDecode();
             Statics.checkvars();
 
-            bool dirty = true;
-            while (dirty)
+            int count = 0;
+            while (PredecodeFunctions())
             {
-                dirty = false;
-                foreach (Function func in Functions)
-                {
-                    if (func.Dirty)
-                    {
-                        dirty = true;
-                        func.Dirty = false;
-                        func.decodeinsructionsforvarinfo();
-                    }
-                }
+                count++;
+                if (count > 10000)
+                    throw new Exception("decodeinsructionsforvarinfo: infinite loop");
             }
+            return this;
+        }
 
+        public ScriptFile BuildAggregation()
+        {
             if (Program.AggregateFunctions)
             {
                 AggFunctions.Clear();
                 foreach (Function f in Functions)
                     AggFunctions.Add(f.CreateAggregate());
             }
+            return this;
+        }
 
-            foreach (Function func in Functions) func.Decode();
+        public ScriptFile Decode()
+        {
             foreach (Function func in AggFunctions) func.Decode();
+            foreach (Function func in Functions) func.Decode();
+            return this;
         }
 
         public void CrossReferenceNative(ulong hash, Function f)
