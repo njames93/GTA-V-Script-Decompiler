@@ -10,6 +10,8 @@ namespace Decompiler
         Instruction instruction;
         byte[] operands;
 
+        private HLInstruction() { }
+
         public HLInstruction(Instruction Instruction, IEnumerable<byte> Operands, int Offset)
         {
             instruction = Instruction;
@@ -36,6 +38,15 @@ namespace Decompiler
             instruction = (Instruction)Instruction;
             operands = new byte[0];
             offset = Offset;
+        }
+
+        public HLInstruction Clone()
+        {
+            HLInstruction h = new HLInstruction();
+            h.offset = offset;
+            h.instruction = instruction;
+            h.operands = (byte[]) operands.Clone();
+            return h;
         }
 
         public Instruction Instruction

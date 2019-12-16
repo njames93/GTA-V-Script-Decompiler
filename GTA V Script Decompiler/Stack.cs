@@ -7,18 +7,16 @@ namespace Decompiler
 {
     public class Stack
     {
-        Function _parent;
+        public Function Function { get; private set; }
         List<StackValue> _stack = new List<StackValue>();
 
         public bool DecodeVarInfo { get; private set; }
-        public bool IsAggregate { get; private set; } // Stateless stack information.
         public DataType TopType => (_stack.Count == 0) ? DataType.Unk : _stack[_stack.Count - 1].Datatype;
 
-        public Stack(Function parent, bool decodeVar = false, bool isAggregate = false)
+        public Stack(Function parent, bool decodeVar = false)
         {
-            _parent = parent;
+            Function = parent;
             DecodeVarInfo = decodeVar;
-            IsAggregate = isAggregate;
         }
 
         public void Dispose()
@@ -285,7 +283,7 @@ namespace Decompiler
 
         public string FunctionCall(string name, int pcount, int rcount)
         {
-            string functionline = (IsAggregate ? "func_" : name) + "(" + PopListForCall(pcount) + ")";
+            string functionline = (Function.IsAggregate ? "func_" : name) + "(" + PopListForCall(pcount) + ")";
             if (rcount == 0)
                 return functionline + ";";
             else if (rcount == 1)
@@ -297,39 +295,39 @@ namespace Decompiler
             return "";
         }
 
-        public string FunctionCall(Function function)
+        public string FunctionCall(Function func)
         {
             string popList = "";
             if (DecodeVarInfo)
             {
-                if (function.Pcount != 0)
+                if (func.Pcount != 0)
                 {
-                    StackValue[] items = PopList(function.Pcount);
+                    StackValue[] items = PopList(func.Pcount);
                     for (int i = 0; i < items.Length; ++i)
                     {
-                        if (function.Params.GetTypeAtIndex((uint)i).Precedence() < items[i].Datatype.Precedence())
+                        if (func.Params.GetTypeAtIndex((uint)i).Precedence() < items[i].Datatype.Precedence())
                         {
-                            if (function != _parent)
-                                function.UpdateFuncParamType((uint)i, items[i].Datatype);
+                            if (func != Function)
+                                func.UpdateFuncParamType((uint)i, items[i].Datatype);
                         }
-                        else if (function.Params.GetTypeAtIndex((uint)i) != items[i].Datatype)
-                            items[i].Datatype = function.Params.GetTypeAtIndex((uint)i);
+                        else if (func.Params.GetTypeAtIndex((uint)i) != items[i].Datatype)
+                            items[i].Datatype = func.Params.GetTypeAtIndex((uint)i);
                     }
                     popList = StackValue.AsCall(items);
                     popList = popList.Remove(popList.Length - 2);
                 }
             }
             else
-                popList = (function.Pcount > 0) ? PopListForCall(function.Pcount) : "";
+                popList = (func.Pcount > 0) ? PopListForCall(func.Pcount) : "";
 
-            string functionline = function.Name + "(" + popList + ")";
-            if (IsAggregate) functionline = "func_()"; // Burn the PopList call.
-            if (function.Rcount == 0)
+            string functionline = func.Name + "(" + popList + ")";
+            if (Function.IsAggregate) functionline = "func_()"; // Burn the PopList call.
+            if (func.Rcount == 0)
                 return functionline + ";";
-            else if (function.Rcount == 1)
-                Push(new StackValue(this, StackValue.Type.Literal, functionline, function));
-            else if (function.Rcount > 1)
-                PushStruct(functionline, function.Rcount);
+            else if (func.Rcount == 1)
+                Push(new StackValue(this, StackValue.Type.Literal, functionline, func));
+            else if (func.Rcount > 1)
+                PushStruct(functionline, func.Rcount);
             else
                 throw new Exception("Error in return items count");
             return "";
@@ -355,7 +353,7 @@ namespace Decompiler
                             if (val.Variable.DataType.Precedence() < native.GetParam(count).StackType.Precedence())
                                 val.Variable.DataType = native.GetParam(count).StackType;
                             else if (val.Variable.DataType.Precedence() > native.GetParam(count).StackType.Precedence())
-                                _parent.UpdateNativeParameter(hash, val.Variable.DataType, count);
+                                Function.UpdateNativeParameter(hash, val.Variable.DataType, count);
                         }
 
                         if (val.Datatype == DataType.Bool || native.GetParam(count).StackType == DataType.Bool)
@@ -784,7 +782,7 @@ namespace Decompiler
                     case 1:
                     {
                         string saccess = Pop().AsStructAccess;
-                        if (IsAggregate && Agg.Instance.CanAggregateLiteral(saccess))
+                        if (Function.IsAggregate && Agg.Instance.CanAggregateLiteral(saccess))
                             Push(new StackValue(this, StackValue.Type.Literal, saccess));
                         else
                             Push(new StackValue(this, StackValue.Type.Literal, saccess + "y"));
@@ -793,7 +791,7 @@ namespace Decompiler
                     case 2:
                     {
                         string saccess = Pop().AsStructAccess;
-                        if (IsAggregate && Agg.Instance.CanAggregateLiteral(saccess))
+                        if (Function.IsAggregate && Agg.Instance.CanAggregateLiteral(saccess))
                             Push(new StackValue(this, StackValue.Type.Literal, saccess));
                         else
                             Push(new StackValue(this, StackValue.Type.Literal, saccess + "z"));
@@ -803,7 +801,7 @@ namespace Decompiler
             }
 
             string structAss = Pop().AsStructAccess;
-            if (IsAggregate)
+            if (Function.IsAggregate)
             {
                 if (Agg.Instance.CanAggregateLiteral(structAss))
                     Push(new StackValue(this, StackValue.Type.Literal, structAss + "f_"));
@@ -823,7 +821,7 @@ namespace Decompiler
             value = Pop();
 
             string imm = "";
-            if (IsAggregate && Agg.Instance.CanAggregateLiteral(value.AsLiteral))
+            if (Function.IsAggregate && Agg.Instance.CanAggregateLiteral(value.AsLiteral))
                 imm = "f_";
             else
             {
@@ -844,7 +842,7 @@ namespace Decompiler
         public void Op_GetImmP(uint immediate)
         {
             string saccess = Pop().AsStructAccess;
-            if (IsAggregate && Agg.Instance.CanAggregateLiteral(saccess))
+            if (Function.IsAggregate && Agg.Instance.CanAggregateLiteral(saccess))
                 Push(new StackValue(this, StackValue.Type.Pointer, saccess + "f_"));
             else
                 Push(new StackValue(this, StackValue.Type.Pointer, saccess + "f_" + (Program.HexIndex ? immediate.ToString("X") : immediate.ToString())));
@@ -856,7 +854,7 @@ namespace Decompiler
             string saccess = Pop().AsStructAccess;
 
             int temp;
-            if (IsAggregate && Agg.Instance.CanAggregateLiteral(saccess))
+            if (Function.IsAggregate && Agg.Instance.CanAggregateLiteral(saccess))
             {
                 if (Utils.IntParse(immediate, out temp))
                     Push(new StackValue(this, StackValue.Type.Pointer, saccess + "f_"));
@@ -883,7 +881,7 @@ namespace Decompiler
                 return "";
             if (immediate == 1)
                 return "";
-            if (IsAggregate)
+            if (Function.IsAggregate)
                 return "";
             return " /*" + immediate.ToString() + "*/";
         }
@@ -1329,7 +1327,7 @@ namespace Decompiler
                     if (_parent.DecodeVarInfo)
                     {
                         _datatype = PrecendenceSet(_datatype, value);
-                        if (Native != null && isLiteral) { _parent._parent.UpdateNativeReturnType(Native.Hash, PrecendenceSet(Native.ReturnParam.StackType, value)); }
+                        if (Native != null && isLiteral) { _parent.Function.UpdateNativeReturnType(Native.Hash, PrecendenceSet(Native.ReturnParam.StackType, value)); }
                         if (Variable != null && isLiteral) Variable.DataType = PrecendenceSet(Variable.DataType, value);
                         if (Function != null && isLiteral) Function.ReturnType = PrecendenceSet(Function.ReturnType, value);
                     }

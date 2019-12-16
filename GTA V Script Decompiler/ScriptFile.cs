@@ -75,13 +75,21 @@ namespace Decompiler
                 }
             }
 
-            if (Program.AggregateFunctions) foreach (Function func in AggFunctions) func.PreDecode();
+            if (Program.AggregateFunctions)
+            {
+                AggFunctions.Clear();
+                foreach (Function f in Functions)
+                    AggFunctions.Add(f.CreateAggregate());
+            }
+
             foreach (Function func in Functions) func.Decode();
-            if (Program.AggregateFunctions) foreach (Function func in AggFunctions) func.Decode();
+            foreach (Function func in AggFunctions) func.Decode();
         }
 
         public void CrossReferenceNative(ulong hash, Function f)
         {
+            if (f.IsAggregate) return;
+
             if (!NativeXRef.ContainsKey(hash))
                 NativeXRef.Add(hash, new HashSet<Function>(new Function[] { f }));
             else
@@ -190,11 +198,9 @@ namespace Decompiler
             {
                 int start = Functions[i].MaxLocation, end = Functions[i + 1].Location;
                 Functions[i].CodeBlock = CodeTable.GetRange(start, end - start);
-                if (Program.AggregateFunctions) AggFunctions[i].CodeBlock = Functions[i].CodeBlock;
             }
 
             Functions[Functions.Count - 1].CodeBlock = CodeTable.GetRange(Functions[Functions.Count - 1].MaxLocation, CodeTable.Count - Functions[Functions.Count - 1].MaxLocation);
-            if (Program.AggregateFunctions) AggFunctions[Functions.Count - 1].CodeBlock = Functions[Functions.Count - 1].CodeBlock;
             foreach (Function func in Functions)
             {
                 if (CodeSet.Map(func.CodeBlock[0]) != Instruction.RAGE_ENTER && CodeSet.Map(func.CodeBlock[func.CodeBlock.Count - 3]) != Instruction.RAGE_LEAVE)
@@ -310,25 +316,11 @@ namespace Decompiler
             int Location = start2;
             if (start1 == start2)
             {
-                Function baseFunction = new Function(this, name, pcount, vcount, rcount, Location, -1, false);
-                Functions.Add(baseFunction);
-                if (Program.AggregateFunctions)
-                {
-                    Function aggregateFunction = new Function(this, name, pcount, vcount, rcount, Location, -1, true);
-                    aggregateFunction.BaseFunction = baseFunction;
-                    AggFunctions.Add(aggregateFunction);
-                }
+                Functions.Add(new Function(this, name, pcount, vcount, rcount, Location, -1));
             }
             else
             {
-                Function baseFunction = new Function(this, name, pcount, vcount, rcount, Location, start1, false);
-                Functions.Add(baseFunction);
-                if (Program.AggregateFunctions)
-                {
-                    Function aggregateFunction = new Function(this, name, pcount, vcount, rcount, Location, start1, true);
-                    aggregateFunction.BaseFunction = baseFunction;
-                    AggFunctions.Add(aggregateFunction);
-                }
+                Functions.Add(new Function(this, name, pcount, vcount, rcount, Location, start1));
             }
         }
 
@@ -416,7 +408,7 @@ namespace Decompiler
 
         private void GetStaticInfo()
         {
-            Statics = new Vars_Info(Vars_Info.ListType.Statics);
+            Statics = new Vars_Info(null, Vars_Info.ListType.Statics);
             Statics.SetScriptParamCount(Header.ParameterCount);
             IO.Reader reader = new IO.Reader(file);
             reader.BaseStream.Position = Header.StaticsOffset + Header.RSC7Offset;

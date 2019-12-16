@@ -11,6 +11,8 @@ namespace Decompiler
     /// </summary>
     public class Vars_Info
     {
+        public Function Parent { get; private set; }
+
         ListType Listtype;//static/function_var/parameter
         List<Var> Vars;
         Dictionary<int, int> VarRemapper; //not necessary, just shifts variables up if variables before are bigger than 1 DWORD
@@ -18,25 +20,32 @@ namespace Decompiler
         private int scriptParamCount = 0;
         private int scriptParamStart { get { return Vars.Count - scriptParamCount; } }
 
-        public bool IsAggregate { get; private set; } // Stateless variable information.
-
-        public Vars_Info(ListType type, int varcount, bool isAggregate = false)
+        public Vars_Info(Function parent, ListType type, int varcount)
         {
+            Parent = parent;
             Listtype = type;
             Vars = new List<Var>();
             for (int i = 0; i < varcount; i++)
                 Vars.Add(new Var(this, i));
             count = varcount;
-
-            IsAggregate = isAggregate;
         }
 
-        public Vars_Info(ListType type, bool isAggregate = false)
+        public Vars_Info(Function parent, ListType type)
         {
+            Parent = parent;
             Listtype = type;
             Vars = new List<Var>();
+        }
 
-            IsAggregate = isAggregate;
+        public Vars_Info Clone(Function parent)
+        {
+            Vars_Info v = new Vars_Info(parent, this.Listtype);
+            v.count = count;
+            v.scriptParamCount = scriptParamCount;
+            v.VarRemapper = (VarRemapper == null ? null : new Dictionary<int, int>(VarRemapper));
+            foreach (Var var in this.Vars)
+                v.Vars.Add(var.Clone(v));
+            return v;
         }
 
         public void AddVar(int value)
@@ -93,7 +102,7 @@ namespace Decompiler
 
         public string GetVarName(uint index)
         {
-            if (IsAggregate)
+            if (Parent != null && Parent.IsAggregate)
             {
                 switch (Listtype)
                 {
@@ -291,7 +300,7 @@ namespace Decompiler
                 }
 
                 string decl;
-                if (IsAggregate)
+                if (Parent != null && Parent.IsAggregate)
                     decl = datatype;
                 else
                 {
@@ -347,7 +356,7 @@ namespace Decompiler
                         datatype = "struct<" + var.Immediatesize.ToString() + ">[] ";
                 }
 
-                if (IsAggregate)
+                if (Parent != null && Parent.IsAggregate)
                     decl += "Param, ";
                 else
                     decl += datatype + "Param" + i.ToString() + ", ";
@@ -382,10 +391,10 @@ namespace Decompiler
 
         public class Var
         {
-            private Vars_Info _parent;
             private Stack.DataType _datatype = Stack.DataType.Unk;
             private bool _fixed = false;
 
+            public Vars_Info Parent { get; private set; }
             public int Index { get; private set; }
             public long Value { get; set; }
             public int Immediatesize { get; set; } = 1;
@@ -405,21 +414,34 @@ namespace Decompiler
 
             public Var(Vars_Info parent, int index)
             {
-                _parent = parent;
+                Parent = parent;
                 Index = index;
                 Value = 0;
             }
 
             public Var(Vars_Info parent, int index, long value)
             {
-                _parent = parent;
+                Parent = parent;
                 Index = index;
                 Value = value;
             }
 
+            public Var Clone(Vars_Info parent)
+            {
+                Var v = new Var(parent, Index, Value);
+                v._fixed = _fixed;
+                v._datatype = _datatype;
+                v.Immediatesize = Immediatesize;
+                v.IsStruct = IsStruct;
+                v.Is_Array = Is_Array;
+                v.Is_Used = Is_Used;
+                v.IsCalled = IsCalled;
+                return v;
+            }
+
             public Var Fixed()
             {
-                if (_parent.VarRemapper == null) return this;
+                if (Parent.VarRemapper == null) return this;
                 _fixed = true; return this;
             }
 
@@ -442,10 +464,9 @@ namespace Decompiler
             {
                 get
                 {
-                    ListType Listtype = _parent.Listtype;
-                    int scriptParamStart = _parent.scriptParamStart;
-
-                    if (_parent.IsAggregate)
+                    ListType Listtype = Parent.Listtype;
+                    int scriptParamStart = Parent.scriptParamStart;
+                    if (Parent.Parent != null && Parent.Parent.IsAggregate)
                     {
                         switch (Listtype)
                         {
@@ -473,10 +494,10 @@ namespace Decompiler
                             case ListType.Params: name += "Param"; break;
                         }
 
-                        if (Program.ShiftVariables && _parent.VarRemapper != null)
+                        if (Program.ShiftVariables && Parent.VarRemapper != null)
                         {
-                            if (_parent.VarRemapper.ContainsKey((int)Index))
-                                return name + _parent.VarRemapper[(int)Index].ToString();
+                            if (Parent.VarRemapper.ContainsKey((int)Index))
+                                return name + Parent.VarRemapper[(int)Index].ToString();
                             else
                                 return name + "unknownVar";
                         }

@@ -27,6 +27,7 @@ namespace Decompiler
         private HashSet<Function> Associated = new HashSet<Function>();
 
         public ScriptFile Scriptfile { get; private set; }
+        public List<byte> CodeBlock { get; set; }
         public int NativeCount { get; private set; } // Number of decoded native calls.
         public bool IsAggregate { get; private set; } // Stateless function.
         public Function BaseFunction { get; set; } // For aggregate functions.
@@ -50,10 +51,17 @@ namespace Decompiler
         public Vars_Info Params { get; private set; }
         public int LineCount = 0;
 
-        public Function(ScriptFile owner, string name, int pcount, int vcount, int rcount, int location, int locmax = -1, bool isAggregate = false)
+        private Function(ScriptFile owner, string name)
         {
             Scriptfile = owner;
             Name = name;
+            NativeCount = 0;
+            IsAggregate = false;
+            BaseFunction = null;
+        }
+
+        public Function(ScriptFile owner, string name, int pcount, int vcount, int rcount, int location, int locmax = -1) : this(owner, name)
+        {
             Pcount = pcount;
             Vcount = vcount;
             Rcount = rcount;
@@ -61,15 +69,41 @@ namespace Decompiler
             MaxLocation = (locmax != -1) ? locmax : Location;
             Decoded = false;
 
-            NativeCount = 0;
-            IsAggregate = isAggregate;
-            BaseFunction = null;
-
             fnName = new FunctionName(Name, Pcount, Rcount, Location, MaxLocation);
-            Vars = new Vars_Info(Vars_Info.ListType.Vars, vcount - 2, IsAggregate);
-            Params = new Vars_Info(Vars_Info.ListType.Params, pcount, IsAggregate);
-            if (!IsAggregate)
-                this.Scriptfile.FunctionLoc.Add(location, fnName);
+            Vars = new Vars_Info(this, Vars_Info.ListType.Vars, vcount - 2);
+            Params = new Vars_Info(this, Vars_Info.ListType.Params, pcount);
+            Scriptfile.FunctionLoc.Add(location, fnName);
+        }
+
+        public Function CreateAggregate()
+        {
+            Function f = new Function(Scriptfile, Name);
+            f.IsAggregate = true;
+            f.Pcount = Pcount;
+            f.Vcount = Vcount;
+            f.Rcount = Rcount;
+            f.Location = Location;
+            f.MaxLocation = MaxLocation;
+
+            f._dirty = false;
+            f.CodeBlock = CodeBlock;
+            f.NativeCount = NativeCount;
+            f.BaseFunction = this;
+            f.Instructions = new List<HLInstruction>();
+            f.InstructionMap = (InstructionMap == null) ? null : new Dictionary<int, int>(InstructionMap);
+            foreach (HLInstruction h in Instructions) f.Instructions.Add(h == null ? null : h.Clone());
+
+            f.Offset = Offset;
+            f.Decoded = false;
+            f.ReturnType = ReturnType;
+            f.fnName = fnName;
+            f.Decoded = false;
+            f.predecoded = predecoded;
+            f.predecodeStarted = predecodeStarted;
+            f.Vars = Vars.Clone(f);
+            f.Params = Params.Clone(f);
+
+            return f;
         }
 
         /// <summary>
@@ -80,17 +114,19 @@ namespace Decompiler
 
         public void UpdateNativeReturnType(ulong hash, Stack.DataType datatype)
         {
-            Scriptfile.UpdateNativeReturnType(hash, datatype);
+            if (!IsAggregate)
+                Scriptfile.UpdateNativeReturnType(hash, datatype);
         }
 
         public void UpdateNativeParameter(ulong hash, Stack.DataType dataType, int index)
         {
-            Scriptfile.UpdateNativeParameter(hash, dataType, index);
+            if (!IsAggregate)
+                Scriptfile.UpdateNativeParameter(hash, dataType, index);
         }
 
         public void UpdateFuncParamType(uint index, Stack.DataType dataType)
         {
-            if (Params.SetTypeAtIndex(index, dataType))
+            if (!IsAggregate && Params.SetTypeAtIndex(index, dataType))
                 Dirty = true;
         }
 
@@ -99,6 +135,8 @@ namespace Decompiler
             get => _dirty;
             set
             {
+                if (IsAggregate) return;
+
                 bool forward = !_dirty && value;
                 _dirty = value;
                 if (forward) // Dirty all associate functions.
@@ -111,7 +149,7 @@ namespace Decompiler
 
         public void Associate(Function f)
         {
-            if (f != this) {
+            if (f != this && !IsAggregate) {
                 this.Associated.Add(f); // f.Associated.Add(this);
             }
         }
@@ -211,7 +249,6 @@ namespace Decompiler
         /// <summary>
         /// The block of code that the function takes up
         /// </summary>
-        public List<byte> CodeBlock { get; set; }
         private Instruction Map(byte b) => Scriptfile.CodeSet.Map(b);
         private Instruction MapOffset(int offset) => Map(CodeBlock[offset]);
 
@@ -298,11 +335,9 @@ namespace Decompiler
                 DecodeStarted = true;
                 if (Decoded) return;
             }
-            //Set up a stack
-            Stack = new Stack(this, false, IsAggregate);
 
-            //Get The Instructions in the function along with their operands
-            //getinstructions();
+            //Set up a stack
+            Stack = new Stack(this, false);
 
             //Set up the codepaths to a null item
             Outerpath = new CodePath(CodePathType.Main, CodeBlock.Count, -1);
@@ -332,7 +367,6 @@ namespace Decompiler
                 Outerpath = Outerpath.Parent;
             }
             closetab();
-            //fnName.RetType = RetType;
             fnName.retType = ReturnType;
             Decoded = true;
         }
@@ -1550,7 +1584,7 @@ namespace Decompiler
 
         public void decodeinsructionsforvarinfo()
         {
-            Stack = new Stack(this, true, IsAggregate);
+            Stack = new Stack(this, true);
             //ReturnType = Stack.DataType.Unk;
             for (int i = 0; i < Instructions.Count; i++)
             {
