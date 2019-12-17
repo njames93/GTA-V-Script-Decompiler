@@ -98,7 +98,6 @@
     <Compile Include="CodePath.cs" />
     <Compile Include="Function.cs" />
     <Compile Include="Hashes.cs" />
-    <Compile Include="INI.cs" />
     <Compile Include="Instruction.cs" />
     <Compile Include="IO.cs" />
     <Compile Include="NativeFiles.cs" />
