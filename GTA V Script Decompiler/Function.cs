@@ -22,9 +22,13 @@ namespace Decompiler
         public int Rcount { get; private set; }
         public int Location { get; private set; }
         public int MaxLocation { get; private set; }
-
         private bool _dirty = false;
-        private HashSet<Function> Associated = new HashSet<Function>();
+
+        public Stack.DataType ReturnType { get; set; } = Stack.DataType.Unk;
+        public Vars_Info Vars { get; private set; }
+        public Vars_Info Params { get; private set; }
+        private HashSet<Function> ParentFunctions = new HashSet<Function>();
+        private HashSet<Function> ChildFunctions = new HashSet<Function>();
 
         public ScriptFile Scriptfile { get; private set; }
         public List<byte> CodeBlock { get; set; }
@@ -41,15 +45,12 @@ namespace Decompiler
         string tabs = "";
         CodePath Outerpath;
         bool writeelse = false;
-        public Stack.DataType ReturnType { get; set; } = Stack.DataType.Unk;
-        FunctionName fnName;
+        public int LineCount = 0;
+
         internal bool Decoded { get; private set; }
         internal bool DecodeStarted = false;
         internal bool predecoded = false;
         internal bool predecodeStarted = false;
-        public Vars_Info Vars { get; private set; }
-        public Vars_Info Params { get; private set; }
-        public int LineCount = 0;
 
         private Function(ScriptFile owner, string name)
         {
@@ -69,10 +70,9 @@ namespace Decompiler
             MaxLocation = (locmax != -1) ? locmax : Location;
             Decoded = false;
 
-            fnName = new FunctionName(Name, Pcount, Rcount, Location, MaxLocation);
             Vars = new Vars_Info(this, Vars_Info.ListType.Vars, vcount - 2);
             Params = new Vars_Info(this, Vars_Info.ListType.Params, pcount);
-            Scriptfile.FunctionLoc.Add(location, fnName);
+            Scriptfile.FunctionLoc.Add(location, this);
         }
 
         public Function CreateAggregate()
@@ -96,13 +96,12 @@ namespace Decompiler
             f.Offset = Offset;
             f.Decoded = false;
             f.ReturnType = ReturnType;
-            f.fnName = fnName;
-            f.Decoded = false;
             f.predecoded = predecoded;
             f.predecodeStarted = predecodeStarted;
             f.Vars = Vars.Clone(f);
             f.Params = Params.Clone(f);
 
+            Scriptfile.AggregateLoc.Add(f.Location, f);
             return f;
         }
 
@@ -141,17 +140,17 @@ namespace Decompiler
                 _dirty = value;
                 if (forward) // Dirty all associate functions.
                 {
-                    foreach (Function f in Associated)
+                    foreach (Function f in ChildFunctions)
                         f.Dirty = true;
                 }
             }
         }
 
-        public void Associate(Function f)
+        public static void CreateFunctionPath(Function parent, Function child)
         {
-            if (f != this && !IsAggregate) {
-                this.Associated.Add(f); // f.Associated.Add(this);
-            }
+            if (parent == child || parent.IsAggregate || child.IsAggregate) return;
+            parent.ChildFunctions.Add(child);
+            child.ParentFunctions.Add(parent);
         }
 
         /// <summary>
@@ -257,10 +256,11 @@ namespace Decompiler
         /// </summary>
         /// <param name="offset">the offset that is being called</param>
         /// <returns>basic information about the function at that offset</returns>
-        public FunctionName GetFunctionNameFromOffset(int offset)
+        public Function GetFunctionAtOffset(int offset)
         {
-            if (Scriptfile.FunctionLoc.ContainsKey(offset))
-                return Scriptfile.FunctionLoc[offset];
+            Dictionary<int, Function> lookup = IsAggregate ? Scriptfile.AggregateLoc : Scriptfile.FunctionLoc;
+            if (lookup.ContainsKey(offset))
+                return lookup[offset];
             throw new Exception("Function Not Found");
         }
 
@@ -269,9 +269,9 @@ namespace Decompiler
         /// </summary>
         /// <param name="offset">the offset that is being called</param>
         /// <returns>basic information about the function at that offset</returns>
-        public Function GetFunctionFromOffset(int offset)
+        public Function GetFunctionWithinOffset(int offset)
         {
-            foreach (Function f in Scriptfile.Functions)
+            foreach (Function f in (IsAggregate ? Scriptfile.AggFunctions : Scriptfile.Functions))
             {
                 if (f.Location <= offset && offset <= f.MaxLocation)
                     return f;
@@ -367,7 +367,6 @@ namespace Decompiler
                 Outerpath = Outerpath.Parent;
             }
             closetab();
-            fnName.retType = ReturnType;
             Decoded = true;
         }
 
@@ -1133,7 +1132,6 @@ namespace Decompiler
                         switchPath.EscapedCases[switchPath.ActiveOffset] = true;
                     }
 
-                    Stack.DataType type = Instructions[Offset].GetOperand(1) == 1 ? Stack.TopType : Stack.DataType.Unk;
                     string tempstring = Stack.PopListForCall(Instructions[Offset].GetOperand(1));
                     switch (Instructions[Offset].GetOperand(1))
                     {
@@ -1143,27 +1141,8 @@ namespace Decompiler
                                 writeline("return;");
                             break;
                         }
-                        case 1:
-                        {
-                            switch (type)
-                            {
-                                case Stack.DataType.Bool:
-                                case Stack.DataType.Float:
-                                case Stack.DataType.StringPtr:
-                                case Stack.DataType.Int:
-                                    ReturnType = type;
-                                    break;
-                                default:
-                                    returncheck(tempstring);
-                                    break;
-                            }
-                            writeline("return " + tempstring + ";");
-                            break;
-                        }
                         default:
                         {
-                            if (Stack.TopType == Stack.DataType.String)
-                                ReturnType = Stack.DataType.String;
                             writeline("return " + tempstring + ";");
                             break;
                         }
@@ -1305,8 +1284,7 @@ namespace Decompiler
                     goto HandleJump;
                 case Instruction.RAGE_CALL:
                 {
-                    FunctionName tempf = GetFunctionNameFromOffset(Instructions[Offset].GetOperandsAsInt);
-                    string tempstring = Stack.FunctionCall(tempf.Name, tempf.Pcount, tempf.Rcount);
+                    string tempstring = Stack.FunctionCall(GetFunctionAtOffset(Instructions[Offset].GetOperandsAsInt));
                     if (tempstring != "")
                         writeline(tempstring);
                     break;
@@ -1512,7 +1490,6 @@ namespace Decompiler
                 Var.makearray();
             }
             CheckInstruction(1, Stack.DataType.Int);
-
         }
 
         public void SetArray(Stack.DataType type)
@@ -1523,64 +1500,43 @@ namespace Decompiler
             if (Var != null && Stack.isPointer(0)) Var.DataType = type;
         }
 
-        public void returncheck(string temp)
+        public Stack.DataType returncheck(string temp)
         {
-            if (Rcount != 1)
-                return;
-            if (ReturnType == Stack.DataType.Float)
-                return;
-            if (ReturnType == Stack.DataType.Int)
-                return;
-            if (ReturnType == Stack.DataType.Bool)
-                return;
-            if (temp.EndsWith("f"))
-                ReturnType = Stack.DataType.Float;
+            List<Function> functions = IsAggregate ? Scriptfile.AggFunctions : Scriptfile.Functions;
             int tempint;
-            if (Utils.IntParse(temp, out tempint))
-            {
-                ReturnType = Stack.DataType.Int;
-                return;
-            }
-            if (temp.StartsWith("joaat("))
-            {
-                ReturnType = Stack.DataType.Int;
-                return;
-            }
+            if (Rcount != 1) return ReturnType;
+            if (temp.StartsWith("joaat(")) return Stack.DataType.Int;
             if (temp.StartsWith("func_"))
             {
                 string loc = temp.Remove(temp.IndexOf("(")).Substring(5);
                 if (int.TryParse(loc, out tempint))
                 {
-                    if (Scriptfile.Functions[tempint] == this)
+                    if (functions[tempint] == this) return ReturnType;
+
+                    // Ensure the function is predecoded.
+                    if (!functions[tempint].predecoded)
                     {
-                        return;
-                    }
-                    if (!Scriptfile.Functions[tempint].Decoded)
-                    {
-                        if (!Scriptfile.Functions[tempint].DecodeStarted)
-                            Scriptfile.Functions[tempint].Decode();
+                        if (!functions[tempint].predecodeStarted)
+                            functions[tempint].PreDecode();
                         else
                         {
-                            while (!Scriptfile.Functions[tempint].Decoded)
+                            while (!functions[tempint].predecoded)
                             {
                                 Thread.Sleep(1);
                             }
                         }
                     }
-                    switch (Scriptfile.Functions[tempint].ReturnType)
-                    {
-                        case Stack.DataType.Float:
-                        case Stack.DataType.Bool:
-                        case Stack.DataType.Int:
-                            ReturnType = Scriptfile.Functions[tempint].ReturnType;
-                            break;
-                    }
-                    return;
+                    return functions[tempint].ReturnType;
                 }
             }
-            ReturnType = (temp.EndsWith(")") && !temp.StartsWith("(")) ? Stack.DataType.Unsure : Stack.DataType.Unsure;
-        }
 
+            if (ReturnType == Stack.DataType.Float) return ReturnType;
+            if (ReturnType == Stack.DataType.Int) return ReturnType;
+            if (ReturnType == Stack.DataType.Bool) return ReturnType;
+            if (Utils.IntParse(temp, out tempint)) return Stack.DataType.Int;
+            return ReturnType;
+            //return (temp.EndsWith(")") && !temp.StartsWith("(")) ? Stack.DataType.Unsure : Stack.DataType.Unsure;
+        }
 
         public void decodeinsructionsforvarinfo()
         {
@@ -1765,8 +1721,31 @@ namespace Decompiler
                     case Instruction.RAGE_ENTER:
                         throw new Exception("Unexpected Function Definition");
                     case Instruction.RAGE_LEAVE:
-                        Stack.PopListForCall(ins.GetOperand(1));
+                    {
+                        Stack.DataType type = ins.GetOperand(1) == 1 ? Stack.TopType : Stack.DataType.Unk;
+                        string tempstring = Stack.PopListForCall(ins.GetOperand(1));
+                        switch (ins.GetOperand(1))
+                        {
+                            case 0:
+                            {
+                                ReturnType = Stack.DataType.None;
+                                break;
+                            }
+                            case 1:
+                            {
+                                Stack.DataType leftType = returncheck(tempstring);
+                                ReturnType = type.LessThan(leftType) ? leftType : type;
+                                break;
+                            }
+                            default:
+                            {
+                                if (Stack.TopType == Stack.DataType.String)
+                                    ReturnType = Stack.DataType.String;
+                                break;
+                            }
+                        }
                         break;
+                    }
                     case Instruction.RAGE_LOAD:
                         Stack.Op_RefGet();
                         break;
@@ -1999,7 +1978,7 @@ namespace Decompiler
                         break;
                     case Instruction.RAGE_CALL:
                     {
-                        Function func = GetFunctionFromOffset(ins.GetOperandsAsInt);
+                        Function func = GetFunctionWithinOffset(ins.GetOperandsAsInt);
                         if (!func.predecodeStarted)
                             func.PreDecode();
                         if (func.predecoded)
@@ -2018,7 +1997,7 @@ namespace Decompiler
                             }
                         }
 
-                        this.Associate(func);
+                        CreateFunctionPath(this, func);
                         Stack.FunctionCall(func);
                         break;
                     }
@@ -2110,49 +2089,5 @@ namespace Decompiler
         }
 
         #endregion
-    }
-
-    public class FunctionName
-    {
-        string name;
-        int pcount, rcount, minloc; //, maxloc;
-        Stack.DataType _RetType;
-
-        internal FunctionName(string Name, int Pcount, int Rcount, int MinLoc, int MaxLoc)
-        {
-            pcount = Pcount;
-            rcount = Rcount;
-            minloc = MinLoc;
-            //maxloc = MaxLoc;
-            name = Name;
-            _RetType = Stack.DataType.Unk;
-        }
-
-        public string Name
-        {
-            get { return name; }
-        }
-
-        public int Pcount
-        {
-            get { return pcount; }
-        }
-
-        public int Rcount
-        {
-            get { return rcount; }
-        }
-
-        internal int MinLoc
-        {
-            get { return minloc; }
-        }
-
-        //internal int MaxLoc { get { return maxloc; } }
-        public Stack.DataType retType
-        {
-            get { return _RetType; }
-            set { _RetType = value; }
-        }
     }
 }

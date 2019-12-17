@@ -281,20 +281,6 @@ namespace Decompiler
             return stack.ToArray();
         }
 
-        public string FunctionCall(string name, int pcount, int rcount)
-        {
-            string functionline = (Function.IsAggregate ? "func_" : name) + "(" + PopListForCall(pcount) + ")";
-            if (rcount == 0)
-                return functionline + ";";
-            else if (rcount == 1)
-                Push(functionline);
-            else if (rcount > 1)
-                PushStruct(functionline, rcount);
-            else
-                throw new Exception("Error in return items count");
-            return "";
-        }
-
         public string FunctionCall(Function func)
         {
             string popList = "";
@@ -318,10 +304,9 @@ namespace Decompiler
                 }
             }
             else
-                popList = (func.Pcount > 0) ? PopListForCall(func.Pcount) : "";
+                popList = PopListForCall(func.Pcount);
 
-            string functionline = func.Name + "(" + popList + ")";
-            if (Function.IsAggregate) functionline = "func_()"; // Burn the PopList call.
+            string functionline = (Function.IsAggregate ? "func_" : func.Name) + "(" + popList + ")";
             if (func.Rcount == 0)
                 return functionline + ";";
             else if (func.Rcount == 1)

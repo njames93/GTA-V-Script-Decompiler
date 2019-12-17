@@ -19,9 +19,9 @@ namespace Decompiler
         public X64NativeTable X64NativeTable;
         private int offset = 0;
 
-        public List<Function> Functions;
-        public List<Function> AggFunctions;
-        public Dictionary<int, FunctionName> FunctionLoc;
+        public List<Function> Functions; public Dictionary<int, Function> FunctionLoc;
+        public List<Function> AggFunctions; public Dictionary<int, Function> AggregateLoc;
+
         public Dictionary<string, Tuple<int, int>> Function_loc = new Dictionary<string, Tuple<int, int>>();
         private Dictionary<ulong, HashSet<Function>> NativeXRef = new Dictionary<ulong, HashSet<Function>>();
 
@@ -37,9 +37,8 @@ namespace Decompiler
             CodeSet = opcodeSet;
 
             CodeTable = new List<byte>();
-            Functions = new List<Function>();
-            AggFunctions = new List<Function>();
-            FunctionLoc = new Dictionary<int, FunctionName>();
+            Functions = new List<Function>(); FunctionLoc = new Dictionary<int, Function>();
+            AggFunctions = new List<Function>(); AggregateLoc = new Dictionary<int, Function>();
 
             Header = ScriptHeader.Generate(scriptStream);
             StringTable = new StringTable(scriptStream, Header.StringTableOffsets, Header.StringBlocks, Header.StringsSize);
