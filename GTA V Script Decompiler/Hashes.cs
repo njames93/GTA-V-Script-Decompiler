@@ -10,6 +10,9 @@ namespace Decompiler
 {
     public class Hashes
     {
+        public static readonly string HashPrefix = "joaat(\"";
+        public static string LiteralHash(string x) => HashPrefix + x + "\")";
+
         Dictionary<int, string> hashes;
 
         public Hashes()
@@ -31,6 +34,7 @@ namespace Decompiler
 
         private void Populate(StreamReader reader)
         {
+            string collision = "";
             while (!reader.EndOfStream)
             {
                 string line = reader.ReadLine();
@@ -41,7 +45,14 @@ namespace Decompiler
                         continue;
 
                     int hash = Convert.ToInt32(split[0]);
-                    if (hash != 0 && !hashes.ContainsKey(hash))
+                    if (hash == 0)
+                        continue;
+                    else if (hashes.TryGetValue(hash, out collision))
+                    {
+                        if (collision.Length < split[1].Length)
+                            hashes[hash] = collision; // On hash collision, use the shorter of the two strings
+                    }
+                    else
                         hashes.Add(hash, split[1]); // Dont use ToLower(), use whatever is defined in Entities.
                 }
                 else if (line.Trim().Length > 0)
@@ -58,7 +69,7 @@ namespace Decompiler
             if (!Program.ReverseHashes)
                 return inttohex(value);
             if (hashes.ContainsKey(value))
-                return "joaat(\"" + hashes[value] + "\")";
+                return Hashes.LiteralHash(hashes[value]);
             return inttohex(value) + temp;
         }
 
@@ -68,7 +79,7 @@ namespace Decompiler
                 return value.ToString();
             int intvalue = (int)value;
             if (hashes.ContainsKey(intvalue))
-                return "joaat(\"" + hashes[intvalue] + "\")";
+                return Hashes.LiteralHash(hashes[intvalue]);
             return value.ToString() + temp;
         }
 

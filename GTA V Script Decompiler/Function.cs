@@ -16,32 +16,34 @@ namespace Decompiler
 
     public class Function
     {
-        public string Name { get; private set; }
-        public int Pcount { get; private set; }
-        public int Vcount { get; private set; }
-        public int Rcount { get; private set; }
-        public int Location { get; private set; }
-        public int MaxLocation { get; private set; }
-        private bool _dirty = false;
+        public static readonly string FunctionName = "func_";
+
+        public string Name { get; protected set; }
+        public int Pcount { get; protected set; }
+        public int Vcount { get; protected set; }
+        public int Rcount { get; protected set; }
+        public int Location { get; protected set; }
+        public int MaxLocation { get; protected set; }
+        public int Offset { get; set; } = 0;
+        protected bool _dirty = false;
 
         public Stack.DataType ReturnType { get; set; } = Stack.DataType.Unk;
-        public Vars_Info Vars { get; private set; }
-        public Vars_Info Params { get; private set; }
-        private HashSet<Function> ParentFunctions = new HashSet<Function>();
-        private HashSet<Function> ChildFunctions = new HashSet<Function>();
+        public Vars_Info Vars { get; protected set; }
+        public Vars_Info Params { get; protected set; }
+        public HashSet<Function> ParentFunctions = new HashSet<Function>();
+        public HashSet<Function> ChildFunctions = new HashSet<Function>();
 
-        public ScriptFile Scriptfile { get; private set; }
+        public ScriptFile Scriptfile { get; protected set; }
         public List<byte> CodeBlock { get; set; }
-        public int NativeCount { get; private set; } // Number of decoded native calls.
+        public int NativeCount { get; protected set; } // Number of decoded native calls.
         public bool IsAggregate { get; private set; } // Stateless function.
         public Function BaseFunction { get; set; } // For aggregate functions.
 
         StringBuilder sb = null;
         List<HLInstruction> Instructions;
         Dictionary<int, int> InstructionMap;
-        Stack Stack;
+        Stack stack;
 
-        int Offset = 0;
         string tabs = "";
         CodePath Outerpath;
         bool writeelse = false;
@@ -70,10 +72,12 @@ namespace Decompiler
             MaxLocation = (locmax != -1) ? locmax : Location;
             Decoded = false;
 
-            Vars = new Vars_Info(this, Vars_Info.ListType.Vars, vcount - 2);
-            Params = new Vars_Info(this, Vars_Info.ListType.Params, pcount);
+            Vars = new Vars_Info(Vars_Info.ListType.Vars, false, vcount - 2);
+            Params = new Vars_Info(Vars_Info.ListType.Params, false, pcount);
             Scriptfile.FunctionLoc.Add(location, this);
         }
+
+        public override int GetHashCode() => Scriptfile.GetHashCode() ^ Name.GetHashCode();
 
         public Function CreateAggregate()
         {
@@ -98,8 +102,8 @@ namespace Decompiler
             f.ReturnType = ReturnType;
             f.predecoded = predecoded;
             f.predecodeStarted = predecodeStarted;
-            f.Vars = Vars.Clone(f);
-            f.Params = Params.Clone(f);
+            f.Vars = Vars.Clone(true);
+            f.Params = Params.Clone(true);
 
             Scriptfile.AggregateLoc.Add(f.Location, f);
             return f;
@@ -109,7 +113,7 @@ namespace Decompiler
         /// Compute the hash of the current string buffer (function signature for aggregate functions).
         /// </summary>
         /// <returns></returns>
-        public string ToHash() { return Agg.SHA256(sb.ToString()); }
+        public string ToHash() => Utils.SHA256(sb.ToString());
 
         public void UpdateNativeReturnType(ulong hash, Stack.DataType datatype)
         {
@@ -164,7 +168,7 @@ namespace Decompiler
                 InstructionMap.Clear(); InstructionMap = null;
                 Instructions.Clear(); Instructions = null;
                 CodeBlock.Clear(); CodeBlock = null;
-                Stack.Dispose(); Stack = null;
+                stack.Dispose(); stack = null;
                 sb.Clear(); sb = null;
             }
         }
@@ -181,7 +185,7 @@ namespace Decompiler
                 InstructionMap.Clear(); InstructionMap = null;
                 Instructions.Clear(); Instructions = null;
                 CodeBlock.Clear(); CodeBlock = null;
-                Stack.Dispose(); Stack = null;
+                stack.Dispose(); stack = null;
 
                 try
                 {
@@ -224,7 +228,7 @@ namespace Decompiler
                 }
                 else throw new DecompilingException("Unexpected return count");
 
-                name = IsAggregate ? (working + "func_") : (working + Name);
+                name = IsAggregate ? (working + Function.FunctionName) : (working + Name);
                 working = "(" + Params.GetPDec() + ")";
                 strFirstLineCache = name + working + (Program.ShowFuncPosition ? ("//Position - 0x" + Location.ToString("X")) : "");
             }
@@ -337,7 +341,7 @@ namespace Decompiler
             }
 
             //Set up a stack
-            Stack = new Stack(this, false);
+            stack = new Stack(this, false);
 
             //Set up the codepaths to a null item
             Outerpath = new CodePath(CodePathType.Main, CodeBlock.Count, -1);
@@ -360,13 +364,27 @@ namespace Decompiler
             while (Offset < Instructions.Count)
                 decodeinstruction();
             //Fix for switches that end at the end of a function
-            while (Outerpath.Parent != null && Outerpath.Parent.Type != CodePathType.Main)
+            while (Outerpath.Parent != null)
             {
-                if (Outerpath.IsSwitch) closetab(false);
+                if (Outerpath.IsSwitch)
+                {
+                    SwitchPath outerSwitch = (SwitchPath)Outerpath;
+                    if (outerSwitch.HasDefaulted)
+                        closetab(false);
+                    else
+                    {
+                        outerSwitch.HasDefaulted = true;
+                        writeline("default:");
+                        opentab(false);
+                        writeline("break;");
+                        closetab(false);
+                        closetab(false);
+                    }
+                }
                 closetab();
                 Outerpath = Outerpath.Parent;
             }
-            closetab();
+            closetab(true);
             Decoded = true;
         }
 
@@ -726,7 +744,7 @@ namespace Decompiler
             Outerpath = new SwitchPath(Outerpath, cases, -1, breakloc);
 
             // Found all information about switch, write the first case, the rest will be handled when we get to them
-            writeline("switch (" + Stack.Pop().AsLiteral + ")");
+            writeline("switch (" + stack.Pop().AsLiteral + ")");
             opentab();
             for (int i = 0; i < cases[sortedOffset].Count; i++)
             {
@@ -749,7 +767,7 @@ namespace Decompiler
         /// </summary>
         void CheckConditional()
         {
-            string tempstring = Stack.Pop().AsLiteral;
+            string tempstring = stack.Pop().AsLiteral;
             if (!(tempstring.StartsWith("(") && tempstring.EndsWith(")")))
                 tempstring = "(" + tempstring + ")";
 
@@ -979,109 +997,109 @@ namespace Decompiler
                 case Instruction.RAGE_NOP:
                     break;
                 case Instruction.RAGE_IADD:
-                    Stack.Op_Add();
+                    stack.Op_Add();
                     break;
                 case Instruction.RAGE_FADD:
-                    Stack.Op_Addf();
+                    stack.Op_Addf();
                     break;
                 case Instruction.RAGE_ISUB:
-                    Stack.Op_Sub();
+                    stack.Op_Sub();
                     break;
                 case Instruction.RAGE_FSUB:
-                    Stack.Op_Subf();
+                    stack.Op_Subf();
                     break;
                 case Instruction.RAGE_IMUL:
-                    Stack.Op_Mult();
+                    stack.Op_Mult();
                     break;
                 case Instruction.RAGE_FMUL:
-                    Stack.Op_Multf();
+                    stack.Op_Multf();
                     break;
                 case Instruction.RAGE_IDIV:
-                    Stack.Op_Div();
+                    stack.Op_Div();
                     break;
                 case Instruction.RAGE_FDIV:
-                    Stack.Op_Divf();
+                    stack.Op_Divf();
                     break;
                 case Instruction.RAGE_IMOD:
-                    Stack.Op_Mod();
+                    stack.Op_Mod();
                     break;
                 case Instruction.RAGE_FMOD:
-                    Stack.Op_Modf();
+                    stack.Op_Modf();
                     break;
                 case Instruction.RAGE_INOT:
-                    Stack.Op_Not();
+                    stack.Op_Not();
                     break;
                 case Instruction.RAGE_INEG:
-                    Stack.Op_Neg();
+                    stack.Op_Neg();
                     break;
                 case Instruction.RAGE_FNEG:
-                    Stack.Op_Negf();
+                    stack.Op_Negf();
                     break;
                 case Instruction.RAGE_IEQ:
                 case Instruction.RAGE_FEQ:
-                    Stack.Op_CmpEQ();
+                    stack.Op_CmpEQ();
                     break;
                 case Instruction.RAGE_INE:
                 case Instruction.RAGE_FNE:
-                    Stack.Op_CmpNE();
+                    stack.Op_CmpNE();
                     break;
                 case Instruction.RAGE_IGT:
                 case Instruction.RAGE_FGT:
-                    Stack.Op_CmpGT();
+                    stack.Op_CmpGT();
                     break;
                 case Instruction.RAGE_IGE:
                 case Instruction.RAGE_FGE:
-                    Stack.Op_CmpGE();
+                    stack.Op_CmpGE();
                     break;
                 case Instruction.RAGE_ILT:
                 case Instruction.RAGE_FLT:
-                    Stack.Op_CmpLT();
+                    stack.Op_CmpLT();
                     break;
                 case Instruction.RAGE_ILE:
                 case Instruction.RAGE_FLE:
-                    Stack.Op_CmpLE();
+                    stack.Op_CmpLE();
                     break;
                 case Instruction.RAGE_VADD:
-                    Stack.Op_Vadd();
+                    stack.Op_Vadd();
                     break;
                 case Instruction.RAGE_VSUB:
-                    Stack.Op_VSub();
+                    stack.Op_VSub();
                     break;
                 case Instruction.RAGE_VMUL:
-                    Stack.Op_VMult();
+                    stack.Op_VMult();
                     break;
                 case Instruction.RAGE_VDIV:
-                    Stack.Op_VDiv();
+                    stack.Op_VDiv();
                     break;
                 case Instruction.RAGE_VNEG:
-                    Stack.Op_VNeg();
+                    stack.Op_VNeg();
                     break;
                 case Instruction.RAGE_IAND:
-                    Stack.Op_And();
+                    stack.Op_And();
                     break;
                 case Instruction.RAGE_IOR:
-                    Stack.Op_Or();
+                    stack.Op_Or();
                     break;
                 case Instruction.RAGE_IXOR:
-                    Stack.Op_Xor();
+                    stack.Op_Xor();
                     break;
                 case Instruction.RAGE_I2F:
-                    Stack.Op_Itof();
+                    stack.Op_Itof();
                     break;
                 case Instruction.RAGE_F2I:
-                    Stack.Op_FtoI();
+                    stack.Op_FtoI();
                     break;
                 case Instruction.RAGE_F2V:
-                    Stack.Op_FtoV();
+                    stack.Op_FtoV();
                     break;
                 case Instruction.RAGE_PUSH_CONST_U8:
-                    Stack.Push(Instructions[Offset].GetOperand(0));
+                    stack.Push(Instructions[Offset].GetOperand(0));
                     break;
                 case Instruction.RAGE_PUSH_CONST_U8_U8:
-                    Stack.Push(Instructions[Offset].GetOperand(0), Instructions[Offset].GetOperand(1));
+                    stack.Push(Instructions[Offset].GetOperand(0), Instructions[Offset].GetOperand(1));
                     break;
                 case Instruction.RAGE_PUSH_CONST_U8_U8_U8:
-                    Stack.Push(Instructions[Offset].GetOperand(0), Instructions[Offset].GetOperand(1),
+                    stack.Push(Instructions[Offset].GetOperand(0), Instructions[Offset].GetOperand(1),
                         Instructions[Offset].GetOperand(2));
                     break;
                 case Instruction.RAGE_PUSH_CONST_U32:
@@ -1089,23 +1107,23 @@ namespace Decompiler
                 {
                     Stack.DataType type = Stack.DataType.Int;
                     if (Program.IntStyle == Program.IntType._uint)
-                        Stack.Push(Program.hashbank.GetHash(Instructions[Offset].GetOperandsAsUInt), type);
+                        stack.Push(Program.hashbank.GetHash(Instructions[Offset].GetOperandsAsUInt), type);
                     else
-                        Stack.Push(Program.hashbank.GetHash(Instructions[Offset].GetOperandsAsInt), type);
+                        stack.Push(Program.hashbank.GetHash(Instructions[Offset].GetOperandsAsInt), type);
                     break;
                 }
                 case Instruction.RAGE_PUSH_CONST_S16:
-                    Stack.Push(Instructions[Offset].GetOperandsAsInt);
+                    stack.Push(Instructions[Offset].GetOperandsAsInt);
                     break;
                 case Instruction.RAGE_PUSH_CONST_F:
-                    Stack.Push(Instructions[Offset].GetFloat);
+                    stack.Push(Instructions[Offset].GetFloat);
                     break;
                 case Instruction.RAGE_DUP:
-                    Stack.Dup();
+                    stack.Dup();
                     break;
                 case Instruction.RAGE_DROP:
                 {
-                    object temp = Stack.Drop();
+                    object temp = stack.Drop();
                     if (temp is string)
                         writeline(temp as string);
                     break;
@@ -1117,7 +1135,7 @@ namespace Decompiler
                     NativeCount++;
                     if (!IsAggregate) Agg.Instance.Count(natStr);
 
-                    string tempstring = Stack.NativeCallTest(natHash, natStr, Instructions[Offset].GetNativeParams, Instructions[Offset].GetNativeReturns);
+                    string tempstring = stack.NativeCallTest(natHash, natStr, Instructions[Offset].GetNativeParams, Instructions[Offset].GetNativeReturns);
                     if (tempstring != "")
                         writeline(tempstring);
                     break;
@@ -1132,7 +1150,7 @@ namespace Decompiler
                         switchPath.EscapedCases[switchPath.ActiveOffset] = true;
                     }
 
-                    string tempstring = Stack.PopListForCall(Instructions[Offset].GetOperand(1));
+                    string tempstring = stack.PopListForCall(Instructions[Offset].GetOperand(1));
                     switch (Instructions[Offset].GetOperand(1))
                     {
                         case 0:
@@ -1150,55 +1168,55 @@ namespace Decompiler
                     break;
                 }
                 case Instruction.RAGE_LOAD:
-                    Stack.Op_RefGet();
+                    stack.Op_RefGet();
                     break;
                 case Instruction.RAGE_STORE:
-                    if (Stack.PeekVar(1) == null)
-                        writeline(Stack.Op_RefSet());
-                    else if (Stack.PeekVar(1).Is_Array)
-                        Stack.Op_RefSet();
+                    if (stack.PeekVar(1) == null)
+                        writeline(stack.Op_RefSet());
+                    else if (stack.PeekVar(1).Is_Array)
+                        stack.Op_RefSet();
                     else
-                        writeline(Stack.Op_RefSet());
+                        writeline(stack.Op_RefSet());
                     break;
                 case Instruction.RAGE_STORE_REV:
-                    if (Stack.PeekVar(1) == null)
-                        writeline(Stack.Op_PeekSet());
-                    else if (Stack.PeekVar(1).Is_Array)
-                        Stack.Op_PeekSet();
+                    if (stack.PeekVar(1) == null)
+                        writeline(stack.Op_PeekSet());
+                    else if (stack.PeekVar(1).Is_Array)
+                        stack.Op_PeekSet();
                     else
-                        writeline(Stack.Op_PeekSet());
+                        writeline(stack.Op_PeekSet());
                     break;
                 case Instruction.RAGE_LOAD_N:
-                    Stack.Op_ToStack();
+                    stack.Op_ToStack();
                     break;
                 case Instruction.RAGE_STORE_N:
-                    writeline(Stack.Op_FromStack());
+                    writeline(stack.Op_FromStack());
                     break;
                 case Instruction.RAGE_ARRAY_U8:
                 case Instruction.RAGE_ARRAY_U16:
-                    Stack.Op_ArrayGetP(Instructions[Offset].GetOperandsAsUInt);
+                    stack.Op_ArrayGetP(Instructions[Offset].GetOperandsAsUInt);
                     break;
                 case Instruction.RAGE_ARRAY_U8_LOAD:
                 case Instruction.RAGE_ARRAY_U16_LOAD:
-                    Stack.Op_ArrayGet(Instructions[Offset].GetOperandsAsUInt);
+                    stack.Op_ArrayGet(Instructions[Offset].GetOperandsAsUInt);
                     break;
                 case Instruction.RAGE_ARRAY_U8_STORE:
                 case Instruction.RAGE_ARRAY_U16_STORE:
-                    writeline(Stack.Op_ArraySet(Instructions[Offset].GetOperandsAsUInt));
+                    writeline(stack.Op_ArraySet(Instructions[Offset].GetOperandsAsUInt));
                     break;
                 case Instruction.RAGE_LOCAL_U8:
                 case Instruction.RAGE_LOCAL_U16:
-                    Stack.PushPVar(GetFrameVar(Instructions[Offset].GetOperandsAsUInt));
+                    stack.PushPVar(GetFrameVar(Instructions[Offset].GetOperandsAsUInt));
                     break;
                 case Instruction.RAGE_LOCAL_U8_LOAD:
                 case Instruction.RAGE_LOCAL_U16_LOAD:
-                    Stack.PushVar(GetFrameVar(Instructions[Offset].GetOperandsAsUInt));
+                    stack.PushVar(GetFrameVar(Instructions[Offset].GetOperandsAsUInt));
                     break;
                 case Instruction.RAGE_LOCAL_U8_STORE:
                 case Instruction.RAGE_LOCAL_U16_STORE:
                 {
                     Vars_Info.Var var = GetFrameVar(Instructions[Offset].GetOperandsAsUInt);
-                    string tempstring = Stack.Op_Set(var.Name, var);
+                    string tempstring = stack.Op_Set(var.Name, var);
                     if (var.DataType == Stack.DataType.Bool)
                         tempstring = tempstring.Replace("= 0;", "= false;").Replace("= 1;", "= true;");
                     if (!var.Is_Array)
@@ -1207,17 +1225,17 @@ namespace Decompiler
                 }
                 case Instruction.RAGE_STATIC_U8:
                 case Instruction.RAGE_STATIC_U16:
-                    Stack.PushPVar(Scriptfile.Statics.GetVarAtIndex(Instructions[Offset].GetOperandsAsUInt).Fixed());
+                    stack.PushPVar(Scriptfile.Statics.GetVarAtIndex(Instructions[Offset].GetOperandsAsUInt).Fixed());
                     break;
                 case Instruction.RAGE_STATIC_U8_LOAD:
                 case Instruction.RAGE_STATIC_U16_LOAD:
-                    Stack.PushVar(Scriptfile.Statics.GetVarAtIndex(Instructions[Offset].GetOperandsAsUInt).Fixed());
+                    stack.PushVar(Scriptfile.Statics.GetVarAtIndex(Instructions[Offset].GetOperandsAsUInt).Fixed());
                     break;
                 case Instruction.RAGE_STATIC_U8_STORE:
                 case Instruction.RAGE_STATIC_U16_STORE:
                 {
                     Vars_Info.Var var = Scriptfile.Statics.GetVarAtIndex(Instructions[Offset].GetOperandsAsUInt).Fixed();
-                    string tempstring = Stack.Op_Set(Scriptfile.Statics.GetVarName(Instructions[Offset].GetOperandsAsUInt), var);
+                    string tempstring = stack.Op_Set(Scriptfile.Statics.GetVarName(Instructions[Offset].GetOperandsAsUInt), var);
                     if (var.DataType == Stack.DataType.Bool)
                         tempstring = tempstring.Replace("= 0;", "= false;").Replace("= 1;", "= true;");
                     if (!var.Is_Array)
@@ -1226,38 +1244,38 @@ namespace Decompiler
                 }
                 case Instruction.RAGE_IADD_U8:
                 case Instruction.RAGE_IADD_S16:
-                    Stack.Op_AmmImm(Instructions[Offset].GetOperandsAsInt);
+                    stack.Op_AmmImm(Instructions[Offset].GetOperandsAsInt);
                     break;
                 case Instruction.RAGE_IMUL_U8:
                 case Instruction.RAGE_IMUL_S16:
-                    Stack.Op_MultImm(Instructions[Offset].GetOperandsAsInt);
+                    stack.Op_MultImm(Instructions[Offset].GetOperandsAsInt);
                     break;
                 case Instruction.RAGE_IOFFSET:
-                    Stack.Op_GetImmP();
+                    stack.Op_GetImmP();
                     break;
                 case Instruction.RAGE_IOFFSET_U8:
                 case Instruction.RAGE_IOFFSET_S16:
-                    Stack.Op_GetImmP(Instructions[Offset].GetOperandsAsUInt);
+                    stack.Op_GetImmP(Instructions[Offset].GetOperandsAsUInt);
                     break;
                 case Instruction.RAGE_IOFFSET_U8_LOAD:
                 case Instruction.RAGE_IOFFSET_S16_LOAD:
-                    Stack.Op_GetImm(Instructions[Offset].GetOperandsAsUInt);
+                    stack.Op_GetImm(Instructions[Offset].GetOperandsAsUInt);
                     break;
                 case Instruction.RAGE_IOFFSET_U8_STORE:
                 case Instruction.RAGE_IOFFSET_S16_STORE:
-                    writeline(Stack.Op_SetImm(Instructions[Offset].GetOperandsAsUInt));
+                    writeline(stack.Op_SetImm(Instructions[Offset].GetOperandsAsUInt));
                     break;
                 case Instruction.RAGE_GLOBAL_U16:
                 case Instruction.RAGE_GLOBAL_U24:
-                    Stack.PushPGlobal(Instructions[Offset].GetGlobalString(IsAggregate));
+                    stack.PushPGlobal(Instructions[Offset].GetGlobalString());
                     break;
                 case Instruction.RAGE_GLOBAL_U16_LOAD:
                 case Instruction.RAGE_GLOBAL_U24_LOAD:
-                    Stack.PushGlobal(Instructions[Offset].GetGlobalString(IsAggregate));
+                    stack.PushGlobal(Instructions[Offset].GetGlobalString());
                     break;
                 case Instruction.RAGE_GLOBAL_U16_STORE:
                 case Instruction.RAGE_GLOBAL_U24_STORE:
-                    writeline(Stack.Op_Set(Instructions[Offset].GetGlobalString(IsAggregate)));
+                    writeline(stack.Op_Set(Instructions[Offset].GetGlobalString()));
                     break;
                 case Instruction.RAGE_J:
                     handlejumpcheck();
@@ -1265,26 +1283,26 @@ namespace Decompiler
                 case Instruction.RAGE_JZ:
                     goto HandleJump;
                 case Instruction.RAGE_IEQ_JZ:
-                    Stack.Op_CmpEQ();
+                    stack.Op_CmpEQ();
                     goto HandleJump;
                 case Instruction.RAGE_INE_JZ:
-                    Stack.Op_CmpNE();
+                    stack.Op_CmpNE();
                     goto HandleJump;
                 case Instruction.RAGE_IGT_JZ:
-                    Stack.Op_CmpGT();
+                    stack.Op_CmpGT();
                     goto HandleJump;
                 case Instruction.RAGE_IGE_JZ:
-                    Stack.Op_CmpGE();
+                    stack.Op_CmpGE();
                     goto HandleJump;
                 case Instruction.RAGE_ILT_JZ:
-                    Stack.Op_CmpLT();
+                    stack.Op_CmpLT();
                     goto HandleJump;
                 case Instruction.RAGE_ILE_JZ:
-                    Stack.Op_CmpLE();
+                    stack.Op_CmpLE();
                     goto HandleJump;
                 case Instruction.RAGE_CALL:
                 {
-                    string tempstring = Stack.FunctionCall(GetFunctionAtOffset(Instructions[Offset].GetOperandsAsInt));
+                    string tempstring = stack.FunctionCall(GetFunctionAtOffset(Instructions[Offset].GetOperandsAsInt));
                     if (tempstring != "")
                         writeline(tempstring);
                     break;
@@ -1295,39 +1313,39 @@ namespace Decompiler
                 case Instruction.RAGE_STRING:
                 {
                     int tempint;
-                    string tempstring = Stack.Pop().AsLiteral;
+                    string tempstring = stack.Pop().AsLiteral;
                     if (!Utils.IntParse(tempstring, out tempint))
-                        Stack.Push("StringTable(" + tempstring + ")", Stack.DataType.StringPtr);
+                        stack.Push("StringTable(" + tempstring + ")", Stack.DataType.StringPtr);
                     else if (!this.Scriptfile.StringTable.StringExists(tempint))
-                        Stack.Push("StringTable(" + tempstring + ")", Stack.DataType.StringPtr);
+                        stack.Push("StringTable(" + tempstring + ")", Stack.DataType.StringPtr);
                     else
-                        Stack.Push("\"" + this.Scriptfile.StringTable[tempint] + "\"", Stack.DataType.StringPtr);
+                        stack.Push("\"" + this.Scriptfile.StringTable[tempint] + "\"", Stack.DataType.StringPtr);
                     break;
                 }
                 case Instruction.RAGE_STRINGHASH:
-                    Stack.Op_Hash();
+                    stack.Op_Hash();
                     break;
                 case Instruction.RAGE_TEXT_LABEL_ASSIGN_STRING:
-                    writeline(Stack.Op_StrCpy(Instructions[Offset].GetOperandsAsInt));
+                    writeline(stack.Op_StrCpy(Instructions[Offset].GetOperandsAsInt));
                     break;
                 case Instruction.RAGE_TEXT_LABEL_ASSIGN_INT:
-                    writeline(Stack.Op_ItoS(Instructions[Offset].GetOperandsAsInt));
+                    writeline(stack.Op_ItoS(Instructions[Offset].GetOperandsAsInt));
                     break;
                 case Instruction.RAGE_TEXT_LABEL_APPEND_STRING:
-                    writeline(Stack.Op_StrAdd(Instructions[Offset].GetOperandsAsInt));
+                    writeline(stack.Op_StrAdd(Instructions[Offset].GetOperandsAsInt));
                     break;
                 case Instruction.RAGE_TEXT_LABEL_APPEND_INT:
-                    writeline(Stack.Op_StrAddI(Instructions[Offset].GetOperandsAsInt));
+                    writeline(stack.Op_StrAddI(Instructions[Offset].GetOperandsAsInt));
                     break;
                 case Instruction.RAGE_TEXT_LABEL_COPY:
-                    writeline(Stack.Op_SnCopy());
+                    writeline(stack.Op_SnCopy());
                     break;
                 case Instruction.RAGE_CATCH:
                     throw new Exception(); // writeline("catch;"); break;
                 case Instruction.RAGE_THROW:
                     throw new Exception(); // writeline("throw;"); break;
                 case Instruction.RAGE_CALLINDIRECT:
-                    foreach (string s in Stack.pcall())
+                    foreach (string s in stack.pcall())
                         writeline(s);
                     break;
                 case Instruction.RAGE_PUSH_CONST_M1:
@@ -1339,7 +1357,7 @@ namespace Decompiler
                 case Instruction.RAGE_PUSH_CONST_5:
                 case Instruction.RAGE_PUSH_CONST_6:
                 case Instruction.RAGE_PUSH_CONST_7:
-                    Stack.Push(Instructions[Offset].GetImmBytePush);
+                    stack.Push(Instructions[Offset].GetImmBytePush);
                     break;
                 case Instruction.RAGE_PUSH_CONST_FM1:
                 case Instruction.RAGE_PUSH_CONST_F0:
@@ -1350,7 +1368,7 @@ namespace Decompiler
                 case Instruction.RAGE_PUSH_CONST_F5:
                 case Instruction.RAGE_PUSH_CONST_F6:
                 case Instruction.RAGE_PUSH_CONST_F7:
-                    Stack.Push(Instructions[Offset].GetImmFloatPush);
+                    stack.Push(Instructions[Offset].GetImmFloatPush);
                     break;
 
                 // RDR Extended Instruction Set.
@@ -1367,7 +1385,7 @@ namespace Decompiler
                 case Instruction.RAGE_GLOBAL_STORE_S:
                 case Instruction.RAGE_GLOBAL_STORE_SR:
                     if (Scriptfile.CodeSet.Count <= 127) throw new Exception("Unexpected Instruction");
-                    Stack.PushGlobal("RDR_" + Instructions[Offset].Instruction);
+                    stack.PushGlobal("RDR_" + Instructions[Offset].Instruction);
                     break;
                 default:
                     throw new Exception("Unexpected Instruction");
@@ -1387,33 +1405,33 @@ namespace Decompiler
                 return;
             for (int i = 0; i < count; i++)
             {
-                Vars_Info.Var Var = Stack.PeekVar(index + i);
-                if (Var != null && (Stack.isLiteral(index + i) || Stack.isPointer(index + i)))
+                Vars_Info.Var Var = stack.PeekVar(index + i);
+                if (Var != null && (stack.isLiteral(index + i) || stack.isPointer(index + i)))
                 {
                     if (type.LessThan(Var.DataType))
                         continue;
-                    if (type == Stack.DataType.StringPtr && Stack.isPointer(index + 1))
+                    if (type == Stack.DataType.StringPtr && stack.isPointer(index + 1))
                         Var.DataType = Stack.DataType.String;
-                    else if (functionPars && Stack.isPointer(index + i) && type.BaseType() != Stack.DataType.Unk)
+                    else if (functionPars && stack.isPointer(index + i) && type.BaseType() != Stack.DataType.Unk)
                         Var.DataType = type.BaseType();
                     else if (!functionPars)
                         Var.DataType = type;
                     continue;
                 }
-                Function func = Stack.PeekFunc(index + i);
+                Function func = stack.PeekFunc(index + i);
                 if (func != null)
                 {
                     if (type.LessThan(func.ReturnType))
                         continue;
-                    if (type == Stack.DataType.StringPtr && Stack.isPointer(index + 1))
+                    if (type == Stack.DataType.StringPtr && stack.isPointer(index + 1))
                         func.ReturnType = Stack.DataType.String;
                     else
                         func.ReturnType = type;
                     continue;
                 }
-                if (Stack.isnat(index + i))
+                if (stack.isnat(index + i))
                 {
-                    UpdateNativeReturnType(Stack.PeekNat64(index + i).Hash, type);
+                    UpdateNativeReturnType(stack.PeekNat64(index + i).Hash, type);
                 }
             }
         }
@@ -1422,10 +1440,10 @@ namespace Decompiler
         {
             for (int i = 0; i < count; i++)
             {
-                Vars_Info.Var Var = Stack.PeekVar(index + i);
-                if (Var != null && (Stack.isLiteral(index + i) || Stack.isPointer(index + i)))
+                Vars_Info.Var Var = stack.PeekVar(index + i);
+                if (Var != null && (stack.isLiteral(index + i) || stack.isPointer(index + i)))
                 {
-                    if (Stack.isPointer(index + i))
+                    if (stack.isPointer(index + i))
                     {
                         if (Var.Immediatesize == 1 || Var.Immediatesize == strsize / 4)
                         {
@@ -1437,20 +1455,17 @@ namespace Decompiler
                         Var.DataType = Stack.DataType.StringPtr;
                     continue;
                 }
-                if (Stack.isnat(index + i))
+                if (stack.isnat(index + i))
                 {
-                    UpdateNativeReturnType(Stack.PeekNat64(index + i).Hash, Stack.DataType.StringPtr);
+                    UpdateNativeReturnType(stack.PeekNat64(index + i).Hash, Stack.DataType.StringPtr);
                 }
             }
         }
 
         public void SetImmediate(int size)
         {
-            if (size == 15)
-            {
-            }
-            Vars_Info.Var Var = Stack.PeekVar(0);
-            if (Var != null && Stack.isPointer(0))
+            Vars_Info.Var Var = stack.PeekVar(0);
+            if (Var != null && stack.isPointer(0))
             {
                 if (Var.DataType == Stack.DataType.String)
                 {
@@ -1470,8 +1485,8 @@ namespace Decompiler
 
         public void CheckImmediate(int size)
         {
-            Vars_Info.Var Var = Stack.PeekVar(0);
-            if (Var != null && Stack.isPointer(0))
+            Vars_Info.Var Var = stack.PeekVar(0);
+            if (Var != null && stack.isPointer(0))
             {
                 if (Var.Immediatesize < size)
                     Var.Immediatesize = size;
@@ -1481,8 +1496,8 @@ namespace Decompiler
 
         public void CheckArray(uint width, int size = -1)
         {
-            Vars_Info.Var Var = Stack.PeekVar(0);
-            if (Var != null && Stack.isPointer(0))
+            Vars_Info.Var Var = stack.PeekVar(0);
+            if (Var != null && stack.isPointer(0))
             {
                 if (Var.Value < size)
                     Var.Value = size;
@@ -1496,8 +1511,8 @@ namespace Decompiler
         {
             if (type == Stack.DataType.Unk)
                 return;
-            Vars_Info.Var Var = Stack.PeekVar(0);
-            if (Var != null && Stack.isPointer(0)) Var.DataType = type;
+            Vars_Info.Var Var = stack.PeekVar(0);
+            if (Var != null && stack.isPointer(0)) Var.DataType = type;
         }
 
         public Stack.DataType returncheck(string temp)
@@ -1506,7 +1521,7 @@ namespace Decompiler
             int tempint;
             if (Rcount != 1) return ReturnType;
             if (temp.StartsWith("joaat(")) return Stack.DataType.Int;
-            if (temp.StartsWith("func_"))
+            if (temp.StartsWith(Function.FunctionName))
             {
                 string loc = temp.Remove(temp.IndexOf("(")).Substring(5);
                 if (int.TryParse(loc, out tempint))
@@ -1540,7 +1555,7 @@ namespace Decompiler
 
         public void decodeinsructionsforvarinfo()
         {
-            Stack = new Stack(this, true);
+            stack = new Stack(this, true);
             //ReturnType = Stack.DataType.Unk;
             for (int i = 0; i < Instructions.Count; i++)
             {
@@ -1551,179 +1566,179 @@ namespace Decompiler
                         break;
                     case Instruction.RAGE_IADD:
                         CheckInstruction(0, Stack.DataType.Int, 2);
-                        Stack.Op_Add();
+                        stack.Op_Add();
                         break;
                     case Instruction.RAGE_FADD:
                         CheckInstruction(0, Stack.DataType.Float, 2);
-                        Stack.Op_Addf();
+                        stack.Op_Addf();
                         break;
                     case Instruction.RAGE_ISUB:
                         CheckInstruction(0, Stack.DataType.Int, 2);
-                        Stack.Op_Sub();
+                        stack.Op_Sub();
                         break;
                     case Instruction.RAGE_FSUB:
                         CheckInstruction(0, Stack.DataType.Float, 2);
-                        Stack.Op_Subf();
+                        stack.Op_Subf();
                         break;
                     case Instruction.RAGE_IMUL:
                         CheckInstruction(0, Stack.DataType.Int, 2);
-                        Stack.Op_Mult();
+                        stack.Op_Mult();
                         break;
                     case Instruction.RAGE_FMUL:
                         CheckInstruction(0, Stack.DataType.Float, 2);
-                        Stack.Op_Multf();
+                        stack.Op_Multf();
                         break;
                     case Instruction.RAGE_IDIV:
                         CheckInstruction(0, Stack.DataType.Int, 2);
-                        Stack.Op_Div();
+                        stack.Op_Div();
                         break;
                     case Instruction.RAGE_FDIV:
                         CheckInstruction(0, Stack.DataType.Float, 2);
-                        Stack.Op_Divf();
+                        stack.Op_Divf();
                         break;
                     case Instruction.RAGE_IMOD:
                         CheckInstruction(0, Stack.DataType.Int, 2);
-                        Stack.Op_Mod();
+                        stack.Op_Mod();
                         break;
                     case Instruction.RAGE_FMOD:
                         CheckInstruction(0, Stack.DataType.Float, 2);
-                        Stack.Op_Modf();
+                        stack.Op_Modf();
                         break;
                     case Instruction.RAGE_INOT:
                         CheckInstruction(0, Stack.DataType.Bool);
-                        Stack.Op_Not();
+                        stack.Op_Not();
                         break;
                     case Instruction.RAGE_INEG:
                         CheckInstruction(0, Stack.DataType.Int);
-                        Stack.Op_Neg();
+                        stack.Op_Neg();
                         break;
                     case Instruction.RAGE_FNEG:
                         CheckInstruction(0, Stack.DataType.Float);
-                        Stack.Op_Negf();
+                        stack.Op_Negf();
                         break;
                     case Instruction.RAGE_IEQ:
                         CheckInstruction(0, Stack.DataType.Int, 2);
-                        Stack.Op_CmpEQ();
+                        stack.Op_CmpEQ();
                         break;
                     case Instruction.RAGE_FEQ:
                         CheckInstruction(0, Stack.DataType.Float, 2);
-                        Stack.Op_CmpEQ();
+                        stack.Op_CmpEQ();
                         break;
                     case Instruction.RAGE_INE:
                         CheckInstruction(0, Stack.DataType.Int, 2);
-                        Stack.Op_CmpEQ();
+                        stack.Op_CmpEQ();
                         break;
                     case Instruction.RAGE_FNE:
                         CheckInstruction(0, Stack.DataType.Float, 2);
-                        Stack.Op_CmpEQ();
+                        stack.Op_CmpEQ();
                         break;
                     case Instruction.RAGE_IGT:
                         CheckInstruction(0, Stack.DataType.Int, 2);
-                        Stack.Op_CmpEQ();
+                        stack.Op_CmpEQ();
                         break;
                     case Instruction.RAGE_FGT:
                         CheckInstruction(0, Stack.DataType.Float, 2);
-                        Stack.Op_CmpEQ();
+                        stack.Op_CmpEQ();
                         break;
                     case Instruction.RAGE_IGE:
                         CheckInstruction(0, Stack.DataType.Int, 2);
-                        Stack.Op_CmpEQ();
+                        stack.Op_CmpEQ();
                         break;
                     case Instruction.RAGE_FGE:
                         CheckInstruction(0, Stack.DataType.Float, 2);
-                        Stack.Op_CmpEQ();
+                        stack.Op_CmpEQ();
                         break;
                     case Instruction.RAGE_ILT:
                         CheckInstruction(0, Stack.DataType.Int, 2);
-                        Stack.Op_CmpEQ();
+                        stack.Op_CmpEQ();
                         break;
                     case Instruction.RAGE_FLT:
                         CheckInstruction(0, Stack.DataType.Float, 2);
-                        Stack.Op_CmpEQ();
+                        stack.Op_CmpEQ();
                         break;
                     case Instruction.RAGE_ILE:
                         CheckInstruction(0, Stack.DataType.Int, 2);
-                        Stack.Op_CmpEQ();
+                        stack.Op_CmpEQ();
                         break;
                     case Instruction.RAGE_FLE:
                         CheckInstruction(0, Stack.DataType.Float, 2);
-                        Stack.Op_CmpEQ();
+                        stack.Op_CmpEQ();
                         break;
                     case Instruction.RAGE_VADD:
-                        Stack.Op_Vadd();
+                        stack.Op_Vadd();
                         break;
                     case Instruction.RAGE_VSUB:
-                        Stack.Op_VSub();
+                        stack.Op_VSub();
                         break;
                     case Instruction.RAGE_VMUL:
-                        Stack.Op_VMult();
+                        stack.Op_VMult();
                         break;
                     case Instruction.RAGE_VDIV:
-                        Stack.Op_VDiv();
+                        stack.Op_VDiv();
                         break;
                     case Instruction.RAGE_VNEG:
-                        Stack.Op_VNeg();
+                        stack.Op_VNeg();
                         break;
                     case Instruction.RAGE_IAND:
-                        Stack.Op_And();
+                        stack.Op_And();
                         break;
                     case Instruction.RAGE_IOR:
-                        Stack.Op_Or();
+                        stack.Op_Or();
                         break;
                     case Instruction.RAGE_IXOR:
                         CheckInstruction(0, Stack.DataType.Int, 2);
-                        Stack.Op_Xor();
+                        stack.Op_Xor();
                         break;
                     case Instruction.RAGE_I2F:
                         CheckInstruction(0, Stack.DataType.Int);
-                        Stack.Op_Itof();
+                        stack.Op_Itof();
                         break;
                     case Instruction.RAGE_F2I:
                         CheckInstruction(0, Stack.DataType.Float);
-                        Stack.Op_FtoI();
+                        stack.Op_FtoI();
                         break;
                     case Instruction.RAGE_F2V:
                         CheckInstruction(0, Stack.DataType.Float);
-                        Stack.Op_FtoV();
+                        stack.Op_FtoV();
                         break;
                     case Instruction.RAGE_PUSH_CONST_U8:
-                        Stack.Push(ins.GetOperand(0));
+                        stack.Push(ins.GetOperand(0));
                         break;
                     case Instruction.RAGE_PUSH_CONST_U8_U8:
-                        Stack.Push(ins.GetOperand(0), ins.GetOperand(1));
+                        stack.Push(ins.GetOperand(0), ins.GetOperand(1));
                         break;
                     case Instruction.RAGE_PUSH_CONST_U8_U8_U8:
-                        Stack.Push(ins.GetOperand(0), ins.GetOperand(1), ins.GetOperand(2));
+                        stack.Push(ins.GetOperand(0), ins.GetOperand(1), ins.GetOperand(2));
                         break;
                     case Instruction.RAGE_PUSH_CONST_U32:
-                        Stack.Push(ins.GetOperandsAsInt.ToString(), Stack.DataType.Int);
+                        stack.Push(ins.GetOperandsAsInt.ToString(), Stack.DataType.Int);
                         break;
                     case Instruction.RAGE_PUSH_CONST_U24:
                     case Instruction.RAGE_PUSH_CONST_S16:
-                        Stack.Push(ins.GetOperandsAsInt.ToString(), Stack.DataType.Int);
+                        stack.Push(ins.GetOperandsAsInt.ToString(), Stack.DataType.Int);
                         break;
                     case Instruction.RAGE_PUSH_CONST_F:
-                        Stack.Push(ins.GetFloat);
+                        stack.Push(ins.GetFloat);
                         break;
                     case Instruction.RAGE_DUP:
-                        Stack.Dup();
+                        stack.Dup();
                         break;
                     case Instruction.RAGE_DROP:
-                        Stack.Drop();
+                        stack.Drop();
                         break;
                     case Instruction.RAGE_NATIVE:
                     {
                         ulong hash = Scriptfile.X64NativeTable.GetNativeHashFromIndex(ins.GetNativeIndex);
                         Scriptfile.CrossReferenceNative(hash, this);
-                        Stack.NativeCallTest(hash, this.Scriptfile.X64NativeTable.GetNativeFromIndex(ins.GetNativeIndex), ins.GetNativeParams, ins.GetNativeReturns);
+                        stack.NativeCallTest(hash, this.Scriptfile.X64NativeTable.GetNativeFromIndex(ins.GetNativeIndex), ins.GetNativeParams, ins.GetNativeReturns);
                         break;
                     }
                     case Instruction.RAGE_ENTER:
                         throw new Exception("Unexpected Function Definition");
                     case Instruction.RAGE_LEAVE:
                     {
-                        Stack.DataType type = ins.GetOperand(1) == 1 ? Stack.TopType : Stack.DataType.Unk;
-                        string tempstring = Stack.PopListForCall(ins.GetOperand(1));
+                        Stack.DataType type = ins.GetOperand(1) == 1 ? stack.TopType : Stack.DataType.Unk;
+                        string tempstring = stack.PopListForCall(ins.GetOperand(1));
                         switch (ins.GetOperand(1))
                         {
                             case 0:
@@ -1739,7 +1754,7 @@ namespace Decompiler
                             }
                             default:
                             {
-                                if (Stack.TopType == Stack.DataType.String)
+                                if (stack.TopType == Stack.DataType.String)
                                     ReturnType = Stack.DataType.String;
                                 break;
                             }
@@ -1747,40 +1762,40 @@ namespace Decompiler
                         break;
                     }
                     case Instruction.RAGE_LOAD:
-                        Stack.Op_RefGet();
+                        stack.Op_RefGet();
                         break;
                     case Instruction.RAGE_STORE:
                     {
-                        if (Stack.PeekVar(1) == null)
+                        if (stack.PeekVar(1) == null)
                         {
-                            Stack.Drop();
-                            Stack.Drop();
+                            stack.Drop();
+                            stack.Drop();
                             break;
                         }
-                        if (Stack.TopType == Stack.DataType.Int)
+                        if (stack.TopType == Stack.DataType.Int)
                         {
                             int tempint;
-                            string tempstring = Stack.Pop().AsLiteral;
+                            string tempstring = stack.Pop().AsLiteral;
                             if (Utils.IntParse(tempstring, out tempint))
-                                Stack.PeekVar(0).Value = tempint;
+                                stack.PeekVar(0).Value = tempint;
                             break;
                         }
-                        Stack.Drop();
+                        stack.Drop();
                         break;
                     }
                     case Instruction.RAGE_STORE_REV:
                     {
-                        if (Stack.PeekVar(1) == null)
+                        if (stack.PeekVar(1) == null)
                         {
-                            Stack.Drop();
+                            stack.Drop();
                             break;
                         }
-                        if (Stack.TopType == Stack.DataType.Int)
+                        if (stack.TopType == Stack.DataType.Int)
                         {
                             int tempint;
-                            string tempstring = Stack.Pop().AsLiteral;
+                            string tempstring = stack.Pop().AsLiteral;
                             if (Utils.IntParse(tempstring, out tempint))
-                                Stack.PeekVar(0).Value = tempint;
+                                stack.PeekVar(0).Value = tempint;
                         }
                         break;
                     }
@@ -1788,85 +1803,85 @@ namespace Decompiler
                     {
                         int tempint;
                         if (Program.IntStyle == Program.IntType._hex)
-                            tempint = int.Parse(Stack.PeekItem(1).Substring(2), System.Globalization.NumberStyles.HexNumber);
+                            tempint = int.Parse(stack.PeekItem(1).Substring(2), System.Globalization.NumberStyles.HexNumber);
                         else
-                            tempint = int.Parse(Stack.PeekItem(1));
+                            tempint = int.Parse(stack.PeekItem(1));
                         SetImmediate(tempint);
-                        Stack.Op_ToStack();
+                        stack.Op_ToStack();
                         break;
                     }
                     case Instruction.RAGE_STORE_N:
                     {
                         int tempint;
                         if (Program.IntStyle == Program.IntType._hex)
-                            tempint = int.Parse(Stack.PeekItem(1).Substring(2), System.Globalization.NumberStyles.HexNumber);
+                            tempint = int.Parse(stack.PeekItem(1).Substring(2), System.Globalization.NumberStyles.HexNumber);
                         else
-                            tempint = int.Parse(Stack.PeekItem(1));
+                            tempint = int.Parse(stack.PeekItem(1));
                         SetImmediate(tempint);
-                        Stack.Op_FromStack();
+                        stack.Op_FromStack();
                         break;
                     }
                     case Instruction.RAGE_ARRAY_U8:
                     case Instruction.RAGE_ARRAY_U16:
                     {
                         int tempint;
-                        if (!Utils.IntParse(Stack.PeekItem(1), out tempint))
+                        if (!Utils.IntParse(stack.PeekItem(1), out tempint))
                             tempint = -1;
                         CheckArray(ins.GetOperandsAsUInt, tempint);
-                        Stack.Op_ArrayGetP(ins.GetOperandsAsUInt);
+                        stack.Op_ArrayGetP(ins.GetOperandsAsUInt);
                         break;
                     }
                     case Instruction.RAGE_ARRAY_U8_LOAD:
                     case Instruction.RAGE_ARRAY_U16_LOAD:
                     {
                         int tempint;
-                        if (!Utils.IntParse(Stack.PeekItem(1), out tempint))
+                        if (!Utils.IntParse(stack.PeekItem(1), out tempint))
                             tempint = -1;
                         CheckArray(ins.GetOperandsAsUInt, tempint);
-                        Stack.Op_ArrayGet(ins.GetOperandsAsUInt);
+                        stack.Op_ArrayGet(ins.GetOperandsAsUInt);
                         break;
                     }
                     case Instruction.RAGE_ARRAY_U8_STORE:
                     case Instruction.RAGE_ARRAY_U16_STORE:
                     {
                         int tempint;
-                        if (!Utils.IntParse(Stack.PeekItem(1), out tempint))
+                        if (!Utils.IntParse(stack.PeekItem(1), out tempint))
                             tempint = -1;
                         CheckArray(ins.GetOperandsAsUInt, tempint);
-                        SetArray(Stack.ItemType(2));
-                        Vars_Info.Var Var = Stack.PeekVar(0);
-                        if (Var != null && Stack.isPointer(0))
+                        SetArray(stack.ItemType(2));
+                        Vars_Info.Var Var = stack.PeekVar(0);
+                        if (Var != null && stack.isPointer(0))
                             CheckInstruction(2, Var.DataType);
-                        Stack.Op_ArraySet(ins.GetOperandsAsUInt);
+                        stack.Op_ArraySet(ins.GetOperandsAsUInt);
                         break;
                     }
                     case Instruction.RAGE_LOCAL_U8:
                     case Instruction.RAGE_LOCAL_U16:
-                        Stack.PushPVar(GetFrameVar(ins.GetOperandsAsUInt));
+                        stack.PushPVar(GetFrameVar(ins.GetOperandsAsUInt));
                         GetFrameVar(ins.GetOperandsAsUInt).call();
                         break;
                     case Instruction.RAGE_LOCAL_U8_LOAD:
                     case Instruction.RAGE_LOCAL_U16_LOAD:
-                        Stack.PushVar(GetFrameVar(ins.GetOperandsAsUInt));
+                        stack.PushVar(GetFrameVar(ins.GetOperandsAsUInt));
                         GetFrameVar(ins.GetOperandsAsUInt).call();
                         break;
                     case Instruction.RAGE_LOCAL_U8_STORE:
                     case Instruction.RAGE_LOCAL_U16_STORE:
                     {
-                        if (Stack.TopType != Stack.DataType.Unk)
+                        if (stack.TopType != Stack.DataType.Unk)
                         {
-                            if (GetFrameVar(ins.GetOperandsAsUInt).DataType.LessThan(Stack.TopType))
-                                GetFrameVar(ins.GetOperandsAsUInt).DataType = Stack.TopType;
+                            if (GetFrameVar(ins.GetOperandsAsUInt).DataType.LessThan(stack.TopType))
+                                GetFrameVar(ins.GetOperandsAsUInt).DataType = stack.TopType;
                         }
                         else
                         {
                             CheckInstruction(0, GetFrameVar(ins.GetOperandsAsUInt).DataType);
                         }
 
-                        string tempstring = Stack.Pop().AsLiteral;
-                        if (Stack.TopType == Stack.DataType.Int)
+                        string tempstring = stack.Pop().AsLiteral;
+                        if (stack.TopType == Stack.DataType.Int)
                         {
-                            tempstring = Stack.Pop().AsLiteral;
+                            tempstring = stack.Pop().AsLiteral;
                             if (ins.GetOperandsAsUInt > Pcount)
                             {
                                 int tempint;
@@ -1876,105 +1891,99 @@ namespace Decompiler
                         }
                         else
                         {
-                            Stack.Drop();
+                            stack.Drop();
                         }
                         GetFrameVar(ins.GetOperandsAsUInt).call();
                         break;
                     }
                     case Instruction.RAGE_STATIC_U8:
                     case Instruction.RAGE_STATIC_U16:
-                        Stack.PushPVar(Scriptfile.Statics.GetVarAtIndex(ins.GetOperandsAsUInt).Fixed());
+                        stack.PushPVar(Scriptfile.Statics.GetVarAtIndex(ins.GetOperandsAsUInt).Fixed());
                         break;
                     case Instruction.RAGE_STATIC_U8_LOAD:
                     case Instruction.RAGE_STATIC_U16_LOAD:
-                        Stack.PushVar(Scriptfile.Statics.GetVarAtIndex(ins.GetOperandsAsUInt).Fixed());
+                        stack.PushVar(Scriptfile.Statics.GetVarAtIndex(ins.GetOperandsAsUInt).Fixed());
                         break;
                     case Instruction.RAGE_STATIC_U8_STORE:
                     case Instruction.RAGE_STATIC_U16_STORE:
-                        if (Stack.TopType != Stack.DataType.Unk)
-                            Scriptfile.UpdateStaticType(ins.GetOperandsAsUInt, Stack.TopType);
+                        if (stack.TopType != Stack.DataType.Unk)
+                            Scriptfile.UpdateStaticType(ins.GetOperandsAsUInt, stack.TopType);
                         else
                             CheckInstruction(0, Scriptfile.Statics.GetTypeAtIndex(ins.GetOperandsAsUInt));
-                        Stack.Drop();
+                        stack.Drop();
                         break;
                     case Instruction.RAGE_IADD_U8:
                     case Instruction.RAGE_IADD_S16:
                     case Instruction.RAGE_IMUL_U8:
                     case Instruction.RAGE_IMUL_S16:
                         CheckInstruction(0, Stack.DataType.Int);
-                        Stack.Op_AmmImm(ins.GetOperandsAsInt);
+                        stack.Op_AmmImm(ins.GetOperandsAsInt);
                         break;
                     case Instruction.RAGE_IOFFSET:
-                        Stack.Op_GetImmP();
+                        stack.Op_GetImmP();
                         break;
                     case Instruction.RAGE_IOFFSET_U8:
                     case Instruction.RAGE_IOFFSET_S16:
                         CheckImmediate((int)ins.GetOperandsAsUInt + 1);
-                        Stack.Op_GetImmP(ins.GetOperandsAsUInt);
+                        stack.Op_GetImmP(ins.GetOperandsAsUInt);
                         break;
                     case Instruction.RAGE_IOFFSET_U8_LOAD:
                     case Instruction.RAGE_IOFFSET_S16_LOAD:
                         CheckImmediate((int)ins.GetOperandsAsUInt + 1);
-                        Stack.Op_GetImm(ins.GetOperandsAsUInt);
+                        stack.Op_GetImm(ins.GetOperandsAsUInt);
                         break;
                     case Instruction.RAGE_IOFFSET_U8_STORE:
                     case Instruction.RAGE_IOFFSET_S16_STORE:
                         CheckImmediate((int)ins.GetOperandsAsUInt + 1);
-                        Stack.Op_SetImm(ins.GetOperandsAsUInt);
+                        stack.Op_SetImm(ins.GetOperandsAsUInt);
                         break;
                     case Instruction.RAGE_GLOBAL_U16:
                     case Instruction.RAGE_GLOBAL_U24:
-                        //if (AggregateDecoding) Stack.PushPointer("Global_");
-                        //else
-                        Stack.PushPointer("Global_" + ins.GetOperandsAsUInt.ToString());
+                        stack.PushPointer(Vars_Info.GlobalName + "_" + ins.GetOperandsAsUInt.ToString());
                         break;
                     case Instruction.RAGE_GLOBAL_U16_LOAD:
                     case Instruction.RAGE_GLOBAL_U24_LOAD:
-                        //if (AggregateDecoding) Stack.Push("Global_");
-                        //else
-                        Stack.Push("Global_" + ins.GetOperandsAsUInt.ToString());
+                        stack.Push(Vars_Info.GlobalName + "_" + ins.GetOperandsAsUInt.ToString());
                         break;
                     case Instruction.RAGE_GLOBAL_U16_STORE:
                     case Instruction.RAGE_GLOBAL_U24_STORE:
-                        //if (AggregateDecoding) Stack.Push("Global_");
-                        //else
-                        Stack.Op_Set("Global_" + ins.GetOperandsAsUInt.ToString());
+                        stack.Op_Set(Vars_Info.GlobalName + "_" + ins.GetOperandsAsUInt.ToString());
                         break;
                     case Instruction.RAGE_J:
                         break;
                     case Instruction.RAGE_JZ:
                         CheckInstruction(0, Stack.DataType.Bool);
-                        Stack.Drop();
+                        stack.Drop();
                         break;
                     case Instruction.RAGE_IEQ_JZ:
                         CheckInstruction(0, Stack.DataType.Int, 2);
-                        Stack.Drop();
-                        Stack.Drop();
+                        stack.Drop();
+                        stack.Drop();
                         break;
                     case Instruction.RAGE_INE_JZ:
                         CheckInstruction(0, Stack.DataType.Int, 2);
-                        Stack.Drop();
-                        Stack.Drop();
+                        stack.Drop();
+                        stack.Drop();
                         break;
                     case Instruction.RAGE_IGT_JZ:
                         CheckInstruction(0, Stack.DataType.Int, 2);
-                        Stack.Drop();
-                        Stack.Drop();
+                        stack.Drop();
+                        stack.Drop();
                         break;
                     case Instruction.RAGE_IGE_JZ:
                         CheckInstruction(0, Stack.DataType.Int, 2);
-                        Stack.Drop();
-                        Stack.Drop();
+                        stack.Drop();
+                        stack.Drop();
                         break;
                     case Instruction.RAGE_ILT_JZ:
                         CheckInstruction(0, Stack.DataType.Int, 2);
-                        Stack.Drop();
-                        Stack.Drop();
+                        stack.Drop();
+                        stack.Drop();
                         break;
                     case Instruction.RAGE_ILE_JZ:
                         CheckInstruction(0, Stack.DataType.Int, 2);
-                        Stack.Drop();
-                        Stack.Drop();
+                        stack.Drop();
+                        stack.Drop();
                         break;
                     case Instruction.RAGE_CALL:
                     {
@@ -1985,12 +1994,12 @@ namespace Decompiler
                         {
                             for (int j = 0; j < func.Pcount; j++)
                             {
-                                if (Stack.ItemType(func.Pcount - j - 1) != Stack.DataType.Unk)
+                                if (stack.ItemType(func.Pcount - j - 1) != Stack.DataType.Unk)
                                 {
-                                    if (func.Params.GetTypeAtIndex((uint)j).LessThan(Stack.ItemType(func.Pcount - j - 1)))
+                                    if (func.Params.GetTypeAtIndex((uint)j).LessThan(stack.ItemType(func.Pcount - j - 1)))
                                     {
                                         if (func != this)
-                                            func.UpdateFuncParamType((uint) j, Stack.ItemType(func.Pcount - j - 1));
+                                            func.UpdateFuncParamType((uint)j, stack.ItemType(func.Pcount - j - 1));
                                     }
                                 }
                                 CheckInstruction(func.Pcount - j - 1, func.Params.GetTypeAtIndex((uint)j), 1, true);
@@ -1998,7 +2007,7 @@ namespace Decompiler
                         }
 
                         CreateFunctionPath(this, func);
-                        Stack.FunctionCall(func);
+                        stack.FunctionCall(func);
                         break;
                     }
                     case Instruction.RAGE_SWITCH:
@@ -2006,41 +2015,41 @@ namespace Decompiler
                         break;
                     case Instruction.RAGE_STRING:
                     {
-                        string tempstring = Stack.Pop().AsLiteral;
-                        Stack.PushString("");
+                        string tempstring = stack.Pop().AsLiteral;
+                        stack.PushString("");
                         break;
                     }
                     case Instruction.RAGE_STRINGHASH:
                         CheckInstruction(0, Stack.DataType.StringPtr);
-                        Stack.Op_Hash();
+                        stack.Op_Hash();
                         break;
                     case Instruction.RAGE_TEXT_LABEL_ASSIGN_STRING:
                         CheckInstructionString(0, ins.GetOperandsAsInt, 2);
-                        Stack.Op_StrCpy(ins.GetOperandsAsInt);
+                        stack.Op_StrCpy(ins.GetOperandsAsInt);
                         break;
                     case Instruction.RAGE_TEXT_LABEL_ASSIGN_INT:
                         CheckInstructionString(0, ins.GetOperandsAsInt);
                         CheckInstruction(1, Stack.DataType.Int);
-                        Stack.Op_ItoS(ins.GetOperandsAsInt);
+                        stack.Op_ItoS(ins.GetOperandsAsInt);
                         break;
                     case Instruction.RAGE_TEXT_LABEL_APPEND_STRING:
                         CheckInstructionString(0, ins.GetOperandsAsInt, 2);
-                        Stack.Op_StrAdd(ins.GetOperandsAsInt);
+                        stack.Op_StrAdd(ins.GetOperandsAsInt);
                         break;
                     case Instruction.RAGE_TEXT_LABEL_APPEND_INT:
                         CheckInstructionString(0, ins.GetOperandsAsInt);
                         CheckInstruction(1, Stack.DataType.Int);
-                        Stack.Op_StrAddI(ins.GetOperandsAsInt);
+                        stack.Op_StrAddI(ins.GetOperandsAsInt);
                         break;
                     case Instruction.RAGE_TEXT_LABEL_COPY:
-                        Stack.Op_SnCopy();
+                        stack.Op_SnCopy();
                         break;
                     case Instruction.RAGE_CATCH:
                         break;
                     case Instruction.RAGE_THROW:
                         break;
                     case Instruction.RAGE_CALLINDIRECT:
-                        Stack.pcall();
+                        stack.pcall();
                         break;
                     case Instruction.RAGE_PUSH_CONST_M1:
                     case Instruction.RAGE_PUSH_CONST_0:
@@ -2051,7 +2060,7 @@ namespace Decompiler
                     case Instruction.RAGE_PUSH_CONST_5:
                     case Instruction.RAGE_PUSH_CONST_6:
                     case Instruction.RAGE_PUSH_CONST_7:
-                        Stack.Push(ins.GetImmBytePush);
+                        stack.Push(ins.GetImmBytePush);
                         break;
                     case Instruction.RAGE_PUSH_CONST_FM1:
                     case Instruction.RAGE_PUSH_CONST_F0:
@@ -2062,7 +2071,7 @@ namespace Decompiler
                     case Instruction.RAGE_PUSH_CONST_F5:
                     case Instruction.RAGE_PUSH_CONST_F6:
                     case Instruction.RAGE_PUSH_CONST_F7:
-                        Stack.Push(ins.GetImmFloatPush);
+                        stack.Push(ins.GetImmFloatPush);
                         break;
 
                     // RDR Extended Instruction Set.

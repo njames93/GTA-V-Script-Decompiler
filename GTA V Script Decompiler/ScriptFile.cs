@@ -12,6 +12,8 @@ namespace Decompiler
 {
     public class ScriptFile
     {
+        public static readonly string EntryName = "__EntryFunction__";
+
         List<byte> CodeTable;
         public OpcodeSet CodeSet { get; private set; }
 
@@ -27,7 +29,6 @@ namespace Decompiler
 
         private Stream file;
         public ScriptHeader Header;
-        public string name;
         internal Vars_Info Statics;
         internal bool CheckNative = true;
 
@@ -43,8 +44,6 @@ namespace Decompiler
             Header = ScriptHeader.Generate(scriptStream);
             StringTable = new StringTable(scriptStream, Header.StringTableOffsets, Header.StringBlocks, Header.StringsSize);
             X64NativeTable = new X64NativeTable(scriptStream, Header.NativesOffset + Header.RSC7Offset, Header.NativesCount, Header.CodeLength);
-            name = Header.ScriptName;
-
             for (int i = 0; i < Header.CodeBlocks; i++)
             {
                 int tablesize = ((i + 1) * 0x4000 >= Header.CodeLength) ? Header.CodeLength % 0x4000 : 0x4000;
@@ -54,6 +53,8 @@ namespace Decompiler
                 CodeTable.AddRange(working);
             }
         }
+
+        public override int GetHashCode() => Header.ScriptNameOffset.GetHashCode();
 
         public bool Dirty
         {
@@ -255,10 +256,10 @@ namespace Decompiler
                 }
             }
             else if (start1 == 0)
-            {
-                name = "__EntryFunction__";
-            }
-            else name = "func_" + Functions.Count.ToString();
+                name = ScriptFile.EntryName;
+            else
+                name = Function.FunctionName + Functions.Count.ToString();
+
             int pcount = CodeTable[offset + 1];
             int tmp1 = CodeTable[offset + 2], tmp2 = CodeTable[offset + 3];
             int vcount = ((Program.SwapEndian) ? (tmp1 << 0x8) | tmp2 : (tmp2 << 0x8) | tmp1);
@@ -438,7 +439,7 @@ namespace Decompiler
 
         private void GetStaticInfo()
         {
-            Statics = new Vars_Info(null, Vars_Info.ListType.Statics);
+            Statics = new Vars_Info(Vars_Info.ListType.Statics);
             Statics.SetScriptParamCount(Header.ParameterCount);
             IO.Reader reader = new IO.Reader(file);
             reader.BaseStream.Position = Header.StaticsOffset + Header.RSC7Offset;

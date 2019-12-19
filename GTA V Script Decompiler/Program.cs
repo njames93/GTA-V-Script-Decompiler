@@ -343,12 +343,12 @@ namespace Decompiler
 
                 try
                 {
-                    Console.WriteLine("Decoding: " + scriptTuple.Item1.name + " > " + scriptTuple.Item2);
+                    Console.WriteLine("Decoding: " + scriptTuple.Item1.Header.ScriptName + " > " + scriptTuple.Item2);
                     SaveScriptFile(scriptTuple.Item1.BuildAggregation().Decode(), scriptTuple.Item2).Close();
                 }
                 catch (Exception ex)
                 {
-                    throw new SystemException("Error decoding script " + scriptTuple.Item1.name + " - " + ex.Message);
+                    throw new SystemException("Error decoding script " + scriptTuple.Item1.Header.ScriptName + " - " + ex.Message);
                 }
             }
             Program.ThreadCount--;

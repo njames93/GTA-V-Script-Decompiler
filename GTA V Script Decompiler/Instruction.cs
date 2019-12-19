@@ -4,7 +4,7 @@ using System.Linq;
 
 namespace Decompiler
 {
-    internal class HLInstruction
+    public class HLInstruction
     {
         int offset;
         Instruction instruction;
@@ -45,7 +45,7 @@ namespace Decompiler
             HLInstruction h = new HLInstruction();
             h.offset = offset;
             h.instruction = instruction;
-            h.operands = (byte[]) operands.Clone();
+            h.operands = (byte[])operands.Clone();
             return h;
         }
 
@@ -296,20 +296,18 @@ namespace Decompiler
             }
         }
 
-        public string GetGlobalString(bool aggregateName)
+        public string GetGlobalString()
         {
             switch (instruction)
             {
                 case Instruction.RAGE_GLOBAL_U16:
                 case Instruction.RAGE_GLOBAL_U16_LOAD:
                 case Instruction.RAGE_GLOBAL_U16_STORE:
-                    //if (aggregateName) return "Global";
-                    return "Global_" + (Program.HexIndex ? GetOperandsAsUInt.ToString("X") : GetOperandsAsUInt.ToString());
+                    return Vars_Info.GlobalName + "_" + (Program.HexIndex ? GetOperandsAsUInt.ToString("X") : GetOperandsAsUInt.ToString());
                 case Instruction.RAGE_GLOBAL_U24:
                 case Instruction.RAGE_GLOBAL_U24_LOAD:
                 case Instruction.RAGE_GLOBAL_U24_STORE:
-                    //if (aggregateName) return "Global";
-                    return "Global_" + (Program.HexIndex ? GetOperandsAsUInt.ToString("X") : GetOperandsAsUInt.ToString());
+                    return Vars_Info.GlobalName + "_" + (Program.HexIndex ? GetOperandsAsUInt.ToString("X") : GetOperandsAsUInt.ToString());
             }
             throw new Exception("Not a global variable");
         }

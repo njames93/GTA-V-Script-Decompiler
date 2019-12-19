@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -9,6 +10,8 @@ namespace Decompiler
 {
     static class Utils
     {
+        static SHA256Managed crypt = new SHA256Managed();
+
         public static uint jenkins_one_at_a_time_hash(string str)
         {
             uint hash, i;
@@ -153,5 +156,26 @@ namespace Decompiler
             }
             return Path.GetFullPath(finalPath);
         }
+
+        public static int CountLines(string str)
+        {
+            if (str == null) throw new ArgumentNullException("str");
+            if (str == string.Empty) return 0;
+
+            int index = -1, count = 0;
+            while (-1 != (index = str.IndexOf(Environment.NewLine, index + 1)))
+                count++;
+            return count + 1;
+        }
+
+        static StringBuilder Sb = new StringBuilder();
+        public static string SHA256(string value)
+        {
+            Sb.Clear();
+            foreach (Byte b in crypt.ComputeHash(Encoding.UTF8.GetBytes(value)))
+                Sb.Append(b.ToString("x2"));
+            return Sb.ToString();
+        }
+
     }
 }

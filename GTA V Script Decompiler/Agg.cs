@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.IO;
-using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
 using System.IO.Compression;
@@ -27,18 +26,18 @@ namespace Decompiler
             AggregateName = aggName;
             AggregateString = function.ToString();
 
-            ScriptName = function.Scriptfile.name;
-            FunctionName = function.Scriptfile.name + "." + function.Name;
+            ScriptName = function.Scriptfile.Header.ScriptName;
+            FunctionName = function.Scriptfile.Header.ScriptName + "." + function.Name;
             FunctionString = function.BaseFunction.ToString();
         }
 
         public void AddFunction(Function function)
         {
-            string addedName = function.Scriptfile.name + "." + function.Name;
+            string addedName = function.Scriptfile.Header.ScriptName + "." + function.Name;
             if (String.Compare(FunctionName, addedName, comparisonType: StringComparison.OrdinalIgnoreCase) > 0)
             {
                 Hits.Add("// Hit: " + FunctionName);
-                ScriptName = function.Scriptfile.name;
+                ScriptName = function.Scriptfile.Header.ScriptName;
                 FunctionName = addedName;
                 FunctionString = function.BaseFunction.ToString();
             }
@@ -54,30 +53,6 @@ namespace Decompiler
         private readonly object pushLock = new object();
         private readonly object countLock = new object();
 
-        static SHA256Managed crypt = new SHA256Managed();
-        static StringBuilder Sb = new StringBuilder();
-
-        private static int CountLines(string str)
-        {
-            if (str == null)
-                throw new ArgumentNullException("str");
-            if (str == string.Empty)
-                return 0;
-
-            int index = -1, count = 0;
-            while (-1 != (index = str.IndexOf(Environment.NewLine, index + 1)))
-                count++;
-            return count + 1;
-        }
-
-        public static string SHA256(string value)
-        {
-            Sb.Clear();
-            foreach (Byte b in crypt.ComputeHash(Encoding.UTF8.GetBytes(value)))
-                Sb.Append(b.ToString("x2"));
-            return Sb.ToString();
-        }
-
         public static Agg Instance { get { return Nested.instance; } }
 
         private Dictionary<string, AggregateData> FunctionLoc;
@@ -89,20 +64,15 @@ namespace Decompiler
             nativeRefCount = new Dictionary<string, ulong>();
         }
 
-        public bool CanAggregateLiteral(string lit)
+        public bool CanAggregateLiteral(Stack.StackValue lit, Stack.StackValue basePointer = null)
         {
-            return !lit.StartsWith("Global");
+            if (basePointer != null && basePointer.IsGlobal) return false;
+            return !lit.IsGlobal && !lit.AsLiteral.StartsWith(Vars_Info.GlobalName);
         }
 
-        public bool IsAggregate(string decomp)
-        {
-            return FunctionLoc.ContainsKey(SHA256(decomp));
-        }
+        public bool IsAggregate(string decomp) => FunctionLoc.ContainsKey(Utils.SHA256(decomp));
 
-        public AggregateData FetchAggregate(string decomp)
-        {
-            return FunctionLoc[SHA256(decomp)];
-        }
+        public AggregateData FetchAggregate(string decomp) => FunctionLoc[Utils.SHA256(decomp)];
 
         public void Count(string hash)
         {
@@ -117,9 +87,9 @@ namespace Decompiler
         {
             lock (pushLock)
             {
-                if (function.NativeCount > 0 && CountLines(decomp) >= Program.AggregateMinLines)
+                if (function.NativeCount > 0 && Utils.CountLines(decomp) >= Program.AggregateMinLines)
                 {
-                    string hash = SHA256(decomp);
+                    string hash = Utils.SHA256(decomp);
                     if (FunctionLoc.ContainsKey(hash))
                         FunctionLoc[hash].AddFunction(function);
                     else

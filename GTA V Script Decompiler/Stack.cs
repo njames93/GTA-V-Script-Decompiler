@@ -306,7 +306,7 @@ namespace Decompiler
             else
                 popList = PopListForCall(func.Pcount);
 
-            string functionline = (Function.IsAggregate ? "func_" : func.Name) + "(" + popList + ")";
+            string functionline = (Function.IsAggregate ? Function.FunctionName : func.Name) + "(" + popList + ")";
             if (func.Rcount == 0)
                 return functionline + ";";
             else if (func.Rcount == 1)
@@ -760,14 +760,16 @@ namespace Decompiler
 
         public void Op_GetImm(uint immediate)
         {
+            StackValue svalue;
             if (PeekVar(0)?.Immediatesize == 3)
             {
                 switch (immediate)
                 {
                     case 1:
                     {
-                        string saccess = Pop().AsStructAccess;
-                        if (Function.IsAggregate && Agg.Instance.CanAggregateLiteral(saccess))
+                        svalue = Pop();
+                        string saccess = svalue.AsStructAccess;
+                        if (Function.IsAggregate && Agg.Instance.CanAggregateLiteral(svalue))
                             Push(new StackValue(this, StackValue.Type.Literal, saccess));
                         else
                             Push(new StackValue(this, StackValue.Type.Literal, saccess + "y"));
@@ -775,8 +777,9 @@ namespace Decompiler
                     }
                     case 2:
                     {
-                        string saccess = Pop().AsStructAccess;
-                        if (Function.IsAggregate && Agg.Instance.CanAggregateLiteral(saccess))
+                        svalue = Pop();
+                        string saccess = svalue.AsStructAccess;
+                        if (Function.IsAggregate && Agg.Instance.CanAggregateLiteral(svalue))
                             Push(new StackValue(this, StackValue.Type.Literal, saccess));
                         else
                             Push(new StackValue(this, StackValue.Type.Literal, saccess + "z"));
@@ -785,17 +788,18 @@ namespace Decompiler
                 }
             }
 
-            string structAss = Pop().AsStructAccess;
+            svalue = Pop();
+            string structAss = svalue.AsStructAccess;
             if (Function.IsAggregate)
             {
-                if (Agg.Instance.CanAggregateLiteral(structAss))
-                    Push(new StackValue(this, StackValue.Type.Literal, structAss + "f_"));
+                if (Agg.Instance.CanAggregateLiteral(svalue))
+                    Push(new StackValue(this, StackValue.Type.Literal, structAss + Vars_Info.StructField));
                 else
-                    Push(new StackValue(this, StackValue.Type.Literal, structAss + "f_" + (Program.HexIndex ? immediate.ToString("X") : immediate.ToString())));
+                    Push(new StackValue(this, StackValue.Type.Literal, structAss + Vars_Info.StructField + (Program.HexIndex ? immediate.ToString("X") : immediate.ToString())));
             }
             else
             {
-                Push(new StackValue(this, StackValue.Type.Literal, structAss + "f_" + (Program.HexIndex ? immediate.ToString("X") : immediate.ToString())));
+                Push(new StackValue(this, StackValue.Type.Literal, structAss + Vars_Info.StructField + (Program.HexIndex ? immediate.ToString("X") : immediate.ToString())));
             }
         }
 
@@ -806,11 +810,11 @@ namespace Decompiler
             value = Pop();
 
             string imm = "";
-            if (Function.IsAggregate && Agg.Instance.CanAggregateLiteral(value.AsLiteral))
-                imm = "f_";
+            if (Function.IsAggregate && Agg.Instance.CanAggregateLiteral(value, pointer))
+                imm = Vars_Info.StructField;
             else
             {
-                imm = "f_" + (Program.HexIndex ? immediate.ToString("X") : immediate.ToString());
+                imm = Vars_Info.StructField + (Program.HexIndex ? immediate.ToString("X") : immediate.ToString());
                 if (PeekVar(0)?.DataType == DataType.Vector3)
                 {
                     switch (immediate)
@@ -826,32 +830,36 @@ namespace Decompiler
 
         public void Op_GetImmP(uint immediate)
         {
-            string saccess = Pop().AsStructAccess;
-            if (Function.IsAggregate && Agg.Instance.CanAggregateLiteral(saccess))
-                Push(new StackValue(this, StackValue.Type.Pointer, saccess + "f_"));
+            StackValue svalue = Pop();
+            string saccess = svalue.AsStructAccess;
+            if (Function.IsAggregate && Agg.Instance.CanAggregateLiteral(svalue))
+                Push(new StackValue(this, StackValue.Type.Pointer, saccess + Vars_Info.StructField));
             else
-                Push(new StackValue(this, StackValue.Type.Pointer, saccess + "f_" + (Program.HexIndex ? immediate.ToString("X") : immediate.ToString())));
+                Push(new StackValue(this, StackValue.Type.Pointer, saccess + Vars_Info.StructField + (Program.HexIndex ? immediate.ToString("X") : immediate.ToString())));
         }
 
         public void Op_GetImmP()
         {
-            string immediate = Pop().AsLiteral;
-            string saccess = Pop().AsStructAccess;
+            StackValue imvalue, structvalue;
+            imvalue = Pop();
+            structvalue = Pop();
 
+            string immediate = imvalue.AsLiteral;
+            string saccess = structvalue.AsStructAccess;
             int temp;
-            if (Function.IsAggregate && Agg.Instance.CanAggregateLiteral(saccess))
+            if (Function.IsAggregate && Agg.Instance.CanAggregateLiteral(structvalue))
             {
                 if (Utils.IntParse(immediate, out temp))
-                    Push(new StackValue(this, StackValue.Type.Pointer, saccess + "f_"));
+                    Push(new StackValue(this, StackValue.Type.Pointer, saccess + Vars_Info.StructField));
                 else
-                    Push(new StackValue(this, StackValue.Type.Pointer, saccess + "f_[]"));
+                    Push(new StackValue(this, StackValue.Type.Pointer, saccess + Vars_Info.StructField + "[]"));
             }
             else
             {
                 if (Utils.IntParse(immediate, out temp))
-                    Push(new StackValue(this, StackValue.Type.Pointer, saccess + "f_" + (Program.HexIndex ? temp.ToString("X") : temp.ToString())));
+                    Push(new StackValue(this, StackValue.Type.Pointer, saccess + Vars_Info.StructField + (Program.HexIndex ? temp.ToString("X") : temp.ToString())));
                 else
-                    Push(new StackValue(this, StackValue.Type.Pointer, saccess + "f_[" + immediate + "]"));
+                    Push(new StackValue(this, StackValue.Type.Pointer, saccess + Vars_Info.StructField + "[" + immediate + "]"));
             }
         }
 
@@ -986,64 +994,46 @@ namespace Decompiler
             return val.Value;
         }
 
+        public Stack.StackValue PeekStackValue(int index)
+        {
+            int newIndex = GetIndex(index);
+            return (newIndex == -1) ? null : _stack[_stack.Count - newIndex - 1];
+        }
+
         public Vars_Info.Var PeekVar(int index)
         {
             int newIndex = GetIndex(index);
-            if (newIndex == -1)
-            {
-                return null;
-            }
-            return _stack[_stack.Count - newIndex - 1].Variable;
+            return (newIndex == -1) ? null : _stack[_stack.Count - newIndex - 1].Variable;
         }
 
         public Function PeekFunc(int index)
         {
             int newIndex = GetIndex(index);
-            if (newIndex == -1)
-            {
-                return null;
-            }
-            return _stack[_stack.Count - newIndex - 1].Function;
+            return (newIndex == -1) ? null : _stack[_stack.Count - newIndex - 1].Function;
         }
 
         public Native PeekNat64(int index)
         {
             int newIndex = GetIndex(index);
-            if (newIndex == -1)
-            {
-                return null;
-            }
-            return _stack[_stack.Count - newIndex - 1].Native;
+            return (newIndex == -1) ? null : _stack[_stack.Count - newIndex - 1].Native;
         }
 
         public bool isnat(int index)
         {
             int newIndex = GetIndex(index);
-            if (newIndex == -1)
-            {
-                return false;
-            }
-            return _stack[_stack.Count - newIndex - 1].isNative;
+            return (newIndex == -1) ? false : _stack[_stack.Count - newIndex - 1].isNative;
         }
 
         public bool isPointer(int index)
         {
             int newIndex = GetIndex(index);
-            if (newIndex == -1)
-            {
-                return false;
-            }
-            return _stack[_stack.Count - newIndex - 1].ItemType == StackValue.Type.Pointer;
+            return (newIndex == -1) ? false : _stack[_stack.Count - newIndex - 1].ItemType == StackValue.Type.Pointer;
         }
 
         public bool isLiteral(int index)
         {
             int newIndex = GetIndex(index);
-            if (newIndex == -1)
-            {
-                return false;
-            }
-            return _stack[_stack.Count - newIndex - 1].ItemType == StackValue.Type.Literal;
+            return (newIndex == -1) ? false : _stack[_stack.Count - newIndex - 1].ItemType == StackValue.Type.Literal;
         }
 
         public void PushNative(string value, Native native)
@@ -1226,7 +1216,7 @@ namespace Decompiler
                 Struct
             }
 
-            Stack _parent;
+            Stack _stack;
             string _value;
             Type _type;
             DataType _datatype;
@@ -1238,7 +1228,7 @@ namespace Decompiler
 
             public StackValue(Stack parent, Type type, string value, DataType datatype = DataType.Unk)
             {
-                _parent = parent;
+                _stack = parent;
                 _type = type;
                 _value = value;
                 _datatype = datatype;
@@ -1292,13 +1282,14 @@ namespace Decompiler
             public Native Native => _native;
             public bool isNative => Native != null;
             public bool isNotVar => (Variable == null && !global);
+            public bool IsGlobal => global;
 
             private static DataType PrecendenceSet(DataType a, DataType b) => (a.Precedence() < b.Precedence() ? b : a);
             public DataType Datatype
             {
                 get
                 {
-                    if (_parent.DecodeVarInfo)
+                    if (_stack.DecodeVarInfo)
                     {
                         if (Native != null && isLiteral) { return Native.ReturnParam.StackType; }
                         if (Variable != null && isLiteral) { return Variable.DataType; }
@@ -1309,10 +1300,10 @@ namespace Decompiler
 
                 set
                 {
-                    if (_parent.DecodeVarInfo)
+                    if (_stack.DecodeVarInfo)
                     {
                         _datatype = PrecendenceSet(_datatype, value);
-                        if (Native != null && isLiteral) { _parent.Function.UpdateNativeReturnType(Native.Hash, PrecendenceSet(Native.ReturnParam.StackType, value)); }
+                        if (Native != null && isLiteral) { _stack.Function.UpdateNativeReturnType(Native.Hash, PrecendenceSet(Native.ReturnParam.StackType, value)); }
                         if (Variable != null && isLiteral) Variable.DataType = PrecendenceSet(Variable.DataType, value);
                         if (Function != null && isLiteral) Function.ReturnType = PrecendenceSet(Function.ReturnType, value);
                     }
@@ -1323,13 +1314,13 @@ namespace Decompiler
 
             public StackValue AsType(DataType t)
             {
-                if (_parent.DecodeVarInfo) Datatype = t;
+                if (_stack.DecodeVarInfo) Datatype = t;
                 return this;
             }
 
             public StackValue UnifyType(StackValue other)
             {
-                if (_parent.DecodeVarInfo)
+                if (_stack.DecodeVarInfo)
                 {
                     if (Datatype != DataType.Unk && Datatype != DataType.UnkPtr && Datatype != DataType.Unsure)
                         Datatype = other.Datatype;

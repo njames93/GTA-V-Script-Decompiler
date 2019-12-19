@@ -136,7 +136,7 @@ namespace Decompiler
                         Console.WriteLine("Native Argument Mismatch: " + name + " " + pcount + "/" + native.Params.Count);
                         native.Params.Clear();
                         for (int i = 0; i < pcount; ++i)
-                            native.Params.Add(new Param("Any", "Param" + i.ToString()));
+                            native.Params.Add(new Param("Any", Vars_Info.ParamName + i.ToString()));
                     }
                 }
                 else
@@ -152,7 +152,7 @@ namespace Decompiler
                     native.Return = "Any";
                     native.Params = new List<Param>();
                     for (int i = 0; i < pcount; ++i)
-                        native.Params.Add(new Param("Any", "Param" + i.ToString()));
+                        native.Params.Add(new Param("Any", Vars_Info.ParamName + i.ToString()));
                     Add(hash, native);
                 }
             }
