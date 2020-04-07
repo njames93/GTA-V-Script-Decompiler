@@ -1,6 +1,8 @@
 # V/RDR Script-Decompiler
 A **command-line tool** that will decompile the script resources (xsc,csc,ysc,osc) files from the X360, PS3, PS4 and PC versions of Grand Theft Auto V and Red Dead Redemption 2 (RDR3). You are not allowed to use this tool for the purpose of creating modification in  GTA:Online/RDR:Online.
 
+Note: this tool is deprecated and a rewrite (improved type inference, call-graph analysis/clustering, struct-reversing for natives/codegen) is in progress.
+
 # Sources
 1. [GTA-V-Script-Decompiler](https://github.com/zorg93/GTA-V-Script-Decompiler)
 2. [gta5-nativedb-data](https://github.com/alloc8or/gta5-nativedb-data): Native table used for V & V-Console decompilation. [Dataset](GTA%20V%20Script%20Decompiler/Resources/natives.json) slightly modified to include cross-mapping. 32-bit console hashes use only the v323 Jenkins hashes.
