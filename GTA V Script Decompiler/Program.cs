@@ -348,7 +348,11 @@ namespace Decompiler
                 try
                 {
                     Console.WriteLine("Decoding: " + scriptTuple.Item1.Header.ScriptName + " > " + scriptTuple.Item2);
-                    SaveScriptFile(scriptTuple.Item1.BuildAggregation().Decode(), scriptTuple.Item2).Close();
+                    ScriptFile scriptFile = scriptTuple.Item1.BuildAggregation().Decode();
+                    SaveScriptFile(scriptFile, scriptTuple.Item2).Close();
+
+                    if (AggregateFunctions)
+                        scriptFile.CompileAggregate();
                 }
                 catch (Exception ex)
                 {
