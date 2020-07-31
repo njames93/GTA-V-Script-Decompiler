@@ -1999,12 +1999,22 @@ namespace Decompiler
                         Function func = GetFunctionWithinOffset(ins.GetOperandsAsInt);
                         if (!func.predecodeStarted)
                             func.PreDecode();
+
+                        /*
+                         * This logic is flawed, and the entire type inference system has been re-worked.
+                         * Who knows when I'll have some spare time to finish that branch though :)
+                         */
                         if (func.predecoded)
                         {
+                            func.Params.checkvars();
                             for (int j = 0; j < func.Pcount; j++)
                             {
                                 if (stack.ItemType(func.Pcount - j - 1) != Stack.DataType.Unk)
                                 {
+                                    /* Quick and dirty hack to avoid inlined immediates */
+                                    if (!func.Params.GetVarAtIndex((uint)j).Is_Used)
+                                        break;
+
                                     if (func.Params.GetTypeAtIndex((uint)j).LessThan(stack.ItemType(func.Pcount - j - 1)))
                                     {
                                         if (func != this)
