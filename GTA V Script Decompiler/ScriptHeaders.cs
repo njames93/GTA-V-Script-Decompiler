@@ -42,7 +42,17 @@ namespace Decompiler
             ScriptHeader header = new ScriptHeader();
             IO.Reader reader = new IO.Reader(scriptStream);
             scriptStream.Seek(0, SeekOrigin.Begin);
-            header.RSC7Offset = (reader.SReadUInt32() == 0x52534337) ? 0x10 : 0x0;
+            switch (reader.SReadUInt32())
+            {
+                case 0x52534337: // RSC7
+                case 0x52534338: // RSC8
+                    header.RSC7Offset = 0x10;
+                    break;
+                default:
+                    header.RSC7Offset = 0x0;
+                    break;
+            }
+
             scriptStream.Seek(header.RSC7Offset, SeekOrigin.Begin);
             header.Magic = reader.SReadInt32(); //0x0
             header.SubHeader = reader.SReadPointer(); //0x4
@@ -94,7 +104,17 @@ namespace Decompiler
             ScriptHeader header = new ScriptHeader();
             IO.Reader reader = new IO.Reader(scriptStream);
             scriptStream.Seek(0, SeekOrigin.Begin);
-            header.RSC7Offset = (reader.ReadUInt32() == 0x37435352) ? 0x10 : 0x0;
+            switch (reader.ReadUInt32())
+            {
+                case 0x37435352: // RSC7
+                case 0x38435352: // RSC8
+                    header.RSC7Offset = 0x10;
+                    break;
+                default:
+                    header.RSC7Offset = 0;
+                    break;
+            }
+
             scriptStream.Seek(header.RSC7Offset, SeekOrigin.Begin);
             header.Magic = reader.ReadInt32(); //0x0
             reader.Advance();

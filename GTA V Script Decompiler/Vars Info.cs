@@ -73,14 +73,14 @@ namespace Decompiler
                     continue;
                 if (Vars[i].Is_Array)
                 {
-                    for (int j = i + 1; j < i + 1 + Vars[i].Value * Vars[i].Immediatesize; j++)
+                    for (int j = i + 1; j < Math.Min(Vars.Count, i + 1 + Vars[i].Value * Vars[i].Immediatesize); j++)
                     {
                         Vars[j].dontuse();
                     }
                 }
                 else if (Vars[i].Immediatesize > 1)
                 {
-                    for (int j = i + 1; j < i + Vars[i].Immediatesize; j++)
+                    for (int j = i + 1; j < Math.Min(Vars.Count, i + Vars[i].Immediatesize); j++)
                     {
                         broken_check((uint)j);
                         Vars[j].dontuse();

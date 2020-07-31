@@ -234,7 +234,7 @@ namespace Decompiler
             Functions[Functions.Count - 1].CodeBlock = CodeTable.GetRange(Functions[Functions.Count - 1].MaxLocation, CodeTable.Count - Functions[Functions.Count - 1].MaxLocation);
             foreach (Function func in Functions)
             {
-                if (CodeSet.Map(func.CodeBlock[0]) != Instruction.RAGE_ENTER && CodeSet.Map(func.CodeBlock[func.CodeBlock.Count - 3]) != Instruction.RAGE_LEAVE)
+                if (CodeSet.Map(func.CodeBlock[0]) != Instruction.ENTER && CodeSet.Map(func.CodeBlock[func.CodeBlock.Count - 3]) != Instruction.LEAVE)
                     throw new Exception("Function has incorrect start/ends");
             }
         }
@@ -268,64 +268,67 @@ namespace Decompiler
                 throw new Exception("Well this shouldnt have happened");
             }
             int temp = start1 + 5 + namelen;
-            while (CodeSet.Map(CodeTable[temp]) != Instruction.RAGE_LEAVE)
+            while (CodeSet.Map(CodeTable[temp]) != Instruction.LEAVE)
             {
                 switch (CodeSet.Map(CodeTable[temp]))
                 {
-                    case Instruction.RAGE_PUSH_CONST_U8: temp += 1; break;
-                    case Instruction.RAGE_PUSH_CONST_U8_U8: temp += 2; break;
-                    case Instruction.RAGE_PUSH_CONST_U8_U8_U8: temp += 3; break;
-                    case Instruction.RAGE_PUSH_CONST_U32:
-                    case Instruction.RAGE_PUSH_CONST_F: temp += 4; break;
-                    case Instruction.RAGE_NATIVE: temp += 3; break;
-                    case Instruction.RAGE_ENTER: throw new Exception("Return Expected");
-                    case Instruction.RAGE_LEAVE: throw new Exception("Return Expected");
-                    case Instruction.RAGE_ARRAY_U8:
-                    case Instruction.RAGE_ARRAY_U8_LOAD:
-                    case Instruction.RAGE_ARRAY_U8_STORE:
-                    case Instruction.RAGE_LOCAL_U8:
-                    case Instruction.RAGE_LOCAL_U8_LOAD:
-                    case Instruction.RAGE_LOCAL_U8_STORE:
-                    case Instruction.RAGE_STATIC_U8:
-                    case Instruction.RAGE_STATIC_U8_LOAD:
-                    case Instruction.RAGE_STATIC_U8_STORE:
-                    case Instruction.RAGE_IADD_U8:
-                    case Instruction.RAGE_IMUL_U8:
-                    case Instruction.RAGE_IOFFSET_U8:
-                    case Instruction.RAGE_IOFFSET_U8_LOAD:
-                    case Instruction.RAGE_IOFFSET_U8_STORE: temp += 1; break;
-                    case Instruction.RAGE_PUSH_CONST_S16:
-                    case Instruction.RAGE_IADD_S16:
-                    case Instruction.RAGE_IMUL_S16:
-                    case Instruction.RAGE_IOFFSET_S16:
-                    case Instruction.RAGE_IOFFSET_S16_LOAD:
-                    case Instruction.RAGE_IOFFSET_S16_STORE:
-                    case Instruction.RAGE_ARRAY_U16:
-                    case Instruction.RAGE_ARRAY_U16_LOAD:
-                    case Instruction.RAGE_ARRAY_U16_STORE:
-                    case Instruction.RAGE_LOCAL_U16:
-                    case Instruction.RAGE_LOCAL_U16_LOAD:
-                    case Instruction.RAGE_LOCAL_U16_STORE:
-                    case Instruction.RAGE_STATIC_U16:
-                    case Instruction.RAGE_STATIC_U16_LOAD:
-                    case Instruction.RAGE_STATIC_U16_STORE:
-                    case Instruction.RAGE_GLOBAL_U16:
-                    case Instruction.RAGE_GLOBAL_U16_LOAD:
-                    case Instruction.RAGE_GLOBAL_U16_STORE:
-                    case Instruction.RAGE_J:
-                    case Instruction.RAGE_JZ:
-                    case Instruction.RAGE_IEQ_JZ:
-                    case Instruction.RAGE_INE_JZ:
-                    case Instruction.RAGE_IGT_JZ:
-                    case Instruction.RAGE_IGE_JZ:
-                    case Instruction.RAGE_ILT_JZ:
-                    case Instruction.RAGE_ILE_JZ: temp += 2; break;
-                    case Instruction.RAGE_CALL:
-                    case Instruction.RAGE_GLOBAL_U24:
-                    case Instruction.RAGE_GLOBAL_U24_LOAD:
-                    case Instruction.RAGE_GLOBAL_U24_STORE:
-                    case Instruction.RAGE_PUSH_CONST_U24: temp += 3; break;
-                    case Instruction.RAGE_SWITCH:
+                    case Instruction.PUSH_CONST_U8: temp += 1; break;
+                    case Instruction.PUSH_CONST_U8_U8: temp += 2; break;
+                    case Instruction.PUSH_CONST_U8_U8_U8: temp += 3; break;
+                    case Instruction.PUSH_CONST_U32:
+                    case Instruction.PUSH_CONST_F: temp += 4; break;
+                    case Instruction.NATIVE: temp += 3; break;
+                    case Instruction.ENTER: throw new Exception("Return Expected");
+                    case Instruction.LEAVE: throw new Exception("Return Expected");
+                    case Instruction.ARRAY_U8:
+                    case Instruction.ARRAY_U8_LOAD:
+                    case Instruction.ARRAY_U8_STORE:
+                    case Instruction.LOCAL_U8:
+                    case Instruction.LOCAL_U8_LOAD:
+                    case Instruction.LOCAL_U8_STORE:
+                    case Instruction.STATIC_U8:
+                    case Instruction.STATIC_U8_LOAD:
+                    case Instruction.STATIC_U8_STORE:
+                    case Instruction.IADD_U8:
+                    case Instruction.IMUL_U8:
+                    case Instruction.IOFFSET_U8:
+                    case Instruction.IOFFSET_U8_LOAD:
+                    case Instruction.IOFFSET_U8_STORE: temp += 1; break;
+                    case Instruction.PUSH_CONST_S16:
+                    case Instruction.IADD_S16:
+                    case Instruction.IMUL_S16:
+                    case Instruction.IOFFSET_S16:
+                    case Instruction.IOFFSET_S16_LOAD:
+                    case Instruction.IOFFSET_S16_STORE:
+                    case Instruction.ARRAY_U16:
+                    case Instruction.ARRAY_U16_LOAD:
+                    case Instruction.ARRAY_U16_STORE:
+                    case Instruction.LOCAL_U16:
+                    case Instruction.LOCAL_U16_LOAD:
+                    case Instruction.LOCAL_U16_STORE:
+                    case Instruction.STATIC_U16:
+                    case Instruction.STATIC_U16_LOAD:
+                    case Instruction.STATIC_U16_STORE:
+                    case Instruction.GLOBAL_U16:
+                    case Instruction.GLOBAL_U16_LOAD:
+                    case Instruction.GLOBAL_U16_STORE:
+                    case Instruction.J:
+                    case Instruction.JZ:
+                    case Instruction.IEQ_JZ:
+                    case Instruction.INE_JZ:
+                    case Instruction.IGT_JZ:
+                    case Instruction.IGE_JZ:
+                    case Instruction.ILT_JZ:
+                    case Instruction.ILE_JZ: temp += 2; break;
+                    case Instruction.CALL:
+                    case Instruction.STATIC_U24:
+                    case Instruction.STATIC_U24_LOAD:
+                    case Instruction.STATIC_U24_STORE:
+                    case Instruction.GLOBAL_U24:
+                    case Instruction.GLOBAL_U24_LOAD:
+                    case Instruction.GLOBAL_U24_STORE:
+                    case Instruction.PUSH_CONST_U24: temp += 3; break;
+                    case Instruction.SWITCH:
                     {
                         if (Program.RDROpcodes)
                         {
@@ -336,10 +339,10 @@ namespace Decompiler
                             temp += 1 + 6 * CodeTable[temp + 1];
                         break;
                     }
-                    case Instruction.RAGE_TEXT_LABEL_ASSIGN_STRING:
-                    case Instruction.RAGE_TEXT_LABEL_ASSIGN_INT:
-                    case Instruction.RAGE_TEXT_LABEL_APPEND_STRING:
-                    case Instruction.RAGE_TEXT_LABEL_APPEND_INT: temp += 1; break;
+                    case Instruction.TEXT_LABEL_ASSIGN_STRING:
+                    case Instruction.TEXT_LABEL_ASSIGN_INT:
+                    case Instruction.TEXT_LABEL_APPEND_STRING:
+                    case Instruction.TEXT_LABEL_APPEND_INT: temp += 1; break;
                 }
                 temp += 1;
             }
@@ -362,60 +365,63 @@ namespace Decompiler
             {
                 switch (CodeSet.Map(CodeTable[offset]))
                 {
-                    case Instruction.RAGE_PUSH_CONST_U8: advpos(1); break;
-                    case Instruction.RAGE_PUSH_CONST_U8_U8: advpos(2); break;
-                    case Instruction.RAGE_PUSH_CONST_U8_U8_U8: advpos(3); break;
-                    case Instruction.RAGE_PUSH_CONST_U32:
-                    case Instruction.RAGE_PUSH_CONST_F: advpos(4); break;
-                    case Instruction.RAGE_NATIVE: advpos(3); break;
-                    case Instruction.RAGE_ENTER: AddFunction(offset, returnpos + 3); ; advpos(CodeTable[offset + 4] + 4); break;
-                    case Instruction.RAGE_LEAVE: returnpos = offset; advpos(2); break;
-                    case Instruction.RAGE_ARRAY_U8:
-                    case Instruction.RAGE_ARRAY_U8_LOAD:
-                    case Instruction.RAGE_ARRAY_U8_STORE:
-                    case Instruction.RAGE_LOCAL_U8:
-                    case Instruction.RAGE_LOCAL_U8_LOAD:
-                    case Instruction.RAGE_LOCAL_U8_STORE:
-                    case Instruction.RAGE_STATIC_U8:
-                    case Instruction.RAGE_STATIC_U8_LOAD:
-                    case Instruction.RAGE_STATIC_U8_STORE:
-                    case Instruction.RAGE_IADD_U8:
-                    case Instruction.RAGE_IMUL_U8:
-                    case Instruction.RAGE_IOFFSET_U8:
-                    case Instruction.RAGE_IOFFSET_U8_LOAD:
-                    case Instruction.RAGE_IOFFSET_U8_STORE: advpos(1); break;
-                    case Instruction.RAGE_PUSH_CONST_S16:
-                    case Instruction.RAGE_IADD_S16:
-                    case Instruction.RAGE_IMUL_S16:
-                    case Instruction.RAGE_IOFFSET_S16:
-                    case Instruction.RAGE_IOFFSET_S16_LOAD:
-                    case Instruction.RAGE_IOFFSET_S16_STORE:
-                    case Instruction.RAGE_ARRAY_U16:
-                    case Instruction.RAGE_ARRAY_U16_LOAD:
-                    case Instruction.RAGE_ARRAY_U16_STORE:
-                    case Instruction.RAGE_LOCAL_U16:
-                    case Instruction.RAGE_LOCAL_U16_LOAD:
-                    case Instruction.RAGE_LOCAL_U16_STORE:
-                    case Instruction.RAGE_STATIC_U16:
-                    case Instruction.RAGE_STATIC_U16_LOAD:
-                    case Instruction.RAGE_STATIC_U16_STORE:
-                    case Instruction.RAGE_GLOBAL_U16:
-                    case Instruction.RAGE_GLOBAL_U16_LOAD:
-                    case Instruction.RAGE_GLOBAL_U16_STORE:
-                    case Instruction.RAGE_J:
-                    case Instruction.RAGE_JZ:
-                    case Instruction.RAGE_IEQ_JZ:
-                    case Instruction.RAGE_INE_JZ:
-                    case Instruction.RAGE_IGT_JZ:
-                    case Instruction.RAGE_IGE_JZ:
-                    case Instruction.RAGE_ILT_JZ:
-                    case Instruction.RAGE_ILE_JZ: advpos(2); break;
-                    case Instruction.RAGE_CALL:
-                    case Instruction.RAGE_GLOBAL_U24:
-                    case Instruction.RAGE_GLOBAL_U24_LOAD:
-                    case Instruction.RAGE_GLOBAL_U24_STORE:
-                    case Instruction.RAGE_PUSH_CONST_U24: advpos(3); break;
-                    case Instruction.RAGE_SWITCH:
+                    case Instruction.PUSH_CONST_U8: advpos(1); break;
+                    case Instruction.PUSH_CONST_U8_U8: advpos(2); break;
+                    case Instruction.PUSH_CONST_U8_U8_U8: advpos(3); break;
+                    case Instruction.PUSH_CONST_U32:
+                    case Instruction.PUSH_CONST_F: advpos(4); break;
+                    case Instruction.NATIVE: advpos(3); break;
+                    case Instruction.ENTER: AddFunction(offset, returnpos + 3); ; advpos(CodeTable[offset + 4] + 4); break;
+                    case Instruction.LEAVE: returnpos = offset; advpos(2); break;
+                    case Instruction.ARRAY_U8:
+                    case Instruction.ARRAY_U8_LOAD:
+                    case Instruction.ARRAY_U8_STORE:
+                    case Instruction.LOCAL_U8:
+                    case Instruction.LOCAL_U8_LOAD:
+                    case Instruction.LOCAL_U8_STORE:
+                    case Instruction.STATIC_U8:
+                    case Instruction.STATIC_U8_LOAD:
+                    case Instruction.STATIC_U8_STORE:
+                    case Instruction.IADD_U8:
+                    case Instruction.IMUL_U8:
+                    case Instruction.IOFFSET_U8:
+                    case Instruction.IOFFSET_U8_LOAD:
+                    case Instruction.IOFFSET_U8_STORE: advpos(1); break;
+                    case Instruction.PUSH_CONST_S16:
+                    case Instruction.IADD_S16:
+                    case Instruction.IMUL_S16:
+                    case Instruction.IOFFSET_S16:
+                    case Instruction.IOFFSET_S16_LOAD:
+                    case Instruction.IOFFSET_S16_STORE:
+                    case Instruction.ARRAY_U16:
+                    case Instruction.ARRAY_U16_LOAD:
+                    case Instruction.ARRAY_U16_STORE:
+                    case Instruction.LOCAL_U16:
+                    case Instruction.LOCAL_U16_LOAD:
+                    case Instruction.LOCAL_U16_STORE:
+                    case Instruction.STATIC_U16:
+                    case Instruction.STATIC_U16_LOAD:
+                    case Instruction.STATIC_U16_STORE:
+                    case Instruction.GLOBAL_U16:
+                    case Instruction.GLOBAL_U16_LOAD:
+                    case Instruction.GLOBAL_U16_STORE:
+                    case Instruction.J:
+                    case Instruction.JZ:
+                    case Instruction.IEQ_JZ:
+                    case Instruction.INE_JZ:
+                    case Instruction.IGT_JZ:
+                    case Instruction.IGE_JZ:
+                    case Instruction.ILT_JZ:
+                    case Instruction.ILE_JZ: advpos(2); break;
+                    case Instruction.CALL:
+                    case Instruction.STATIC_U24:
+                    case Instruction.STATIC_U24_LOAD:
+                    case Instruction.STATIC_U24_STORE:
+                    case Instruction.GLOBAL_U24:
+                    case Instruction.GLOBAL_U24_LOAD:
+                    case Instruction.GLOBAL_U24_STORE:
+                    case Instruction.PUSH_CONST_U24: advpos(3); break;
+                    case Instruction.SWITCH:
                     {
                         if (Program.RDROpcodes)
                         {
@@ -426,10 +432,10 @@ namespace Decompiler
                             advpos(1 + 6 * CodeTable[offset + 1]);
                         break;
                     }
-                    case Instruction.RAGE_TEXT_LABEL_ASSIGN_STRING:
-                    case Instruction.RAGE_TEXT_LABEL_ASSIGN_INT:
-                    case Instruction.RAGE_TEXT_LABEL_APPEND_STRING:
-                    case Instruction.RAGE_TEXT_LABEL_APPEND_INT: advpos(1); break;
+                    case Instruction.TEXT_LABEL_ASSIGN_STRING:
+                    case Instruction.TEXT_LABEL_ASSIGN_INT:
+                    case Instruction.TEXT_LABEL_APPEND_STRING:
+                    case Instruction.TEXT_LABEL_APPEND_INT: advpos(1); break;
                 }
                 advpos(1);
             }
