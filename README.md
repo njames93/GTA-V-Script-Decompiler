@@ -46,8 +46,8 @@ Note: this tool is deprecated and a rewrite (improved type inference, call-graph
 # Decompile a single RDR Native Script
 decompiler.exe --default --opcode=rdr -n "Root:\rdr3-nativedb-data\natives.json" -i "Root:\rdr\ysc\startup_mp.ysc.full" -o "../somerelativepath/startup_mp.ysc.c"
 
-# Decompile a single 1131 RDR Native Script, and explode your console
-decompiler.exe --default --opcode=rdr1131 -n "Root:\rdr3-nativedb-data\natives.json" -i "Root:\rdr\ysc\fm_mission_controller.ysc"
+# Decompile a single 1311 RDR Native Script, and explode your console
+decompiler.exe --default --opcode=rdr1311 -n "Root:\rdr3-nativedb-data\natives.json" -i "Root:\rdr\ysc\fm_mission_controller.ysc"
 
 # Bulk decompile GTA Native Scripts with aggregation statistics
 decompiler.exe --default --opcode=v -a -n "Root:\gta5-nativedb-data\natives.json" -i "Root:\gta\ysc" -o "Root:\gta-v-decompiled-scripts.1737"

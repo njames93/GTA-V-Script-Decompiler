@@ -663,11 +663,11 @@ namespace Decompiler
     /// <summary>
     ///
     /// </summary>
-    public class RDR1131OpcodeSet : OpcodeSet
+    public class RDR1311OpcodeSet : OpcodeSet
     {
         public override int Count => 142;
 
-        public override Instruction Map(byte v) { return v < Count ? RDR1131OpcodeSet.Remap[v] : Instruction.last; }
+        public override Instruction Map(byte v) { return v < Count ? RDR1311OpcodeSet.Remap[v] : Instruction.last; }
 
         public static readonly Dictionary<Instruction, int> ShuffledInstructions = new Dictionary<Instruction, int> {
             { Instruction.NOP, 0 },
@@ -810,7 +810,7 @@ namespace Decompiler
             { Instruction.LOAD_N_S, 0 },
             { Instruction.STORE_N_S, 0 },
             { Instruction.STORE_N_SR, 0 },
-            // 1131
+            // 1311
             { Instruction.STATIC_U24, 0 },
             { Instruction.STATIC_U24_LOAD, 0 },
             { Instruction.STATIC_U24_STORE, 0 },
