@@ -260,6 +260,7 @@ namespace Decompiler
             { "PopZone", Stack.DataType.Int },
             { "PropSet", Stack.DataType.Int },
             { "ItemSet", Stack.DataType.Int },
+            { "PersChar", Stack.DataType.Int },
         };
     }
 

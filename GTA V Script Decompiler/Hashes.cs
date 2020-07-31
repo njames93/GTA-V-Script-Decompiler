@@ -34,33 +34,13 @@ namespace Decompiler
 
         private void Populate(StreamReader reader)
         {
-            string collision = "";
             while (!reader.EndOfStream)
             {
-                string line = reader.ReadLine();
-                if (line.Contains(":"))
-                {
-                    string[] split = line.Split(new char[] { ':' }, StringSplitOptions.RemoveEmptyEntries);
-                    if (split.Length != 2)
-                        continue;
+                var line = reader.ReadLine();
+                var hash = (int)Utils.GetJoaat(line.ToLower());
 
-                    int hash = Convert.ToInt32(split[0]);
-                    if (hash == 0)
-                        continue;
-                    else if (hashes.TryGetValue(hash, out collision))
-                    {
-                        if (collision.Length < split[1].Length)
-                            hashes[hash] = collision; // On hash collision, use the shorter of the two strings
-                    }
-                    else
-                        hashes.Add(hash, split[1]); // Dont use ToLower(), use whatever is defined in Entities.
-                }
-                else if (line.Trim().Length > 0)
-                {
-                    int hash = (int)Utils.jenkins_one_at_a_time_hash(line.ToLower());
-                    if (hash != 0 && !hashes.ContainsKey(hash))
-                        hashes.Add(hash, line); // Dont use ToLower(), use whatever is defined in Entities.
-                }
+                if (hash != 0 && !IsKnownHash(hash))
+                    hashes.Add(hash, line.ToUpper());
             }
         }
 
@@ -119,7 +99,7 @@ namespace Decompiler
         public GXTEntries()
         {
             entries = new Dictionary<int, string>();
-            string file = Path.Combine(Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location), Program.RDROpcodes ? "rdrgxr.dat" : "vgxt.dat");
+            string file = Path.Combine(Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location), Program.RDROpcodes ? "rdrgxt.dat" : "vgxt.dat");
 
             StreamReader reader;
             if (File.Exists(file))
@@ -144,7 +124,7 @@ namespace Decompiler
                     if (split.Length != 2)
                         continue;
 
-                    int hash = split[0].StartsWith("0x") ? Convert.ToInt32(split[0], 16) : (int)Utils.jenkins_one_at_a_time_hash(split[0]);
+                    int hash = split[0].StartsWith("0x") ? Convert.ToInt32(split[0], 16) : (int)Utils.GetJoaat(split[0]);
                     if (hash != 0 && !entries.ContainsKey(hash))
                         entries.Add(hash, ToLiteral(split[1]));
                 }

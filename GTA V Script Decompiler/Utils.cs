@@ -12,7 +12,7 @@ namespace Decompiler
     {
         static SHA256Managed crypt = new SHA256Managed();
 
-        public static uint jenkins_one_at_a_time_hash(string str)
+        public static uint GetJoaat(string str)
         {
             uint hash, i;
             char[] key = str.ToLower().ToCharArray();
@@ -119,7 +119,7 @@ namespace Decompiler
             if (temp.StartsWith("joaat(\""))
             {
                 temp = temp.Remove(temp.Length - 2).Substring(7);
-                uint val = jenkins_one_at_a_time_hash(temp);
+                uint val = GetJoaat(temp);
                 value = unchecked((int)val);
                 return true;
             }
