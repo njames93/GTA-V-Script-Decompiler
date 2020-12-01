@@ -114,6 +114,10 @@ namespace Decompiler
                     RDROpcodes = RDRNativeCipher = true;
                     Program.Codeset = new RDR1311OpcodeSet();
                     break;
+                case "rdr1355":
+                    RDROpcodes = RDRNativeCipher = true;
+                    Program.Codeset = new RDR1355OpcodeSet();
+                    break;
                 case "rdrconsole":
                     RDROpcodes = true;
                     Program.Codeset = new RDRConsoleOpcodeSet();

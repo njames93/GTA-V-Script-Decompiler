@@ -19,7 +19,7 @@ Note: this tool is deprecated and a rewrite (improved type inference, call-graph
   --version          Display version information.
   -i, --in           Input Directory/File Path.
   -o, --out          Output Directory/File Path.
-  -c, --opcode       Opcode Set (v|vconsole|rdr|rdr1311|rdrconsole) (Default: v)
+  -c, --opcode       Opcode Set (v|vconsole|rdr|rdr1311|rdr1355|rdrconsole) (Default: v)
   -n, --natives      native json file. On null use the use the defined opcode set to select a native resource.
   -f, --force        Allow output file overriding. (Default: false)
   -a, --aggregate    Compute aggregation statistics of bulk dataset. (Default: false)
