@@ -153,8 +153,11 @@ namespace Decompiler
                     }
                     case StackValue.Type.Struct:
                     {
-                        if (count + top.StructSize > size)
-                            throw new Exception("Struct size too large");
+                        // Temporary fix for fm_mission_controller_2020.ysc; this codebase sucks.
+                        if (count + top.StructSize > size) { // ../ysc/
+                            top.StructSize = (size - count);
+                            //throw new Exception("Struct size too large");
+                        }
                         count += top.StructSize;
                         items.Add(new StackValue(this, StackValue.Type.Literal, top.Value));
                         break;
@@ -1275,7 +1278,10 @@ namespace Decompiler
             public string Value => _value;
             public Type ItemType => _type;
             private bool isLiteral => ItemType == Type.Literal;
-            public int StructSize => _structSize;
+            public int StructSize { // Temporary fix for fm_mission_controller_2020.ysc; this codebase sucks.
+                get => _structSize;
+                set { _structSize = value; }
+            }
 
             public Vars_Info.Var Variable => _var;
             public Function Function => _function;
