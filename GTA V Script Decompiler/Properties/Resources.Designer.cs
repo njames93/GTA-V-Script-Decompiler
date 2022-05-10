@@ -19,7 +19,7 @@ namespace Decompiler.Properties {
     // class via a tool like ResGen or Visual Studio.
     // To add or remove a member, edit your .ResX file then rerun ResGen
     // with the /str option, or rebuild your VS project.
-    [global::System.CodeDom.Compiler.GeneratedCodeAttribute("System.Resources.Tools.StronglyTypedResourceBuilder", "4.0.0.0")]
+    [global::System.CodeDom.Compiler.GeneratedCodeAttribute("System.Resources.Tools.StronglyTypedResourceBuilder", "16.0.0.0")]
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
     [global::System.Runtime.CompilerServices.CompilerGeneratedAttribute()]
     internal class Resources {
@@ -73,9 +73,9 @@ namespace Decompiler.Properties {
         /// <summary>
         ///   Looks up a localized resource of type System.Byte[].
         /// </summary>
-        internal static byte[] native_translation {
+        internal static byte[] Natives {
             get {
-                object obj = ResourceManager.GetObject("native_translation", resourceCulture);
+                object obj = ResourceManager.GetObject("Natives", resourceCulture);
                 return ((byte[])(obj));
             }
         }
@@ -83,9 +83,9 @@ namespace Decompiler.Properties {
         /// <summary>
         ///   Looks up a localized resource of type System.Byte[].
         /// </summary>
-        internal static byte[] natives {
+        internal static byte[] RDNatives {
             get {
-                object obj = ResourceManager.GetObject("natives", resourceCulture);
+                object obj = ResourceManager.GetObject("RDNatives", resourceCulture);
                 return ((byte[])(obj));
             }
         }
@@ -93,9 +93,19 @@ namespace Decompiler.Properties {
         /// <summary>
         ///   Looks up a localized resource of type System.Byte[].
         /// </summary>
-        internal static byte[] x64natives {
+        internal static byte[] rdrgxt {
             get {
-                object obj = ResourceManager.GetObject("x64natives", resourceCulture);
+                object obj = ResourceManager.GetObject("rdrgxt", resourceCulture);
+                return ((byte[])(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized resource of type System.Byte[].
+        /// </summary>
+        internal static byte[] vgxt {
+            get {
+                object obj = ResourceManager.GetObject("vgxt", resourceCulture);
                 return ((byte[])(obj));
             }
         }
